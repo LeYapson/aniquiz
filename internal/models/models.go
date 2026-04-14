@@ -19,6 +19,7 @@ type Track struct {
 	Artist 			string `json:"artist"`
 	AudioURL		string `json:"audio_url"`
 	Difficulty		int `json:"difficulty"`
+	MalID     		int    `json:"mal_id"`
 }
 
 type Score struct {
