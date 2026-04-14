@@ -41,17 +41,17 @@ func main() {
 			})
 			return
 		}
-		musicInfo, err := sourcing.GetAnimeMusic(animeId)
+		info, err := sourcing.ProcessAndSaveAnime(animeId)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H {
-				"error": fmt.Sprintf("Failed to get anime music info: %v", err),
+				"error": err.Error(),
 			})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H {
-			"anime": musicInfo.Title,
-			"openings": musicInfo.Openings,
-			"endings": musicInfo.Endings,
+			"message": "Anime traité et musiques sauvegardées ! ",
+			"anime": info.Title,
 		})
 	})
 
