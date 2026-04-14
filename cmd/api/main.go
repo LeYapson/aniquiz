@@ -34,17 +34,24 @@ func main() {
 	})
 
 	router.GET("/anime/:id", func(c *gin.Context) {
-		animeId := c.Param("id")
-		animeIdInt, err := strconv.Atoi(animeId)
+		animeId, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H {
 				"error": "Invalid anime ID",
 			})
 			return
 		}
-		animeInfo :=sourcing.GetAnimeInfo(animeIdInt)
+		musicInfo, err := sourcing.GetAnimeMusic(animeId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H {
+				"error": fmt.Sprintf("Failed to get anime music info: %v", err),
+			})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H {
-			"message": fmt.Sprintf("Information sur l'anime %s", animeInfo),
+			"anime": musicInfo.Title,
+			"openings": musicInfo.Openings,
+			"endings": musicInfo.Endings,
 		})
 	})
 
