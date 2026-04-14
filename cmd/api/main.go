@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/LeYapson/aniquiz/internal/database"
+	"github.com/LeYapson/aniquiz/internal/sourcing"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +30,28 @@ func main() {
 		c.JSON(http.StatusOK, gin.H {
 			"message": "pong",
 			"status": "connected to DB",
+		})
+	})
+
+	router.GET("/anime/:id", func(c *gin.Context) {
+		animeId, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H {
+				"error": "Invalid anime ID",
+			})
+			return
+		}
+		info, err := sourcing.ProcessAndSaveAnime(animeId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H {
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H {
+			"message": "Anime traité et musiques sauvegardées ! ",
+			"anime": info.Title,
 		})
 	})
 
