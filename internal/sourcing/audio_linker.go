@@ -8,12 +8,13 @@ import (
 
 // Structure pour décoder la réponse de themes.moe
 type ThemesResponse []struct {
-	Themes []struct {
-		Type string `json:"type"`
-		Mirror struct {
-			MirrorURL string `json:"mirror_url"`
-		} `json:"mirror"`
-	} `json:"themes"`
+    Themes []struct {
+        Type string `json:"type"`
+        Mirror struct {
+            // Le nom dans le JSON est "mirror", pas "mirror_url"
+            MirrorURL string `json:"mirror"` 
+        } `json:"mirror"`
+    } `json:"themes"`
 }
 
 func GetAudioURL(malID int) (map[string]string, error) {
