@@ -26,3 +26,30 @@ func SaveTrack(track models.Track) error {
 
 	return nil
 }
+
+func GetAllTracks() ([]models.Track, error) {
+	conn, err := Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(context.Background())
+
+	//On recupere tous ce qu'on a en base
+	rows, err := conn.Query(context.Background(),
+		"SELECT title, artist, anime_name, audio_url, mal_id FROM tracks")
+	if err != nil {
+		return nil, fmt.Errorf("Erreur lors de la récupération : %v", err)
+	}
+	defer rows.Close()
+
+	var tracks []models.Track
+	for rows.Next() {
+		var t models.Track
+		err := rows.Scan(&t.Title, &t.Artist, &t.AnimeName, &t.AudioURL, &t.MalID)
+		if err != nil {
+			return nil, err
+		}
+		tracks = append(tracks, t)
+	}
+	return tracks, nil
+}
