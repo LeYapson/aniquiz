@@ -17,52 +17,41 @@ type AnimeMusicInfo struct {
 }
 
 func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
-	//1 - On recupere les infos de l'anime via jikan 
-	musicInfo, err := GetAnimeMusic(animeId)
-	if err != nil {
-		return nil, err
-	}
+    // 1. Récupération Jikan
+    musicInfo, err := GetAnimeMusic(animeId)
+    if err != nil {
+        return nil, err
+    }
 
-	// 2 . RECUPERER LES LIENS AUDIO (linker)
-	audiolinks, _ := GetAudioURL(animeId)
+    // 2. Récupération Audio (Linker)
+    audiolinks, _ := GetAudioURL(animeId)
 
-	// 3 . Sauvegarder
-	for i, op := range musicInfo.Openings {
-		//on essai de faire correspondre les liens audio avec les openings/endings
-		opKey := fmt.Sprintf("opening%d", i+1)
-		audioURL := "not_found"
-		if url, ok := audiolinks[opKey]; ok {
-			audioURL = url
-		}
+    // 3. Boucle sur les Openings
+    for i, op := range musicInfo.Openings {
+        // NETTOYAGE : On utilise ta fonction parseTrack
+        cleanTitle, cleanArtist := parseTrack(op)
 
-		track := models.Track{
-			Title: op,
-			AnimeName: musicInfo.Title,
-			AudioURL: audioURL,
-			MalID: animeId,
-		}
-		database.SaveTrack(track)
-	}
+        // AUDIO : Themes.moe utilise "OP1", "OP2"... pas "opening1"
+        opKey := fmt.Sprintf("OP%d", i+1) 
+        audioURL := "not_found"
+        if url, ok := audiolinks[opKey]; ok {
+            audioURL = url
+        }
 
-	return musicInfo, nil
+        track := models.Track{
+            Title:      cleanTitle,
+            Artist:     cleanArtist,
+            AnimeName:  musicInfo.Title,
+            AudioURL:   audioURL,
+            MalID:      animeId,
+            Difficulty: 1, // On force à 1 pour éviter le 0 par défaut
+        }
+        
+        database.SaveTrack(track)
+    }
+
+    return musicInfo, nil
 }
-	//2 - Pour chaque opening trouvé, on crée un modele et on sauvegarde
-	/*for _, op := range musicInfo.Openings {
-		cleanTitle, cleanArtist := parseTrack(op) // on utilise notre nouvelle fonction
-		track := models.Track{
-			Title: cleanTitle, 
-			Artist: cleanArtist,
-			AnimeName: musicInfo.Title,
-			AudioURL: "pending", // On remplira ça plus tard
-			Difficulty: 1, // Valeur par défaut pour l'instant
-		}
-
-		//3 - On sauvegarde dans la base de données
-		database.SaveTrack(track)
-	}
-
-	return musicInfo, nil
-}*/
 
 func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
 	//on recupere les themes specifiques*
