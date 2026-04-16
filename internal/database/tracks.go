@@ -71,3 +71,18 @@ func GetRandomTrack() (*models.Track, error) {
 
 	return &t, nil
 }
+
+func GetTrackByID(id int) (*models.Track, error) {
+	conn, err := Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(context.Background())
+
+	var t models.Track
+	err = conn.QueryRow(context.Background(),
+		"SELECT id, title, artist, anime_name FROM tracks WHERE id = $1", id).Scan(
+			&t.ID, &t.Title, &t.Artist, &t.AnimeName,
+		)
+		return &t, err
+}

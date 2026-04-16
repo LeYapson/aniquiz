@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/LeYapson/aniquiz/internal/database"
+	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/LeYapson/aniquiz/internal/sourcing"
 
@@ -15,6 +16,14 @@ import (
 )
 
 func main() {
+
+	type AnswerRequest struct {
+		TrackID int `json:"track_id"`
+		Answer string `json:"answer"`
+	}
+
+
+
 	// 1 - Connexion à la base de données
 	conn, err := database.Connect()
 	if err != nil {
@@ -118,6 +127,41 @@ func main() {
 		})
 		
 	})
+
+	router.POST("/quiz/answer", func(c *gin.Context) {
+		var req AnswerRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		//1 recuperer la vrai réponse en DB
+		track, err := database.GetTrackByID(req.TrackID)
+		if err != nil {
+			c.JSON(404, gin.H{"error": "Musique introuvable"})
+			return
+		}
+
+		//2 comparer la réponse de l'utilisateur avec la vrai réponse
+		success := game.IsCorrect(req.Answer, track.AnimeName)
+
+		c.JSON(200, gin.H{
+			"correct": success,
+			"expected": track.AnimeName,
+			"your answer": req.Answer,
+		})
+	})
+
+	router.POST("/rooms", func(c *gin.Context) {
+    // Générer un ID simple (ex: "ABCD")
+    roomID := "ROOM123" 
+    room := game.CreateRoom(roomID)
+    
+    c.JSON(200, gin.H{
+        "message": "Salon créé",
+        "room_id": room.ID,
+    })
+})
 
 	// 4 - Démarrage du serveur
 	fmt.Println("Serveur lancé sur le http://localhost:8080")
