@@ -58,4 +58,5 @@ func main() {
 	// 4 - Démarrage du serveur
 	fmt.Println("Serveur lancé sur le http://localhost:8080")
 	router.Run(":8080")
+	//test de la CI
 }
