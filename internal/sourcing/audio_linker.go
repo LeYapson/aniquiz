@@ -7,7 +7,7 @@ import (
 )
 
 // Structure pour décoder la réponse de themes.moe
-type ThemesResponse struct {
+type ThemesResponse []struct {
 	Themes []struct {
 		Type string `json:"type"`
 		Mirror struct {

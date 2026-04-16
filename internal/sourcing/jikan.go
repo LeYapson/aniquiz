@@ -1,6 +1,7 @@
 package sourcing
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/LeYapson/aniquiz/internal/database"
@@ -22,8 +23,31 @@ func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
 		return nil, err
 	}
 
+	// 2 . RECUPERER LES LIENS AUDIO (linker)
+	audiolinks, _ := GetAudioURL(animeId)
+
+	// 3 . Sauvegarder
+	for i, op := range musicInfo.Openings {
+		//on essai de faire correspondre les liens audio avec les openings/endings
+		opKey := fmt.Sprintf("opening%d", i+1)
+		audioURL := "not_found"
+		if url, ok := audiolinks[opKey]; ok {
+			audioURL = url
+		}
+
+		track := models.Track{
+			Title: op,
+			AnimeName: musicInfo.Title,
+			AudioURL: audioURL,
+			MalID: animeId,
+		}
+		database.SaveTrack(track)
+	}
+
+	return musicInfo, nil
+}
 	//2 - Pour chaque opening trouvé, on crée un modele et on sauvegarde
-	for _, op := range musicInfo.Openings {
+	/*for _, op := range musicInfo.Openings {
 		cleanTitle, cleanArtist := parseTrack(op) // on utilise notre nouvelle fonction
 		track := models.Track{
 			Title: cleanTitle, 
@@ -38,7 +62,7 @@ func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
 	}
 
 	return musicInfo, nil
-}
+}*/
 
 func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
 	//on recupere les themes specifiques*
