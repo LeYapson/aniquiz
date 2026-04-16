@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/LeYapson/aniquiz/internal/database"
+	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/LeYapson/aniquiz/internal/sourcing"
 
 	"github.com/gin-gonic/gin"
@@ -94,6 +95,28 @@ func main() {
 
     html += "</body></html>"
     c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+	})
+
+	router.GET("/quiz/next", func(c *gin.Context)  {
+		track, err := database.GetRandomTrack()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire la DB"})
+			return
+		}
+
+		//On prépare la question (on cache la réponse)
+		question := models.QuizQuestion{
+			AudioURL: track.AudioURL,
+		}
+
+		// optionnel : on peut sotcker l'id de la réponse en session
+		//ou envoyer l'ID crypté pour vérifier la réponse plus tard
+
+		c.JSON(http.StatusOK, gin.H{
+			"question": question,
+			"debug_id": track.ID, // à retirer en prod, c'est juste pour vérifier que ça marche
+		})
+		
 	})
 
 	// 4 - Démarrage du serveur

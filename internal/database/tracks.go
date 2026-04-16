@@ -53,3 +53,21 @@ func GetAllTracks() ([]models.Track, error) {
 	}
 	return tracks, nil
 }
+
+func GetRandomTrack() (*models.Track, error) {
+	conn, err := Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(context.Background())
+
+	var t models.Track
+	query := `SELECT id, title, artist, anime_name, audio_url FROM tracks ORDER BY RANDOM() LIMIT 1`
+
+	err = conn.QueryRow(context.Background(), query).Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
