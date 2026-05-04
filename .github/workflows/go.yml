@@ -36,13 +36,13 @@ jobs:
           node-version: '20'
 
       - name: Install Frontend Deps
-        # On utilise 'working-directory' sur l'étape même, c'est plus fiable
-        working-directory: ./frontend
-        run: npm ci
+        # On vérifie où on est avec 'ls' en cas d'erreur
+        run: |
+          ls -R
+          cd frontend && npm ci
 
       - name: Build Frontend
-        working-directory: ./frontend
-        run: npm run build
+        run: cd frontend && npm run build
   #lint:
    # runs-on: ubuntu-latest
     #steps:
