@@ -6,26 +6,27 @@ import (
 	"github.com/LeYapson/aniquiz/internal/models"
 )
 
-type CheckResult struct {
-    IsCorrect bool   `json:"is_correct"`
-    Points    int    `json:"points"`
-    Message   string `json:"message"`
+type AnswerResult struct {
+	IsCorrect bool   `json:"is_correct"`
+	Points    int    `json:"points"`
+	Message   string `json:"message"`
 }
 
-func VerifyAnswer(playerAnswer string, track *models.Track) CheckResult {
-    player := strings.ToLower(strings.TrimSpace(playerAnswer))
-    
-    // 1. Check Anime Name (10 points)
-    correctAnime := strings.ToLower(strings.TrimSpace(strings.Split(track.AnimeName, "(")[0]))
-    if player == correctAnime {
-        return CheckResult{IsCorrect: true, Points: 10, Message: "Bravo ! C'est le bon anime."}
-    }
+func VerifyAnswer(userInput string, track *models.Track) AnswerResult {
+	user := strings.ToLower(strings.TrimSpace(userInput))
+	target := strings.ToLower(track.AnimeName)
 
-    // 2. Check Artist Name (5 points bonus)
-    correctArtist := strings.ToLower(strings.TrimSpace(track.Artist))
-    if player == correctArtist {
-        return CheckResult{IsCorrect: false, Points: 5, Message: "C'est bien l'artiste ! Mais quel est l'anime ?"}
-    }
+	// 1. Match Parfait
+	if user == target {
+		return AnswerResult{IsCorrect: true, Points: 10, Message: "Parfait !"}
+	}
 
-    return CheckResult{IsCorrect: false, Points: 0, Message: "Dommage, ce n'est pas ça."}
+	// 2. Match Partiel (Tolérance)
+	// Si la réponse utilisateur est contenue dans le titre (ex: "Naruto" dans "Naruto Shippuden")
+	// On vérifie que la réponse fait au moins 3 caractères pour éviter les points gratuits sur "The" ou "a"
+	if len(user) >= 3 && (strings.Contains(target, user) || strings.Contains(user, target)) {
+		return AnswerResult{IsCorrect: false, Points: 5, Message: "C'est presque ça (nom de l'anime) !"}
+	}
+
+	return AnswerResult{IsCorrect: false, Points: 0, Message: ""}
 }

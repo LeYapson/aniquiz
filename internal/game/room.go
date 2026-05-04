@@ -119,7 +119,7 @@ func(r *Room) StartNextRound() {
     //1. on récupere une musique aleatoire via notre package database
     track, err := database.GetRandomTrack()
     if err != nil {
-        fmt.Println("Erreur récup musique: %v\n", err)
+        fmt.Printf("Erreur récup musique: %v\n", err)
         return
     }
     
