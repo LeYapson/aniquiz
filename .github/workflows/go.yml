@@ -27,10 +27,6 @@ jobs:
   #--- JOB FRONTEND (NODE) ---
   frontend-build:
     runs-on: ubuntu-latest
-    # On définit le dossier de travail par défaut pour tout ce job
-    defaults:
-      run:
-        working-directory: ./frontend
     steps:
       - uses: actions/checkout@v4
       
@@ -38,15 +34,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          # Le chemin est maintenant relatif au working-directory
-          cache-dependency-path: 'frontend/package-lock.json'
+          # On retire la ligne 'cache: npm' qui cause le crash
 
       - name: Install Frontend Deps
-        run: npm ci
+        run: |
+          cd frontend
+          npm ci
 
       - name: Build Frontend
-        run: npm run build
+        run: |
+          cd frontend
+          npm run build
   #lint:
    # runs-on: ubuntu-latest
     #steps:
