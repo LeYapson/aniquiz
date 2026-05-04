@@ -6,14 +6,22 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/LeYapson/aniquiz/internal/sourcing"
+	"github.com/gorilla/websocket"
 
 	"github.com/gin-gonic/gin"
 )
+
+var upgrader = websocket.Upgrader{
+    ReadBufferSize:  1024,
+    WriteBufferSize: 1024,
+    CheckOrigin: func(r *http.Request) bool { return true }, // Pour les tests
+}
 
 func main() {
 
@@ -21,8 +29,6 @@ func main() {
 		TrackID int `json:"track_id"`
 		Answer string `json:"answer"`
 	}
-
-
 
 	// 1 - Connexion à la base de données
 	conn, err := database.Connect()
@@ -34,6 +40,47 @@ func main() {
 
 	// 2 - Initialisation du router Gin
 	router := gin.Default()
+
+	// --- NOUVELLE ROUTE WEBSOCKET ---
+    router.GET("/ws/:roomID", func(c *gin.Context) {
+        roomID := c.Param("roomID")
+
+        // 1. On cherche si le salon existe dans notre map globale
+        game.RoomsMu.Lock()
+        room, exists := game.ActiveRooms[roomID]
+        game.RoomsMu.Unlock()
+
+        if !exists {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Ce salon n'existe pas"})
+            return
+        }
+
+        // 2. On transforme (Upgrade) la connexion HTTP en WebSocket
+        conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+        if err != nil {
+            log.Printf("Erreur upgrade WS: %v", err)
+            return
+        }
+
+        // 3. On crée le client et on le lie au salon
+        // Pour l'instant on met un ID et un pseudo bidon, on gérera ça plus tard
+        client := &game.Client{
+            ID:       fmt.Sprintf("%d", time.Now().UnixNano()), 
+            Username: "Player_" + roomID,
+            Conn:     conn,
+            Room:     room,
+            Send:     make(chan []byte, 256),
+        }
+
+        // 4. On l'enregistre dans le salon
+        room.Register <- client
+
+        // 5. On lance les routines de lecture et d'écriture
+        // C'est ici que la magie de la concurrence Go opère !
+        go client.ReadPump()
+		go client.WritePump() // On créera la WritePump juste après pour envoyer des messages
+        // On créera la WritePump juste après pour envoyer des messages
+    })
 
 	// 3 - Définition des routes
 	router.GET("/ping", func(c *gin.Context)  {
@@ -129,33 +176,45 @@ func main() {
 	})
 
 	router.POST("/quiz/answer", func(c *gin.Context) {
-		var req AnswerRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"error": "Invalid request"})
-			return
-		}
+        var req AnswerRequest
+        if err := c.ShouldBindJSON(&req); err != nil {
+            c.JSON(400, gin.H{"error": "Invalid request"})
+            return
+        }
 
-		//1 recuperer la vrai réponse en DB
-		track, err := database.GetTrackByID(req.TrackID)
-		if err != nil {
-			c.JSON(404, gin.H{"error": "Musique introuvable"})
-			return
-		}
+        // 1. Récupérer la vraie réponse en DB
+        track, err := database.GetTrackByID(req.TrackID)
+        if err != nil {
+            c.JSON(404, gin.H{"error": "Musique introuvable"})
+            return
+        }
 
-		//2 comparer la réponse de l'utilisateur avec la vrai réponse
-		success := game.IsCorrect(req.Answer, track.AnimeName)
+        // 2. Utiliser la nouvelle fonction de vérification
+        // Elle prend l'objet 'track' entier maintenant !
+        result := game.VerifyAnswer(req.Answer, track)
 
-		c.JSON(200, gin.H{
-			"correct": success,
-			"expected": track.AnimeName,
-			"your answer": req.Answer,
-		})
-	})
+        c.JSON(200, gin.H{
+            "correct":     result.IsCorrect,
+            "points":      result.Points,
+            "message":     result.Message,
+            "expected":    track.AnimeName,
+            "your_answer": req.Answer,
+        })
+    })
 
 	router.POST("/rooms", func(c *gin.Context) {
-    // Générer un ID simple (ex: "ABCD")
     roomID := "ROOM123" 
+    
+    // 1. Créer l'objet
     room := game.CreateRoom(roomID)
+    
+    // 2. Lancer son moteur (sa boucle infinie)
+    go room.Run()
+    
+    // 3. L'ENREGISTRER dans la map globale (C'est l'étape que tu as peut-être oubliée)
+    game.RoomsMu.Lock()
+    game.ActiveRooms[roomID] = room
+    game.RoomsMu.Unlock()
     
     c.JSON(200, gin.H{
         "message": "Salon créé",
