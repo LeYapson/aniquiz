@@ -48,14 +48,16 @@ func main() {
 		username := c.Query("username")
 
 		game.RoomsMu.Lock()
-		// On cherche si le salon existe déjà
 		room, exists := game.ActiveRooms[roomID]
+		fmt.Printf("--- Tentative de connexion ---\n")
+		fmt.Printf("RoomID demandé: %s | Existe déjà: %t\n", roomID, exists)
+		fmt.Printf("Nombre de salons actifs: %d\n", len(game.ActiveRooms))
 
 		if !exists {
 			log.Printf("Création du salon : %s", roomID)
 			room = game.CreateRoom(roomID)
-			game.ActiveRooms[roomID] = room // ON L'ENREGISTRE BIEN ICI
-			go room.Run()                   // On lance la boucle du salon
+			game.ActiveRooms[roomID] = room
+			go room.Run()
 		}
 		game.RoomsMu.Unlock()
 
