@@ -82,7 +82,7 @@ func GetTrackByID(id int) (*models.Track, error) {
 	var t models.Track
 	err = conn.QueryRow(context.Background(),
 		"SELECT id, title, artist, anime_name FROM tracks WHERE id = $1", id).Scan(
-			&t.ID, &t.Title, &t.Artist, &t.AnimeName,
-		)
-		return &t, err
+		&t.ID, &t.Title, &t.Artist, &t.AnimeName,
+	)
+	return &t, err
 }

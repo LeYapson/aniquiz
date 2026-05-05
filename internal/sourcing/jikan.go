@@ -10,47 +10,46 @@ import (
 )
 
 type AnimeMusicInfo struct {
-	Title string
+	Title    string
 	Openings []string
-	Endings []string
-
+	Endings  []string
 }
 
 func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
-    // 1. Récupération Jikan
-    musicInfo, err := GetAnimeMusic(animeId)
-    if err != nil {
-        return nil, err
-    }
+	// 1. Récupération Jikan
+	musicInfo, err := GetAnimeMusic(animeId)
+	if err != nil {
+		return nil, err
+	}
 
-    // 2. Récupération Audio (Linker)
-    audiolinks, _ := GetAudioURL(animeId)
+	// 2. Récupération Audio (Linker)
+	audiolinks, _ := GetAudioURL(animeId)
 
-    // 3. Boucle sur les Openings
-    for i, op := range musicInfo.Openings {
-        // NETTOYAGE : On utilise ta fonction parseTrack
-        cleanTitle, cleanArtist := parseTrack(op)
+	// 3. Boucle sur les Openings
+	for i, op := range musicInfo.Openings {
+		// NETTOYAGE : On utilise ta fonction parseTrack
+		cleanTitle, cleanArtist := parseTrack(op)
 
-        // AUDIO : Themes.moe utilise "OP1", "OP2"... pas "opening1"
-        opKey := fmt.Sprintf("OP%d", i+1) 
-        audioURL := "not_found"
-        if url, ok := audiolinks[opKey]; ok {
-            audioURL = url
-        }
+		// AUDIO : Themes.moe utilise "OP1", "OP2"... pas "opening1"
+		opKey := fmt.Sprintf("OP%d", i+1)
+		audioURL := "not_found"
+		if url, ok := audiolinks[opKey]; ok {
+			audioURL = url
+		}
 
-        track := models.Track{
-            Title:      cleanTitle,
-            Artist:     cleanArtist,
-            AnimeName:  musicInfo.Title,
-            AudioURL:   audioURL,
-            MalID:      animeId,
-            Difficulty: 1, // On force à 1 pour éviter le 0 par défaut
-        }
-        
-        database.SaveTrack(track)
-    }
+		track := models.Track{
+			Title:      cleanTitle,
+			Artist:     cleanArtist,
+			AnimeName:  musicInfo.Title,
+			AudioURL:   audioURL,
+			MalID:      animeId,
+			Difficulty: 1, // On force à 1 pour éviter le 0 par défaut
+		}
 
-    return musicInfo, nil
+		database.SaveTrack(track)
+	}
+
+	return musicInfo, nil
 }
 
 func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
@@ -67,13 +66,13 @@ func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
 	}
 
 	return &AnimeMusicInfo{
-		Title: anime.Data.Title,
+		Title:    anime.Data.Title,
 		Openings: themes.Data.Openings,
-		Endings: themes.Data.Endings,
+		Endings:  themes.Data.Endings,
 	}, nil
 }
 
-// parseTrack transforme '"Tank!" by The Seatbelts (eps 1-25)' 
+// parseTrack transforme '"Tank!" by The Seatbelts (eps 1-25)'
 // en Titre: Tank!, Artiste: The Seatbelts
 func parseTrack(rawTitle string) (string, string) {
 	// 1 - retire les episodes (ce qui est entre parenthèses)
