@@ -17,5 +17,10 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  test: {
+    // Cette ligne est la clé :
+    environment: 'jsdom', 
+    globals: true // Permet d'utiliser 'describe', 'it', 'expect' sans les importer
   }
 })
