@@ -80,15 +80,15 @@ test.describe('Lobby', () => {
   test('affiche le nom du salon et le pseudo dans la barre de statut', async ({ page }) => {
     await joinRoom(page)
 
-    await expect(page.getByText('general')).toBeVisible()
-    await expect(page.getByText('Alice')).toBeVisible()
+    await expect(page.locator('.status-bar').getByText('general')).toBeVisible()
+    await expect(page.locator('.status-bar').getByText('Alice')).toBeVisible()
   })
 
   test('affiche la liste des joueurs dans la sidebar', async ({ page }) => {
     await joinRoom(page)
 
-    await expect(page.getByText('Joueurs')).toBeVisible()
-    await expect(page.getByText('Alice')).toBeVisible()
+    await expect(page.locator('.sidebar').getByText('Joueurs')).toBeVisible()
+    await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
   })
 
   test('affiche le bouton Quitter', async ({ page }) => {
