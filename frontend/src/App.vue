@@ -40,7 +40,20 @@
 
           <div v-if="state === 'PLAYING'">
             <!-- On affichera le lecteur ici après -->
-            <p>Écoutez attentivement...</p>
+            <p>🎵 Écoutez attentivement...</p>
+
+            <!-- Le lecteur audio (en autoplay pour le quiz) -->
+            <audio
+              v-if="currentAudioUrl"
+              :src="currentAudioUrl"
+              autoplay
+              controls
+            ></audio>
+
+            <div class="answer-zone">
+              <input type="text" placeholder="Quel est cet anime ?" />
+              <button>Envoyer</button>
+            </div>
           </div>
         </div>
       </main>
@@ -58,6 +71,7 @@ const user = ref("");
 const room = ref("");
 const players = ref([]);
 const state = ref("LOBBY"); // Sorti de la fonction
+const currentAudioUrl = ref("");
 let socket = null;
 
 // 2. Fonctions d'action
@@ -67,7 +81,7 @@ const startGame = () => {
       JSON.stringify({
         type: "START_GAME",
         payload: null,
-      })
+      }),
     );
   }
 };
@@ -98,6 +112,15 @@ const setupWebSocket = ({ username, roomId }) => {
           break;
         case "NewQuestion":
           console.log("Nouvelle question reçue :", data.payload);
+          currentAudioUrl.value = data.payload.audio_url;
+          // Petit hack pour forcer le chargement si besoin
+          const audio = document.querySelector("audio");
+          if (audio) {
+            audio.load();
+            audio
+              .play()
+              .catch((e) => console.warn("Autoplay bloqué par le navigateur"));
+          }
           break;
       }
     } catch (err) {
