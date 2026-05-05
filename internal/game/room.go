@@ -3,11 +3,11 @@ package game
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
-    "log"
 	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/models"
+	"log"
+	"sync"
+	"time"
 )
 
 var (
@@ -49,6 +49,7 @@ func CreateRoom(id string) *Room {
 		Unregister: make(chan *Client),
 		Start:      make(chan bool),
 		IsPlaying:  false, // On initialise à false à la place
+		State:      StateLobby,
 	}
 }
 
@@ -58,32 +59,38 @@ func (r *Room) Run() {
 		select {
 		case client := <-r.Register:
 			r.Clients[client] = true
-			go r.BroadcastPlayerList() // On envoie la liste des joueurs à tout le monde
 
-			// SYNCHRONISATION :
-			r.Mu.Lock()
-			if r.IsPlaying && r.CurrentTrack != nil {
-				syncMsg := models.WSMessage{
-					Type: "NEW_TRACK",
-					Payload: map[string]interface{}{
+			// 1. Liste des joueurs pour tout le monde (incluant le nouveau)
+			go r.BroadcastPlayerList()
+
+			// 2. Envoyer l'état actuel (LOBBY ou PLAYING) au nouveau venu
+			msgState, _ := json.Marshal(map[string]interface{}{
+				"type":    "GAME_STATE",
+				"payload": r.State,
+			})
+			client.Send <- msgState
+
+			// 3. Si une partie est en cours, on lui envoie la musique actuelle
+			if r.State == StatePlaying && r.CurrentTrack != nil {
+				msgTrack, _ := json.Marshal(map[string]interface{}{
+					"type": "NewQuestion", // Assure-toi que c'est bien ce type que ton Front attend
+					"payload": map[string]interface{}{
 						"audio_url": r.CurrentTrack.AudioURL,
-						"duration":  20, // Idéalement, calculer le temps restant
+						"room_id":   r.ID,
 					},
-				}
-				data, _ := json.Marshal(syncMsg)
-				client.Send <- data
+				})
+				client.Send <- msgTrack
 			}
-			r.Mu.Unlock()
-            
-        case <-r.Start:
-            if r.State != "PLAYING" {
-                r.State = "PLAYING"
-                r.broadcastGameState() // On prévient le Front
-                r.nextRound()
-                
-                // Ici, on lancera plus tard la fonction qui choisit une musique
-                log.Println("La partie commence dans le salon:", r.ID)
-            }
+
+		case <-r.Start:
+			if r.State != "PLAYING" {
+				r.State = "PLAYING"
+				r.broadcastGameState() // On prévient le Front
+				r.nextRound()
+
+				// Ici, on lancera plus tard la fonction qui choisit une musique
+				log.Println("La partie commence dans le salon:", r.ID)
+			}
 
 		case client := <-r.Unregister:
 			if _, ok := r.Clients[client]; ok {
@@ -109,14 +116,14 @@ func (r *Room) Run() {
 
 // Fonction pour envoyer l'état au Front
 func (r *Room) broadcastGameState() {
-    msg := map[string]interface{}{
-        "type":    "GAME_STATE",
-        "payload": r.State,
-    }
-    data, _ := json.Marshal(msg)
-    for c := range r.Clients {
-        c.Send <- data
-    }
+	msg := map[string]interface{}{
+		"type":    "GAME_STATE",
+		"payload": r.State,
+	}
+	data, _ := json.Marshal(msg)
+	for c := range r.Clients {
+		c.Send <- data
+	}
 }
 
 // BroadcastPlayerList envoie la liste des joueurs à tous les clients du salon
@@ -239,27 +246,27 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 }
 
 func (r *Room) nextRound() {
-    // 1. Chercher une musique aléatoire via ton package database
-    track, err := database.GetRandomTrack()
-    if err != nil {
-        log.Printf("Erreur récup musique: %v", err)
-        return
-    }
-    r.CurrentTrack = track
+	// 1. Chercher une musique aléatoire via ton package database
+	track, err := database.GetRandomTrack()
+	if err != nil {
+		log.Printf("Erreur récup musique: %v", err)
+		return
+	}
+	r.CurrentTrack = track
 
-    // 2. Préparer le message pour le Front
-    // On n'envoie QUE l'URL, pas la réponse !
-    msg := map[string]interface{}{
-        "type": "NewQuestion",
-        "payload": map[string]interface{}{
-            "audio_url": track.AudioURL,
-            "room_id":   r.ID,
-        },
-    }
+	// 2. Préparer le message pour le Front
+	// On n'envoie QUE l'URL, pas la réponse !
+	msg := map[string]interface{}{
+		"type": "NewQuestion",
+		"payload": map[string]interface{}{
+			"audio_url": track.AudioURL,
+			"room_id":   r.ID,
+		},
+	}
 
-    // 3. Envoyer à tout le monde
-    data, _ := json.Marshal(msg)
-    for c := range r.Clients {
-        c.Send <- data
-    }
+	// 3. Envoyer à tout le monde
+	data, _ := json.Marshal(msg)
+	for c := range r.Clients {
+		c.Send <- data
+	}
 }
