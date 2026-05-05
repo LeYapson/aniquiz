@@ -152,13 +152,13 @@ func TestCheckAnswer_ScoreAccumulates(t *testing.T) {
 
 	room.IsPlaying = true
 	room.CheckAnswer(client, "Naruto") // +5
-	<-room.Broadcast // PLAYER_GUESS
-	<-room.Broadcast // PLAYER_LIST de BroadcastPlayerList — garantit que la goroutine a fini de lire client.Score
+	<-room.Broadcast                   // PLAYER_GUESS
+	<-room.Broadcast                   // PLAYER_LIST de BroadcastPlayerList — garantit que la goroutine a fini de lire client.Score
 
 	room.IsPlaying = true
 	room.CheckAnswer(client, "Naruto Shippuden") // +10
-	<-room.Broadcast // PLAYER_GUESS
-	<-room.Broadcast // PLAYER_LIST
+	<-room.Broadcast                             // PLAYER_GUESS
+	<-room.Broadcast                             // PLAYER_LIST
 
 	if client.Score != 15 {
 		t.Errorf("score cumulé: got %d, want 15", client.Score)
