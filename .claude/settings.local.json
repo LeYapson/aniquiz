@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(gofmt -w cmd/api/main.go internal/database/tracks.go internal/handlers/pg_store.go internal/models/game.go internal/models/models.go internal/models/ws_message.go internal/sourcing/audio_linker.go internal/sourcing/jikan.go)",
+      "Bash(gofmt -l .)",
+      "Bash(gofmt -w .)",
+      "Bash(gofmt -w internal/game/room_test.go)"
+    ]
+  }
+}

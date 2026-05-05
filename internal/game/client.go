@@ -1,46 +1,50 @@
 package game
 
-import(
-	"github.com/gorilla/websocket"
+import (
 	"encoding/json"
-	"fmt"
-	"github.com/LeYapson/aniquiz/internal/models"
+	"github.com/gorilla/websocket"
+	"log"
 )
 
 // Client représente un joueur connecté via WebSocket
 type Client struct {
-	ID  string
+	ID       string
 	Username string
-	Conn *websocket.Conn
-	Room *Room
-	Send chan []byte //canal pour envoyer les messages au joueur
-	Score int
+	Conn     *websocket.Conn
+	Room     *Room
+	Send     chan []byte //canal pour envoyer les messages au joueur
+	Score    int
 }
 
-//ReadPump lit les messages envoyés par le joueur (ex: ses réponses)
+// ReadPump lit les messages envoyés par le joueur (ex: ses réponses)
 func (c *Client) ReadPump() {
 	defer func() {
+		c.Room.Unregister <- c
 		c.Conn.Close()
 	}()
 
 	for {
-		_,message, err := c.Conn.ReadMessage()
+		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			break
 		}
-		// on decode le message JSON envoyé par le joueur
-		var msg models.WSMessage
+
+		// On décode le message JSON reçu du Front
+		var msg struct {
+			Type    string          `json:"type"`
+			Payload json.RawMessage `json:"payload"`
+		}
+
 		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Printf("Erreur décodage JSON: %v", err)
 			continue
 		}
 
-		//si le joueur envoie une réponse
-		if msg.Type == "ANSWER" {
-			//on convertit le payload (qui est une interface) en string
-			answerStr := fmt.Sprintf("%v", msg.Payload)
-
-			//le salon vérifie la réponse
-			c.Room.CheckAnswer(c, answerStr)
+		// On réagit selon le type
+		switch msg.Type {
+		case "START_GAME":
+			// On demande à la Room de démarrer
+			c.Room.Start <- true
 		}
 	}
 }
