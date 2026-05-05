@@ -19,8 +19,8 @@ export default defineConfig({
     }
   },
   test: {
-    // Cette ligne est la clé :
-    environment: 'jsdom', 
-    globals: true // Permet d'utiliser 'describe', 'it', 'expect' sans les importer
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,ts}'],
   }
 })
