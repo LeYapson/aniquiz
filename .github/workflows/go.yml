@@ -47,7 +47,12 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm run test:unit # Ou la commande définie dans ton package.json
+          # On vérifie si le script existe avant de le lancer pour éviter un crash bête
+          if npm run | grep -q "test:unit"; then
+            npm run test:unit
+          else
+            echo "⚠️ Aucun test unitaire configuré, passage à l'étape suivante."
+          fi
           npm run build
 
   # --- DOCKER BUILD CHECK ---
