@@ -138,6 +138,8 @@ const setupWebSocket = ({ username, roomId }) => {
 const disconnect = () => {
   if (socket) socket.close();
 };
+
+defineExpose({ state, isConnected });
 </script>
 
 <style>
