@@ -17,13 +17,20 @@ var (
 	RoomsMu     sync.Mutex
 )
 
+type RoomState string
+
+const (
+    StateLobby   RoomState = "LOBBY"
+    StatePlaying RoomState = "PLAYING"
+)
+
 type Room struct {
 	ID           string
 	Clients      map[*Client]bool
 	Broadcast    chan []byte
 	Register     chan *Client
 	Unregister   chan *Client
-	
+	State        RoomState
 	// --- AJOUTS ICI ---
 	CurrentTrack *models.Track // La musique que les gens doivent deviner
 	IsPlaying    bool          // Le quiz a-t-il démarré ?

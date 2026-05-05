@@ -31,10 +31,17 @@
         </div>
 
         <div class="quiz-box">
-          <p v-if="players.length < 2">
-            En attente d'autres joueurs pour commencer...
-          </p>
-          <p v-else>Le salon est prêt ! Le jeu va bientôt commencer.</p>
+          <div v-if="state === 'LOBBY'">
+            <p v-if="players.length >= 1">Prêt à jouer ?</p>
+            <button @click="startGame" class="btn-start">
+              Lancer la partie
+            </button>
+          </div>
+
+          <div v-if="state === 'PLAYING'">
+            <!-- On affichera le lecteur ici après -->
+            <p>Écoutez attentivement...</p>
+          </div>
         </div>
       </main>
     </div>
@@ -45,11 +52,25 @@
 import { ref } from "vue";
 import JoinRoom from "./components/JoinRoom.vue";
 
+// 1. Variables d'état GLOBALES au composant
 const isConnected = ref(false);
 const user = ref("");
 const room = ref("");
 const players = ref([]);
+const state = ref("LOBBY"); // Sorti de la fonction
 let socket = null;
+
+// 2. Fonctions d'action
+const startGame = () => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(
+      JSON.stringify({
+        type: "START_GAME",
+        payload: null,
+      })
+    );
+  }
+};
 
 const setupWebSocket = ({ username, roomId }) => {
   user.value = username;
@@ -72,6 +93,9 @@ const setupWebSocket = ({ username, roomId }) => {
         case "PLAYER_LIST":
           players.value = data.payload;
           break;
+        case "GAME_STATE":
+          state.value = data.payload;
+          break;
         case "NewQuestion":
           console.log("Nouvelle question reçue :", data.payload);
           break;
@@ -84,6 +108,7 @@ const setupWebSocket = ({ username, roomId }) => {
   socket.onclose = () => {
     isConnected.value = false;
     players.value = [];
+    state.value = "LOBBY"; // On reset l'état à la déco
   };
 };
 
