@@ -232,7 +232,7 @@ func (r *Room) nextRound() {
 
 	// 3. Envoyer à tout le monde
 	data, _ := json.Marshal(msg)
-	
+
 	r.Broadcast <- data
 
 	// 4. Lancer un timer pour la fin du round
