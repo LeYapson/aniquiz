@@ -51,8 +51,20 @@
             ></audio>
 
             <div class="answer-zone">
-              <input type="text" placeholder="Quel est cet anime ?" />
-              <button>Envoyer</button>
+              <input
+                v-model="userGuess"
+                @keyup.enter="submitAnswer"
+                placeholder="Nom de l'anime..."
+              />
+              <button @click="submitAnswer">Envoyer</button>
+            </div>
+            <div class="leaderboard">
+              <h3>Classement</h3>
+              <ul>
+                <li v-for="p in players" :key="p.id">
+                  {{ p.username }}: {{ p.score }} pts
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -73,6 +85,7 @@ const players = ref([]);
 const state = ref("LOBBY"); // Sorti de la fonction
 const currentAudioUrl = ref("");
 let socket = null;
+const userGuess = ref("");
 
 // 2. Fonctions d'action
 const startGame = () => {
@@ -86,6 +99,17 @@ const startGame = () => {
   }
 };
 
+const submitAnswer = () => {
+  if (!userGuess.value) return;
+
+  socket.send(
+    JSON.stringify({
+      type: "SUBMIT_ANSWER",
+      payload: userGuess.value,
+    }),
+  );
+  userGuess.value = ""; // Clear input après envoi
+};
 const setupWebSocket = ({ username, roomId }) => {
   user.value = username;
   room.value = roomId;

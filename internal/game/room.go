@@ -83,10 +83,10 @@ func (r *Room) Run() {
 			}
 
 		case <-r.Start:
-			if r.State != "PLAYING" {
-				r.State = "PLAYING"
+			if r.State != StatePlaying {
+				r.State = StatePlaying
 				r.broadcastGameState() // On prévient le Front
-				r.nextRound()
+				go r.nextRound()
 
 				// Ici, on lancera plus tard la fonction qui choisit une musique
 				log.Println("La partie commence dans le salon:", r.ID)
@@ -146,39 +146,6 @@ func (r *Room) BroadcastPlayerList() {
 	r.Broadcast <- data
 }
 
-func (r *Room) StartNextRound() {
-	//1. on récupere une musique aleatoire via notre package database
-	track, err := database.GetRandomTrack()
-	if err != nil {
-		fmt.Printf("Erreur récup musique: %v\n", err)
-		return
-	}
-
-	r.Mu.Lock()
-	r.CurrentTrack = track
-	r.IsPlaying = true
-	r.Mu.Unlock()
-
-	//2. Préparer le message pour les joueurs (on cache le nom de l'anime !)
-	msg := models.WSMessage{
-		Type: "NEW_TRACK",
-		Payload: map[string]interface{}{
-			"audio_url": track.AudioURL,
-			"duration":  20, //on leur dit qu'ils ont 20 secondes pour répondre
-		},
-	}
-
-	data, _ := json.Marshal(msg)
-
-	//3. Envoyer à tous les joueurs du salon
-	r.Broadcast <- data
-
-	go func() {
-		time.Sleep(20 * time.Second)
-		r.EndRound("Temps écoulé !")
-	}()
-}
-
 func (r *Room) EndRound(reason string) {
 	r.Mu.Lock()
 	if !r.IsPlaying {
@@ -202,9 +169,10 @@ func (r *Room) EndRound(reason string) {
 	data, _ := json.Marshal(msg)
 	r.Broadcast <- data
 
-	// optionnel : Relancer un round  automatiquement après quelques secondes
-	time.Sleep(5 * time.Second)
-	r.StartNextRound()
+	// Après un délai, on peut lancer la prochaine question
+	time.Sleep(500 * time.Millisecond)
+	go r.nextRound()
+
 }
 
 func (r *Room) CheckAnswer(client *Client, answer string) {
@@ -213,21 +181,21 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		r.Mu.Unlock()
 		return
 	}
+	track := r.CurrentTrack
 	r.Mu.Unlock()
 
-	result := VerifyAnswer(answer, r.CurrentTrack)
+	result := VerifyAnswer(answer, track)
 
 	if result.Points > 0 {
 		// 1- mise a jour du score du client
 		client.Score += result.Points
 
 		//2- annonce du gain de points
-		msg := models.WSMessage{
-			Type: "PLAYER_GUESS",
-			Payload: map[string]interface{}{
+		msg := map[string]interface{}{
+			"type": "PLAYER_GUESS",
+			"payload": map[string]interface{}{
 				"username": client.Username,
-				"points":   result.Points,
-				"message":  result.Message,
+				"message":  "a trouvé l'anime !", // On reste discret sur le nom
 			},
 		}
 		data, _ := json.Marshal(msg)
@@ -235,13 +203,6 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 
 		//3- Renvoyer la liste des joueurs mise à jour avec les scores
 		go r.BroadcastPlayerList()
-
-		//4- Si c'est la réponse parfaite, on termine le round
-		if result.IsCorrect {
-			// On laisse un petit délai pour que les autres tentent le nom de la musique ?
-			// Ou on finit direct :
-			// go r.EndRound("Bonne réponse trouvée !")
-		}
 	}
 }
 
@@ -252,7 +213,12 @@ func (r *Room) nextRound() {
 		log.Printf("Erreur récup musique: %v", err)
 		return
 	}
+	r.Mu.Lock()
 	r.CurrentTrack = track
+	r.IsPlaying = true
+	r.Mu.Unlock()
+
+	log.Printf("Nouveau round dans %s : %s", r.ID, track.AnimeName)
 
 	// 2. Préparer le message pour le Front
 	// On n'envoie QUE l'URL, pas la réponse !
@@ -266,7 +232,12 @@ func (r *Room) nextRound() {
 
 	// 3. Envoyer à tout le monde
 	data, _ := json.Marshal(msg)
-	for c := range r.Clients {
-		c.Send <- data
-	}
+	
+	r.Broadcast <- data
+
+	// 4. Lancer un timer pour la fin du round
+	go func() {
+		time.Sleep(20 * time.Second)
+		r.EndRound("Temps écoulé !")
+	}()
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
+	"fmt"
 )
 
 // Client représente un joueur connecté via WebSocket
@@ -45,6 +46,17 @@ func (c *Client) ReadPump() {
 		case "START_GAME":
 			// On demande à la Room de démarrer
 			c.Room.Start <- true
+		case "SUBMIT_ANSWER":
+			var answer string
+
+			if err := json.Unmarshal(msg.Payload, &answer); err != nil {
+        		log.Printf("Erreur décodage payload string: %v", err)
+        		continue
+    		}
+    
+    		fmt.Printf("Réponse reçue : %s\n", answer)
+    		c.Room.CheckAnswer(c, answer)
+			
 		}
 	}
 }
