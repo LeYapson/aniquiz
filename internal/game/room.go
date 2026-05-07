@@ -36,6 +36,8 @@ type Room struct {
 	Start        chan bool     // Canal pour recevoir l'ordre de démarrage
 	IsPlaying    bool          // Le quiz a-t-il démarré ?
 	// ------------------
+	CurrentRound int
+	MaxRounds    int
 
 	Mu sync.Mutex
 }
@@ -50,6 +52,8 @@ func CreateRoom(id string) *Room {
 		Start:      make(chan bool),
 		IsPlaying:  false, // On initialise à false à la place
 		State:      StateLobby,
+		CurrentRound: 0,
+		MaxRounds: 5, // Par exemple, on peut faire 5 rounds par partie
 	}
 }
 
@@ -208,6 +212,15 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 
 func (r *Room) nextRound() {
 	// 1. Chercher une musique aléatoire via ton package database
+	r.Mu.Lock()
+	if r.CurrentRound >= r.MaxRounds {
+		r.Mu.Unlock()
+		r.finishGame()
+		return
+	}
+	r.CurrentRound++
+	r.Mu.Unlock()
+	
 	track, err := database.GetRandomTrack()
 	if err != nil {
 		log.Printf("Erreur récup musique: %v", err)
@@ -240,4 +253,38 @@ func (r *Room) nextRound() {
 		time.Sleep(20 * time.Second)
 		r.EndRound("Temps écoulé !")
 	}()
+}
+
+func (r *Room) finishGame() {
+	r.Mu.Lock()
+	r.State = StateLobby
+	r.IsPlaying = false
+	r.CurrentRound = 0
+	r.CurrentTrack = nil
+	r.Mu.Unlock()
+
+	// 1. Préparer le podium (on trie les joueurs par score)
+    // On peut réutiliser BroadcastPlayerList ou créer un message dédié
+	msg := map[string]interface{}{
+		"type": "GAME_OVER",
+		"payload": map[string]interface{}{
+			"message": "Partie terminée !",
+			// On peut aussi envoyer les scores finaux ici
+		},
+	}
+	data, _ := json.Marshal(msg)
+	r.Broadcast <- data
+
+	// 2. Réinitialiser les scores des joueurs
+	r.resetScores()
+
+	// 3. Notifier le changement d'état (retour au lobby sur le front)
+	r.broadcastGameState()
+	r.BroadcastPlayerList()
+}
+
+func (r *Room) resetScores() {
+	for c := range r.Clients {
+		c.Score = 0
+	}
 }
