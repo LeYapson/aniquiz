@@ -128,7 +128,7 @@ test.describe('Partie', () => {
     await joinRoom(page)
     await page.getByRole('button', { name: 'Lancer la partie' }).click()
 
-    await expect(page.getByPlaceholder('Quel est cet anime ?')).toBeVisible()
+    await expect(page.getByPlaceholder("Nom de l'anime...")).toBeVisible()
     await expect(page.getByRole('button', { name: 'Envoyer' })).toBeVisible()
   })
 })
