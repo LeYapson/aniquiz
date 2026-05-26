@@ -2,14 +2,23 @@
   <div class="app-container">
     <h1>AniQuiz 🎵</h1>
 
-    <!-- ÉTAPE 1 : Si pas connecté, on montre le formulaire -->
-    <div v-if="!isConnected">
-      <JoinRoom @join="setupWebSocket" />
+    <div v-if="!user" class="pseudo-setup">
+      <div class="quiz-box" style="max-width: 400px; margin: 40px auto; text-align: center;">
+        <h3>Choisissez votre Pseudo pour commencer :</h3>
+        <input v-model="pseudoInput" @keyup.enter="savePseudo" type="text" placeholder="Ex: Gon, Goku..." style="padding: 10px; width: 80%; margin-bottom: 15px;" />
+        <button @click="savePseudo" :disabled="!pseudoInput" class="btn-start" style="width: auto; padding: 10px 20px;">Continuer</button>
+      </div>
     </div>
 
-    <!-- ÉTAPE 2 : SINON (on est connecté), on montre l'interface de jeu -->
+    <div v-else-if="!isConnected">
+      <div style="max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
+        <p>Joueur : <strong>{{ user }}</strong></p>
+        <button @click="user = ''" class="btn-quit" style="background: #777;">Changer de pseudo</button>
+      </div>
+      <RoomSelection @room-created="setupWebSocket" @room-joined="setupWebSocket" />
+    </div>
+
     <div v-else class="game-layout">
-      <!-- Barre latérale avec les joueurs -->
       <aside class="sidebar">
         <h3>Joueurs ({{ players.length }})</h3>
         <ul>
@@ -20,7 +29,6 @@
         </ul>
       </aside>
 
-      <!-- Zone principale -->
       <main class="game-area">
         <div class="status-bar">
           <p>
@@ -39,26 +47,42 @@
           </div>
 
           <div v-if="state === 'PLAYING'">
-            <!-- On affichera le lecteur ici après -->
-            <p>🎵 Écoutez attentivement...</p>
-
-            <!-- Le lecteur audio (en autoplay pour le quiz) -->
-            <audio
-              v-if="currentAudioUrl"
-              :src="currentAudioUrl"
-              autoplay
-              controls
-            ></audio>
-
-            <div class="answer-zone">
-              <input
-                v-model="userGuess"
-                @keyup.enter="submitAnswer"
-                placeholder="Nom de l'anime..."
-              />
-              <button @click="submitAnswer">Envoyer</button>
+            <div v-if="isRevealing" class="reveal-zone">
+              <h2>🎉 Réponse : <span style="color: #e91e63;">{{ currentAnswerInfo.animeName }}</span></h2>
+              <p><strong>{{ currentAnswerInfo.title }}</strong> - {{ currentAnswerInfo.artist }}</p>
+              
+              <video
+                v-if="currentAnswerInfo.videoUrl"
+                :src="currentAnswerInfo.videoUrl"
+                autoplay
+                controls
+                style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 10px;"
+              ></video>
+              <p v-else style="font-style: italic; margin-top: 20px;">Pas de vidéo disponible pour cette piste.</p>
             </div>
-            <div class="leaderboard">
+
+            <div v-else>
+              <p>🎵 Écoutez attentivement...</p>
+              
+              <GameTimer :duration="roundDuration" :key="currentAudioUrl" />
+
+              <audio
+                v-if="currentAudioUrl"
+                :src="currentAudioUrl"
+                autoplay
+              ></audio>
+
+              <div class="answer-zone">
+                <input
+                  v-model="userGuess"
+                  @keyup.enter="submitAnswer"
+                  placeholder="Nom de l'anime..."
+                />
+                <button @click="submitAnswer">Envoyer</button>
+              </div>
+            </div>
+
+            <div class="leaderboard" style="margin-top: 20px;">
               <h3>Classement</h3>
               <ul>
                 <li v-for="p in players" :key="p.id">
@@ -75,17 +99,35 @@
 
 <script setup>
 import { ref } from "vue";
-import JoinRoom from "./components/JoinRoom.vue";
+import RoomSelection from "./components/RoomSelection.vue"; // Remplacement de JoinRoom
+import GameTimer from "./components/GameTimer.vue";
 
-// 1. Variables d'état GLOBALES au composant
+// 1. Variables d'état GLOBALES
 const isConnected = ref(false);
+const pseudoInput = ref("");
 const user = ref("");
 const room = ref("");
 const players = ref([]);
-const state = ref("LOBBY"); // Sorti de la fonction
+const state = ref("LOBBY");
 const currentAudioUrl = ref("");
-let socket = null;
 const userGuess = ref("");
+const roundDuration = ref(0); // Stockera la durée dynamique reçue du Back
+let socket = null;
+
+// Validation du pseudo initial
+const savePseudo = () => {
+  if (pseudoInput.value.trim()) {
+    user.value = pseudoInput.value.trim();
+  }
+};
+
+const isRevealing = ref(false);
+const currentAnswerInfo = ref({
+  animeName: "",
+  title: "",
+  artist: "",
+  videoUrl: ""
+});
 
 // 2. Fonctions d'action
 const startGame = () => {
@@ -108,16 +150,17 @@ const submitAnswer = () => {
       payload: userGuess.value,
     }),
   );
-  userGuess.value = ""; // Clear input après envoi
+  userGuess.value = "";
 };
-const setupWebSocket = ({ username, roomId }) => {
-  user.value = username;
-  room.value = roomId;
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = `${protocol}//${window.location.host}/ws?username=${username}&room=${roomId}`;
+// Modifié pour accepter l'objet de données provenant de RoomSelection
+const setupWebSocket = ({ room_id, password }) => {
+  room.value = room_id;
 
-  socket = new WebSocket(url);
+  // Ciblage explicite du port 8080 en local pour éviter les décalages de ports entre front et back
+  const wsUrl = `ws://localhost:8080/ws?username=${user.value}&room=${room_id}&password=${password || ''}`;
+
+  socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
     console.log("✅ Connecté au serveur Go !");
@@ -136,8 +179,11 @@ const setupWebSocket = ({ username, roomId }) => {
           break;
         case "NewQuestion":
           console.log("Nouvelle question reçue :", data.payload);
+          isRevealing.value = false; 
+          
           currentAudioUrl.value = data.payload.audio_url;
-          // Petit hack pour forcer le chargement si besoin
+          roundDuration.value = data.payload.duration;
+          
           const audio = document.querySelector("audio");
           if (audio) {
             audio.load();
@@ -145,6 +191,27 @@ const setupWebSocket = ({ username, roomId }) => {
               .play()
               .catch((e) => console.warn("Autoplay bloqué par le navigateur"));
           }
+          break;
+
+        case "ROUND_ENDED":
+          console.log("Fin du round, affichage de la réponse :", data.payload);
+          isRevealing.value = true;
+          
+          // --- ADAPTATION DES COMPOSANTS EN FONCTION DES LOGS REÇUS ---
+          currentAnswerInfo.value = {
+            animeName: data.payload.answer, // Le back envoie "answer" et non "anime_name"
+            title: "Générique",             // Valeur par défaut car non fournie par le back
+            artist: "Inconnu",              // Valeur par défaut car non fournie par le back
+            
+            // On réutilise l'URL de l'audio reçue au début du round puisque c'est un .webm (vidéo)
+            videoUrl: currentAudioUrl.value 
+          };
+          
+          currentAudioUrl.value = ""; // Coupe l'audio caché pour laisser la vidéo jouer avec le son
+          break;
+        case "GAME_OVER":
+          alert("Partie terminée !");
+          state.value = "LOBBY"; // Protection locale
           break;
       }
     } catch (err) {
@@ -155,7 +222,9 @@ const setupWebSocket = ({ username, roomId }) => {
   socket.onclose = () => {
     isConnected.value = false;
     players.value = [];
-    state.value = "LOBBY"; // On reset l'état à la déco
+    state.value = "LOBBY";
+
+    isRevealing.value = false;
   };
 };
 
@@ -167,6 +236,7 @@ defineExpose({ state, isConnected });
 </script>
 
 <style>
+/* Tes styles d'origine conservés */
 .game-layout {
   display: flex;
   gap: 20px;
@@ -174,14 +244,12 @@ defineExpose({ state, isConnected });
   margin: 20px auto;
   text-align: left;
 }
-
 .sidebar {
   width: 200px;
   background: #f4f4f4;
   padding: 15px;
   border-radius: 8px;
 }
-
 .game-area {
   flex: 1;
   background: #fff;
@@ -189,7 +257,6 @@ defineExpose({ state, isConnected });
   border: 1px solid #ddd;
   border-radius: 8px;
 }
-
 .status-bar {
   display: flex;
   justify-content: space-between;
@@ -198,7 +265,6 @@ defineExpose({ state, isConnected });
   padding-bottom: 10px;
   margin-bottom: 20px;
 }
-
 .btn-quit {
   background: #ff4757;
   color: white;
@@ -207,4 +273,10 @@ defineExpose({ state, isConnected });
   border-radius: 4px;
   cursor: pointer;
 }
+/* Styles rapides pour l'intégration du bouton de base d'origine */
+.quiz-box { background: #fafafa; padding: 20px; border-radius: 8px; border: 1px dashed #ccc; }
+.btn-start { background: #2ed573; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
+.answer-zone { margin: 20px 0; display: flex; gap: 10px; }
+.answer-zone input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+.answer-zone button { background: #1e90ff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
 </style>

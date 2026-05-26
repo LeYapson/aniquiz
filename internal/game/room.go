@@ -210,7 +210,7 @@ func (r *Room) EndRound(reason string) {
 	r.Broadcast <- data
 
 	// Après un délai, on peut lancer la prochaine question
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 	go r.nextRound()
 
 }
