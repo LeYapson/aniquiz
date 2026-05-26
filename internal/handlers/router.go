@@ -21,6 +21,11 @@ type AnswerRequest struct {
 	Answer  string `json:"answer"`
 }
 
+func ListRoomsHandler(c *gin.Context) {
+    rooms := game.GetPublicRooms()
+    c.JSON(http.StatusOK, rooms)
+}
+
 // NewRouter builds the Gin engine with all testable routes wired up.
 func NewRouter(store Store) *gin.Engine {
 	router := gin.New()
@@ -30,6 +35,7 @@ func NewRouter(store Store) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
+	router.GET("/rooms", ListRoomsHandler)
 	router.POST("/rooms", func(c *gin.Context) {
 		var body struct {
 			RoomID string `json:"room_id"`
@@ -47,7 +53,7 @@ func NewRouter(store Store) *gin.Engine {
 			return
 		}
 
-		room := game.CreateRoom(body.RoomID)
+		room := game.CreateRoom(body.RoomID, "creator-id-placeholder") // On peut ajouter un vrai creatorID plus tard
 		go room.Run()
 		game.ActiveRooms[body.RoomID] = room
 
