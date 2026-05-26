@@ -313,11 +313,15 @@ func (r *Room) finishGame() {
 	r.Broadcast <- data
 
 	// 2. On remet les scores de tout le monde à 0
-	for client := range r.Clients {
-		client.Score = 0
-	}
+	r.resetScores()
 
 	// 3. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
 	r.broadcastGameState()
 	go r.BroadcastPlayerList()
+}
+
+func (r *Room) resetScores() {
+	for c := range r.Clients {
+		c.Score = 0
+	}
 }

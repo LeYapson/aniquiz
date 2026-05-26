@@ -210,8 +210,8 @@ const setupWebSocket = ({ room_id, password }) => {
           currentAudioUrl.value = ""; // Coupe l'audio caché pour laisser la vidéo jouer avec le son
           break;
         case "GAME_OVER":
-          alert("Partie terminée !");
-          state.value = "LOBBY"; // Protection locale
+          alert("Partie terminée ! " + (data.payload?.message ?? ""));
+          state.value = "LOBBY";
           break;
       }
     } catch (err) {
