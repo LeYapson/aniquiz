@@ -18,10 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v6.4.0
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Set up Go
+        run: |
+          curl -sL https://dl.google.com/go/go1.26.2.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
 
       - name: govulncheck
         run: |
@@ -35,10 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v6.4.0
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Set up Go
+        run: |
+          curl -sL https://dl.google.com/go/go1.26.2.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
 
       - name: Lint (go vet + gofmt)
         run: |
