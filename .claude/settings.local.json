@@ -6,7 +6,8 @@
       "Bash(gofmt -l .)",
       "Bash(gofmt -w .)",
       "Bash(gofmt -w internal/game/room_test.go)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(go mod *)"
     ]
   }
 }

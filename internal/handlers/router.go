@@ -22,8 +22,8 @@ type AnswerRequest struct {
 }
 
 func ListRoomsHandler(c *gin.Context) {
-    rooms := game.GetPublicRooms()
-    c.JSON(http.StatusOK, rooms)
+	rooms := game.GetPublicRooms()
+	c.JSON(http.StatusOK, rooms)
 }
 
 // NewRouter builds the Gin engine with all testable routes wired up.
@@ -32,18 +32,18 @@ func NewRouter(store Store) *gin.Engine {
 	router.Use(gin.Recovery())
 
 	router.Use(func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173") // Ton URL Front-end
-        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173") // Ton URL Front-end
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
-        // Gérer les requêtes de pré-vérification (Preflight) envoyées par le navigateur
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
-        c.Next()
-    })
+		// Gérer les requêtes de pré-vérification (Preflight) envoyées par le navigateur
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
@@ -51,12 +51,12 @@ func NewRouter(store Store) *gin.Engine {
 	router.GET("/rooms", ListRoomsHandler)
 	router.POST("/rooms", func(c *gin.Context) {
 		var body struct {
-			RoomID string `json:"room_id"`
-			IsPrivate bool   `json:"is_private"`
-            Password  string `json:"password"`
-            CreatorID string `json:"creator_id"` // Reçu du front ou généré
-            MaxRounds int    `json:"max_rounds"`
-            RoundDuration int `json:"round_duration"`
+			RoomID        string `json:"room_id"`
+			IsPrivate     bool   `json:"is_private"`
+			Password      string `json:"password"`
+			CreatorID     string `json:"creator_id"` // Reçu du front ou généré
+			MaxRounds     int    `json:"max_rounds"`
+			RoundDuration int    `json:"round_duration"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil || body.RoomID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "room_id requis"})
@@ -72,10 +72,10 @@ func NewRouter(store Store) *gin.Engine {
 		}
 
 		// 2. Si aucune ID de créateur n'est fournie, on peut en générer une temporaire
-        creatorID := body.CreatorID
-        if creatorID == "" {
-            creatorID = "admin-" + body.RoomID // Sécurité par défaut simple
-        }
+		creatorID := body.CreatorID
+		if creatorID == "" {
+			creatorID = "admin-" + body.RoomID // Sécurité par défaut simple
+		}
 
 		room := game.CreateRoom(body.RoomID, creatorID) // On peut ajouter un vrai creatorID plus tard
 

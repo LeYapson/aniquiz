@@ -232,7 +232,7 @@ const disconnect = () => {
   if (socket) socket.close();
 };
 
-defineExpose({ state, isConnected });
+defineExpose({ state, isConnected, user });
 </script>
 
 <style>

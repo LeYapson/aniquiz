@@ -9,6 +9,7 @@ describe('App Quiz Logic', () => {
       global: { stubs: { JoinRoom: true } },
     })
 
+    wrapper.vm.user = 'TestPlayer'
     wrapper.vm.isConnected = true
     wrapper.vm.state = 'LOBBY'
     await nextTick()
@@ -21,6 +22,7 @@ describe('App Quiz Logic', () => {
       global: { stubs: { JoinRoom: true } },
     })
 
+    wrapper.vm.user = 'TestPlayer'
     wrapper.vm.isConnected = true
     wrapper.vm.state = 'PLAYING'
     await nextTick()

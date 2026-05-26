@@ -36,60 +36,60 @@ type Room struct {
 	Start        chan bool     // Canal pour recevoir l'ordre de démarrage
 	IsPlaying    bool          // Le quiz a-t-il démarré ?
 	// ------------------
-	CurrentRound int
-	MaxRounds    int
+	CurrentRound  int
+	MaxRounds     int
 	RoundDuration int
-	IsPrivate	 bool
-	Password	 string
-	CreatorID	 string
+	IsPrivate     bool
+	Password      string
+	CreatorID     string
 
 	Mu sync.Mutex
 }
 
 type RoomSummary struct {
-    ID           string    `json:"id"`
-    State        RoomState `json:"state"`
-    PlayersCount int       `json:"players_count"`
-    IsPrivate    bool      `json:"is_private"`
-    MaxRounds    int       `json:"max_rounds"`
+	ID           string    `json:"id"`
+	State        RoomState `json:"state"`
+	PlayersCount int       `json:"players_count"`
+	IsPrivate    bool      `json:"is_private"`
+	MaxRounds    int       `json:"max_rounds"`
 }
 
 func GetPublicRooms() []RoomSummary {
-    RoomsMu.Lock()
-    defer RoomsMu.Unlock()
+	RoomsMu.Lock()
+	defer RoomsMu.Unlock()
 
-    var list []RoomSummary
-    for id, room := range ActiveRooms {
-        room.Mu.Lock()
-        // On liste toutes les rooms, ou uniquement les publiques selon ton choix
-        list = append(list, RoomSummary{
-            ID:           id,
-            State:        room.State,
-            PlayersCount: len(room.Clients),
-            IsPrivate:    room.IsPrivate,
-            MaxRounds:    room.MaxRounds,
-        })
-        room.Mu.Unlock()
-    }
-    return list
+	var list []RoomSummary
+	for id, room := range ActiveRooms {
+		room.Mu.Lock()
+		// On liste toutes les rooms, ou uniquement les publiques selon ton choix
+		list = append(list, RoomSummary{
+			ID:           id,
+			State:        room.State,
+			PlayersCount: len(room.Clients),
+			IsPrivate:    room.IsPrivate,
+			MaxRounds:    room.MaxRounds,
+		})
+		room.Mu.Unlock()
+	}
+	return list
 }
 
 func CreateRoom(id string, creatorID string) *Room {
 	return &Room{
-		ID:         id,
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Start:      make(chan bool),
-		IsPlaying:  false, // On initialise à false à la place
-		State:      StateLobby,
-		CurrentRound: 0,
-		MaxRounds: 5, // Par exemple, on peut faire 5 rounds par partie
+		ID:            id,
+		Clients:       make(map[*Client]bool),
+		Broadcast:     make(chan []byte),
+		Register:      make(chan *Client),
+		Unregister:    make(chan *Client),
+		Start:         make(chan bool),
+		IsPlaying:     false, // On initialise à false à la place
+		State:         StateLobby,
+		CurrentRound:  0,
+		MaxRounds:     5,  // Par exemple, on peut faire 5 rounds par partie
 		RoundDuration: 20, // Durée de chaque round en secondes
-		Password: "",
-		IsPrivate: false,
-		CreatorID: creatorID,
+		Password:      "",
+		IsPrivate:     false,
+		CreatorID:     creatorID,
 	}
 }
 
@@ -258,7 +258,7 @@ func (r *Room) nextRound() {
 	// On récupere la durée sous forme de variable locale pour le timer
 	duration := r.RoundDuration
 	r.Mu.Unlock()
-	
+
 	track, err := database.GetRandomTrack()
 	if err != nil {
 		log.Printf("Erreur récup musique: %v", err)
@@ -295,29 +295,29 @@ func (r *Room) nextRound() {
 }
 
 func (r *Room) finishGame() {
-    r.Mu.Lock()
-    r.State = StateLobby
-    r.IsPlaying = false
-    r.CurrentRound = 0
-    r.CurrentTrack = nil
-    r.Mu.Unlock()
+	r.Mu.Lock()
+	r.State = StateLobby
+	r.IsPlaying = false
+	r.CurrentRound = 0
+	r.CurrentTrack = nil
+	r.Mu.Unlock()
 
-    // 1. On prévient le Front que c'est fini
-    msg := map[string]interface{}{
-        "type": "GAME_OVER",
-        "payload": map[string]interface{}{
-            "message": "La partie est terminée !",
-        },
-    }
-    data, _ := json.Marshal(msg)
-    r.Broadcast <- data
+	// 1. On prévient le Front que c'est fini
+	msg := map[string]interface{}{
+		"type": "GAME_OVER",
+		"payload": map[string]interface{}{
+			"message": "La partie est terminée !",
+		},
+	}
+	data, _ := json.Marshal(msg)
+	r.Broadcast <- data
 
-    // 2. On remet les scores de tout le monde à 0
-    for client := range r.Clients {
-        client.Score = 0
-    }
+	// 2. On remet les scores de tout le monde à 0
+	for client := range r.Clients {
+		client.Score = 0
+	}
 
-    // 3. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
-    r.broadcastGameState()
-    go r.BroadcastPlayerList()
+	// 3. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
+	r.broadcastGameState()
+	go r.BroadcastPlayerList()
 }
