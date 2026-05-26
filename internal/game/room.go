@@ -44,16 +44,16 @@ type Room struct {
 
 func CreateRoom(id string) *Room {
 	return &Room{
-		ID:         id,
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Start:      make(chan bool),
-		IsPlaying:  false, // On initialise à false à la place
-		State:      StateLobby,
+		ID:           id,
+		Clients:      make(map[*Client]bool),
+		Broadcast:    make(chan []byte),
+		Register:     make(chan *Client),
+		Unregister:   make(chan *Client),
+		Start:        make(chan bool),
+		IsPlaying:    false, // On initialise à false à la place
+		State:        StateLobby,
 		CurrentRound: 0,
-		MaxRounds: 5, // Par exemple, on peut faire 5 rounds par partie
+		MaxRounds:    5, // Par exemple, on peut faire 5 rounds par partie
 	}
 }
 
@@ -220,7 +220,7 @@ func (r *Room) nextRound() {
 	}
 	r.CurrentRound++
 	r.Mu.Unlock()
-	
+
 	track, err := database.GetRandomTrack()
 	if err != nil {
 		log.Printf("Erreur récup musique: %v", err)
@@ -264,7 +264,7 @@ func (r *Room) finishGame() {
 	r.Mu.Unlock()
 
 	// 1. Préparer le podium (on trie les joueurs par score)
-    // On peut réutiliser BroadcastPlayerList ou créer un message dédié
+	// On peut réutiliser BroadcastPlayerList ou créer un message dédié
 	msg := map[string]interface{}{
 		"type": "GAME_OVER",
 		"payload": map[string]interface{}{
