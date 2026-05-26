@@ -43,19 +43,10 @@
             <p>🎵 Écoutez attentivement...</p>
 
             <!-- Le lecteur audio (en autoplay pour le quiz) -->
-            <audio
-              v-if="currentAudioUrl"
-              :src="currentAudioUrl"
-              autoplay
-              controls
-            ></audio>
+            <audio v-if="currentAudioUrl" :src="currentAudioUrl" autoplay controls></audio>
 
             <div class="answer-zone">
-              <input
-                v-model="userGuess"
-                @keyup.enter="submitAnswer"
-                placeholder="Nom de l'anime..."
-              />
+              <input v-model="userGuess" @keyup.enter="submitAnswer" placeholder="Nom de l'anime..." />
               <button @click="submitAnswer">Envoyer</button>
             </div>
             <div class="leaderboard">
@@ -145,6 +136,10 @@ const setupWebSocket = ({ username, roomId }) => {
               .play()
               .catch((e) => console.warn("Autoplay bloqué par le navigateur"));
           }
+          break;
+        case "GAME_OVER":
+          alert("Partie terminée ! " + data.payload.message);
+          // Ici tu pourrais stocker le gagnant dans une variable ref pour l'afficher proprement
           break;
       }
     } catch (err) {
