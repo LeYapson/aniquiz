@@ -39,6 +39,9 @@ func NewRouter(store Store) *gin.Engine {
 	router.POST("/rooms", func(c *gin.Context) {
 		var body struct {
 			RoomID string `json:"room_id"`
+			IsPrivate bool   `json:"is_private"`
+            Password  string `json:"password"`
+            CreatorID string `json:"creator_id"` // Reçu du front ou généré
 		}
 		if err := c.ShouldBindJSON(&body); err != nil || body.RoomID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "room_id requis"})
@@ -53,11 +56,21 @@ func NewRouter(store Store) *gin.Engine {
 			return
 		}
 
-		room := game.CreateRoom(body.RoomID, "creator-id-placeholder") // On peut ajouter un vrai creatorID plus tard
+		// 2. Si aucune ID de créateur n'est fournie, on peut en générer une temporaire
+        creatorID := body.CreatorID
+        if creatorID == "" {
+            creatorID = "admin-" + body.RoomID // Sécurité par défaut simple
+        }
+
+		room := game.CreateRoom(body.RoomID, creatorID) // On peut ajouter un vrai creatorID plus tard
+
+		room.IsPrivate = body.IsPrivate
+		room.Password = body.Password
+
 		go room.Run()
 		game.ActiveRooms[body.RoomID] = room
 
-		c.JSON(http.StatusCreated, gin.H{"message": "Salon créé", "room_id": room.ID})
+		c.JSON(http.StatusCreated, gin.H{"message": "Salon créé", "room_id": room.ID, "creator_id": creatorID})
 	})
 
 	router.GET("/quiz/next", func(c *gin.Context) {

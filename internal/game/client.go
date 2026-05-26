@@ -84,7 +84,7 @@ func (c *Client) ReadPump() {
 
 				// Notification générale aux clients du salon pour mettre à jour leur affichage
 				c.Room.Mu.Unlock()
-				c.Room.broadcastSettingsUpdate()
+				//c.Room.broadcastSettingsUpdate()
 			} else {
 				c.Room.Mu.Unlock()
 			}
