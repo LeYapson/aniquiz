@@ -42,7 +42,7 @@ type Room struct {
 	IsPrivate     bool
 	Password      string
 	CreatorID     string
-	HasAnswered    map[string]bool
+	HasAnswered   map[string]bool
 
 	Mu sync.Mutex
 }
@@ -240,7 +240,6 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		r.Mu.Unlock()
 		// 1- mise a jour du score du client
 		client.Score += result.Points
-
 
 		//2- annonce du gain de points
 		msg := map[string]interface{}{
