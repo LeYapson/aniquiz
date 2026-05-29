@@ -44,11 +44,37 @@ func NewRouter(store Store) *gin.Engine {
 		}
 		c.Next()
 	})
+
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
 	router.GET("/rooms", ListRoomsHandler)
+
+	// --- NOUVEL ENDPOINT POUR L'AUTO-COMPLÉTION ---
+	router.GET("/animes", func(c *gin.Context) {
+		// Utilisation du store injecté dans NewRouter
+		tracks, err := store.GetAllTracks()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire la DB"})
+			return
+		}
+
+		animeSet := make(map[string]struct{})
+		for _, track := range tracks {
+			if track.AnimeName != "" {
+				animeSet[track.AnimeName] = struct{}{}
+			}
+		}
+
+		animeNames := make([]string, 0, len(animeSet))
+		for name := range animeSet {
+			animeNames = append(animeNames, name)
+		}
+
+		c.JSON(http.StatusOK, animeNames)
+	})
+
 	router.POST("/rooms", func(c *gin.Context) {
 		var body struct {
 			RoomID        string `json:"room_id"`
@@ -71,13 +97,13 @@ func NewRouter(store Store) *gin.Engine {
 			return
 		}
 
-		// 2. Si aucune ID de créateur n'est fournie, on peut en générer une temporaire
+		// Si aucune ID de créateur n'est fournie, on peut en générer une temporaire
 		creatorID := body.CreatorID
 		if creatorID == "" {
 			creatorID = "admin-" + body.RoomID // Sécurité par défaut simple
 		}
 
-		room := game.CreateRoom(body.RoomID, creatorID) // On peut ajouter un vrai creatorID plus tard
+		room := game.CreateRoom(body.RoomID, creatorID)
 
 		room.IsPrivate = body.IsPrivate
 		room.Password = body.Password

@@ -42,6 +42,7 @@ type Room struct {
 	IsPrivate     bool
 	Password      string
 	CreatorID     string
+	HasAnswered   map[string]bool
 
 	Mu sync.Mutex
 }
@@ -90,6 +91,7 @@ func CreateRoom(id string, creatorID string) *Room {
 		Password:      "",
 		IsPrivate:     false,
 		CreatorID:     creatorID,
+		HasAnswered:   make(map[string]bool),
 	}
 }
 
@@ -221,12 +223,21 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		r.Mu.Unlock()
 		return
 	}
+
+	if r.HasAnswered[client.ID] {
+		r.Mu.Unlock()
+		return // Le joueur a déjà validé ce round, on ignore son message
+	}
+
 	track := r.CurrentTrack
 	r.Mu.Unlock()
 
 	result := VerifyAnswer(answer, track)
 
 	if result.Points > 0 {
+		r.Mu.Lock()
+		r.HasAnswered[client.ID] = true // Marquer que ce client a répondu pour ce round
+		r.Mu.Unlock()
 		// 1- mise a jour du score du client
 		client.Score += result.Points
 
@@ -255,6 +266,8 @@ func (r *Room) nextRound() {
 		return
 	}
 	r.CurrentRound++
+
+	r.HasAnswered = make(map[string]bool) // Réinitialiser les réponses pour le nouveau round
 	// On récupere la durée sous forme de variable locale pour le timer
 	duration := r.RoundDuration
 	r.Mu.Unlock()
