@@ -40,23 +40,34 @@ func main() {
 	router.GET("/ws", func(c *gin.Context) {
 		roomID := c.Query("room")
 		username := c.Query("username")
+		password := c.Query("password") // On récupère le mot de passe fourni par le joueur
 
 		game.RoomsMu.Lock()
 		room, exists := game.ActiveRooms[roomID]
-		fmt.Printf("--- Tentative de connexion ---\n")
-		fmt.Printf("RoomID demandé: %s | Existe déjà: %t\n", roomID, exists)
-		fmt.Printf("Nombre de salons actifs: %d\n", len(game.ActiveRooms))
-
-		if !exists {
-			log.Printf("Création du salon : %s", roomID)
-			room = game.CreateRoom(roomID)
-			game.ActiveRooms[roomID] = room
-			go room.Run()
-		}
 		game.RoomsMu.Unlock()
 
+		fmt.Printf("--- Tentative de connexion WebSocket ---\n")
+		fmt.Printf("RoomID demandé: %s | Existe déjà: %t\n", roomID, exists)
+
+		// 1. Sécurité : Le salon doit avoir été créé au préalable via le POST /rooms
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Le salon n'existe pas. Veuillez le créer d'abord."})
+			return
+		}
+
+		// 2. Sécurité : Vérification du mot de passe si le salon est privé
+		room.Mu.Lock()
+		if room.IsPrivate && room.Password != password {
+			room.Mu.Unlock()
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Mot de passe incorrect ou requis pour ce salon"})
+			return
+		}
+		room.Mu.Unlock()
+
+		// 3. Si tout est OK, on procède à la mise à niveau WebSocket
 		wsConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
+			log.Printf("Erreur Upgrade WS: %v", err)
 			return
 		}
 

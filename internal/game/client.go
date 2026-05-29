@@ -56,7 +56,38 @@ func (c *Client) ReadPump() {
 
 			fmt.Printf("Réponse reçue : %s\n", answer)
 			c.Room.CheckAnswer(c, answer)
+		case "UPDATE_SETTINGS":
+			type SettingsPayload struct {
+				MaxRounds     int    `json:"max_rounds"`
+				RoundDuration int    `json:"round_duration"`
+				IsPrivate     bool   `json:"is_private"`
+				Password      string `json:"password"`
+			}
 
+			var settings SettingsPayload
+			if err := json.Unmarshal(msg.Payload, &settings); err != nil {
+				log.Printf("Erreur décodage settings: %v", err)
+				continue
+			}
+
+			c.Room.Mu.Lock()
+			// Sécurité : Seul le créateur peut modifier les paramètres
+			if c.Room.CreatorID == c.ID && c.Room.State == StateLobby {
+				if settings.MaxRounds > 0 {
+					c.Room.MaxRounds = settings.MaxRounds
+				}
+				if settings.RoundDuration > 0 {
+					c.Room.RoundDuration = settings.RoundDuration
+				}
+				c.Room.IsPrivate = settings.IsPrivate
+				c.Room.Password = settings.Password
+
+				// Notification générale aux clients du salon pour mettre à jour leur affichage
+				c.Room.Mu.Unlock()
+				//c.Room.broadcastSettingsUpdate()
+			} else {
+				c.Room.Mu.Unlock()
+			}
 		}
 	}
 }

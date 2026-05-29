@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-// Messages que le serveur enverrait normalement après connexion
 const LOBBY_STATE = JSON.stringify({ type: 'GAME_STATE', payload: 'LOBBY' })
 const PLAYER_LIST = JSON.stringify({
   type: 'PLAYER_LIST',
@@ -12,8 +11,26 @@ const NEW_QUESTION = JSON.stringify({
   payload: { audio_url: 'https://example.com/track.webm', room_id: 'general' },
 })
 
+async function mockRoomsApi(page, roomId = 'general') {
+  await page.route('**/rooms', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: roomId, state: 'LOBBY', players_count: 0, max_rounds: 5, is_private: false },
+        ]),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+}
+
 // Helper : mock WebSocket + rejoindre la room
 async function joinRoom(page, username = 'Alice', roomId = 'general') {
+  await mockRoomsApi(page, roomId)
+
   await page.routeWebSocket(/\/ws/, (ws) => {
     ws.send(LOBBY_STATE)
     ws.send(PLAYER_LIST)
@@ -28,9 +45,9 @@ async function joinRoom(page, username = 'Alice', roomId = 'general') {
   })
 
   await page.goto('/')
-  await page.getByPlaceholder('Ton pseudo').fill(username)
-  await page.getByPlaceholder('Nom du salon (ex: general)').fill(roomId)
-  await page.getByRole('button', { name: 'Rejoindre' }).click()
+  await page.getByPlaceholder('Ex: Gon, Goku...').fill(username)
+  await page.getByRole('button', { name: 'Continuer' }).click()
+  await page.getByRole('button', { name: 'Rejoindre' }).first().click()
 }
 
 // ─── Formulaire de connexion ──────────────────────────────────────────────────
@@ -39,32 +56,23 @@ test.describe('Formulaire de connexion', () => {
   test('affiche le formulaire au chargement', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByPlaceholder('Ton pseudo')).toBeVisible()
-    await expect(page.getByPlaceholder('Nom du salon (ex: general)')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Rejoindre' })).toBeVisible()
+    await expect(page.getByPlaceholder('Ex: Gon, Goku...')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continuer' })).toBeVisible()
   })
 
-  test("ne rejoint pas si les deux champs sont vides", async ({ page }) => {
+  test('le bouton Continuer est désactivé si le pseudo est vide', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Rejoindre' }).click()
 
-    await expect(page.getByPlaceholder('Ton pseudo')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continuer' })).toBeDisabled()
   })
 
-  test("ne rejoint pas si seul le pseudo est rempli", async ({ page }) => {
+  test('affiche la sélection de salon après avoir entré un pseudo', async ({ page }) => {
+    await mockRoomsApi(page)
     await page.goto('/')
-    await page.getByPlaceholder('Ton pseudo').fill('Alice')
-    await page.getByRole('button', { name: 'Rejoindre' }).click()
+    await page.getByPlaceholder('Ex: Gon, Goku...').fill('Alice')
+    await page.getByRole('button', { name: 'Continuer' }).click()
 
-    await expect(page.getByPlaceholder('Ton pseudo')).toBeVisible()
-  })
-
-  test("ne rejoint pas si seul le salon est rempli", async ({ page }) => {
-    await page.goto('/')
-    await page.getByPlaceholder('Nom du salon (ex: general)').fill('general')
-    await page.getByRole('button', { name: 'Rejoindre' }).click()
-
-    await expect(page.getByPlaceholder('Ton pseudo')).toBeVisible()
+    await expect(page.getByText('Salons Disponibles')).toBeVisible()
   })
 })
 
@@ -97,12 +105,12 @@ test.describe('Lobby', () => {
     await expect(page.getByRole('button', { name: 'Quitter' })).toBeVisible()
   })
 
-  test('retourne au formulaire après avoir quitté', async ({ page }) => {
+  test('retourne à la sélection de salon après avoir quitté', async ({ page }) => {
     await joinRoom(page)
 
     await page.getByRole('button', { name: 'Quitter' }).click()
 
-    await expect(page.getByPlaceholder('Ton pseudo')).toBeVisible()
+    await expect(page.getByText('Salons Disponibles')).toBeVisible()
   })
 })
 

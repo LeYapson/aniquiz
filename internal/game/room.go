@@ -36,24 +36,60 @@ type Room struct {
 	Start        chan bool     // Canal pour recevoir l'ordre de démarrage
 	IsPlaying    bool          // Le quiz a-t-il démarré ?
 	// ------------------
-	CurrentRound int
-	MaxRounds    int
+	CurrentRound  int
+	MaxRounds     int
+	RoundDuration int
+	IsPrivate     bool
+	Password      string
+	CreatorID     string
 
 	Mu sync.Mutex
 }
 
-func CreateRoom(id string) *Room {
+type RoomSummary struct {
+	ID           string    `json:"id"`
+	State        RoomState `json:"state"`
+	PlayersCount int       `json:"players_count"`
+	IsPrivate    bool      `json:"is_private"`
+	MaxRounds    int       `json:"max_rounds"`
+}
+
+func GetPublicRooms() []RoomSummary {
+	RoomsMu.Lock()
+	defer RoomsMu.Unlock()
+
+	var list []RoomSummary
+	for id, room := range ActiveRooms {
+		room.Mu.Lock()
+		// On liste toutes les rooms, ou uniquement les publiques selon ton choix
+		list = append(list, RoomSummary{
+			ID:           id,
+			State:        room.State,
+			PlayersCount: len(room.Clients),
+			IsPrivate:    room.IsPrivate,
+			MaxRounds:    room.MaxRounds,
+		})
+		room.Mu.Unlock()
+	}
+	return list
+}
+
+func CreateRoom(id string, creatorID string) *Room {
 	return &Room{
-		ID:           id,
-		Clients:      make(map[*Client]bool),
-		Broadcast:    make(chan []byte),
-		Register:     make(chan *Client),
-		Unregister:   make(chan *Client),
-		Start:        make(chan bool),
-		IsPlaying:    false, // On initialise à false à la place
-		State:        StateLobby,
-		CurrentRound: 0,
-		MaxRounds:    5, // Par exemple, on peut faire 5 rounds par partie
+		ID:            id,
+		Clients:       make(map[*Client]bool),
+		Broadcast:     make(chan []byte),
+		Register:      make(chan *Client),
+		Unregister:    make(chan *Client),
+		Start:         make(chan bool),
+		IsPlaying:     false, // On initialise à false à la place
+		State:         StateLobby,
+		CurrentRound:  0,
+		MaxRounds:     5,  // Par exemple, on peut faire 5 rounds par partie
+		RoundDuration: 20, // Durée de chaque round en secondes
+		Password:      "",
+		IsPrivate:     false,
+		CreatorID:     creatorID,
 	}
 }
 
@@ -174,7 +210,7 @@ func (r *Room) EndRound(reason string) {
 	r.Broadcast <- data
 
 	// Après un délai, on peut lancer la prochaine question
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 	go r.nextRound()
 
 }
@@ -219,6 +255,8 @@ func (r *Room) nextRound() {
 		return
 	}
 	r.CurrentRound++
+	// On récupere la durée sous forme de variable locale pour le timer
+	duration := r.RoundDuration
 	r.Mu.Unlock()
 
 	track, err := database.GetRandomTrack()
@@ -240,6 +278,7 @@ func (r *Room) nextRound() {
 		"payload": map[string]interface{}{
 			"audio_url": track.AudioURL,
 			"room_id":   r.ID,
+			"duration":  duration, // On peut aussi envoyer la durée du round
 		},
 	}
 
@@ -250,7 +289,7 @@ func (r *Room) nextRound() {
 
 	// 4. Lancer un timer pour la fin du round
 	go func() {
-		time.Sleep(20 * time.Second)
+		time.Sleep(time.Duration(duration) * time.Second)
 		r.EndRound("Temps écoulé !")
 	}()
 }
@@ -263,24 +302,22 @@ func (r *Room) finishGame() {
 	r.CurrentTrack = nil
 	r.Mu.Unlock()
 
-	// 1. Préparer le podium (on trie les joueurs par score)
-	// On peut réutiliser BroadcastPlayerList ou créer un message dédié
+	// 1. On prévient le Front que c'est fini
 	msg := map[string]interface{}{
 		"type": "GAME_OVER",
 		"payload": map[string]interface{}{
-			"message": "Partie terminée !",
-			// On peut aussi envoyer les scores finaux ici
+			"message": "La partie est terminée !",
 		},
 	}
 	data, _ := json.Marshal(msg)
 	r.Broadcast <- data
 
-	// 2. Réinitialiser les scores des joueurs
+	// 2. On remet les scores de tout le monde à 0
 	r.resetScores()
 
-	// 3. Notifier le changement d'état (retour au lobby sur le front)
+	// 3. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
 	r.broadcastGameState()
-	r.BroadcastPlayerList()
+	go r.BroadcastPlayerList()
 }
 
 func (r *Room) resetScores() {

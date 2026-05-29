@@ -33,7 +33,7 @@ func newTestClient(id, username string) *Client {
 // --- CreateRoom ---
 
 func TestCreateRoom_InitialState(t *testing.T) {
-	room := CreateRoom("lobby-1")
+	room := CreateRoom("lobby-1", "creator-id")
 
 	if room.ID != "lobby-1" {
 		t.Errorf("ID: got %s, want lobby-1", room.ID)
