@@ -7,6 +7,8 @@
       "Bash(gofmt -w .)",
       "Bash(gofmt -w internal/game/room_test.go)",
       "Bash(go test *)",
+      "Bash(gh api *)",
+      "WebFetch(domain:api.github.com)",
       "Bash(go mod *)"
     ]
   }
