@@ -77,7 +77,13 @@
                   v-model="userGuess"
                   @keyup.enter="submitAnswer"
                   placeholder="Nom de l'anime..."
+                  list="anime-suggestions" 
                 />
+                
+                <datalist id="anime-suggestions">
+                  <option v-for="anime in animeDictionary" :key="anime" :value="anime"></option>
+                </datalist>
+
                 <button @click="submitAnswer">Envoyer</button>
               </div>
             </div>
@@ -98,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue"; // Remplacement de JoinRoom
 import GameTimer from "./components/GameTimer.vue";
 
@@ -112,6 +118,7 @@ const state = ref("LOBBY");
 const currentAudioUrl = ref("");
 const userGuess = ref("");
 const roundDuration = ref(0); // Stockera la durée dynamique reçue du Back
+const animeDictionary = ref([]); // Stockera les données de tous les animes reçues du back pour les afficher lors de la révélation
 let socket = null;
 
 // Validation du pseudo initial
@@ -153,6 +160,23 @@ const submitAnswer = () => {
   userGuess.value = "";
 };
 
+const loadAnimeDictionary = async () => {
+  try {
+    const response = await fetch("http://localhost:8080/animes");
+    if (response.ok) {
+      animeDictionary.value = await response.json();
+      console.log("📚 Dictionnaire d'animes chargé :", animeDictionary.value.length, "titres");
+    }
+  } catch (err) {
+    console.error("Erreur lors du chargement du dictionnaire :", err);
+  }
+};
+
+// Déclenche le chargement unique au démarrage de l'application
+onMounted(() => {
+  loadAnimeDictionary();
+});
+
 // Modifié pour accepter l'objet de données provenant de RoomSelection
 const setupWebSocket = ({ room_id, password }) => {
   room.value = room_id;
@@ -163,7 +187,6 @@ const setupWebSocket = ({ room_id, password }) => {
   socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
-    console.log("✅ Connecté au serveur Go !");
     isConnected.value = true;
   };
 
@@ -178,7 +201,6 @@ const setupWebSocket = ({ room_id, password }) => {
           state.value = data.payload;
           break;
         case "NewQuestion":
-          console.log("Nouvelle question reçue :", data.payload);
           isRevealing.value = false; 
           
           currentAudioUrl.value = data.payload.audio_url;
