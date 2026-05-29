@@ -11,13 +11,14 @@ import (
 // newTestRoom crée une room avec des channels bufférisés pour éviter les deadlocks en test.
 func newTestRoom() *Room {
 	return &Room{
-		ID:         "test-room",
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte, 10),
-		Register:   make(chan *Client, 1),
-		Unregister: make(chan *Client, 1),
-		Start:      make(chan bool, 1),
-		State:      StateLobby,
+		ID:          "test-room",
+		Clients:     make(map[*Client]bool),
+		Broadcast:   make(chan []byte, 10),
+		Register:    make(chan *Client, 1),
+		Unregister:  make(chan *Client, 1),
+		Start:       make(chan bool, 1),
+		State:       StateLobby,
+		HasAnswered: make(map[string]bool),
 	}
 }
 
