@@ -156,6 +156,7 @@ func TestCheckAnswer_ScoreAccumulates(t *testing.T) {
 	<-room.Broadcast                   // PLAYER_GUESS
 	<-room.Broadcast                   // PLAYER_LIST de BroadcastPlayerList — garantit que la goroutine a fini de lire client.Score
 
+	room.HasAnswered = make(map[string]bool) // simulate new round
 	room.IsPlaying = true
 	room.CheckAnswer(client, "Naruto Shippuden") // +10
 	<-room.Broadcast                             // PLAYER_GUESS
