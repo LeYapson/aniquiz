@@ -16,7 +16,9 @@
       "Bash(gofmt -w cmd/api/main.go internal/database/database.go internal/game/client.go internal/models/models.go internal/sourcing/anilist_oauth.go internal/sourcing/mal_oauth.go)",
       "Bash(git checkout *)",
       "Bash(git pull *)",
-      "Bash(gofmt -w cmd/api/main.go internal/database/database.go internal/game/logic_test.go internal/game/room.go)"
+      "Bash(gofmt -w cmd/api/main.go internal/database/database.go internal/game/logic_test.go internal/game/room.go)",
+      "Bash(go get *)",
+      "Bash(gofmt -w internal/database/database.go internal/game/room.go internal/handlers/router.go internal/models/models.go)"
     ]
   }
 }
