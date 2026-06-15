@@ -1,0 +1,17 @@
+# Variables d'environnement — ne jamais commiter
+.env
+.env.local
+.env.*.local
+
+# Binaires Go
+/aniquiz
+/bin/
+
+# Coverage
+coverage.out
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/

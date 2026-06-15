@@ -9,7 +9,10 @@
       "Bash(go test *)",
       "Bash(gh api *)",
       "WebFetch(domain:api.github.com)",
-      "Bash(go mod *)"
+      "Bash(go mod *)",
+      "Bash(npm run *)",
+      "Bash(go build *)",
+      "Bash(npx playwright *)"
     ]
   }
 }
