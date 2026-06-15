@@ -22,7 +22,7 @@ jobs:
 
       - name: Set up Go
         run: |
-          curl -sL https://dl.google.com/go/go1.26.3.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+          curl -sL https://dl.google.com/go/go1.26.4.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
           echo "/usr/local/go/bin" >> $GITHUB_PATH
 
       - name: govulncheck
@@ -42,7 +42,7 @@ jobs:
 
       - name: Set up Go
         run: |
-          curl -sL https://dl.google.com/go/go1.26.3.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+          curl -sL https://dl.google.com/go/go1.26.4.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
           echo "/usr/local/go/bin" >> $GITHUB_PATH
 
       - name: Lint (go vet + gofmt)

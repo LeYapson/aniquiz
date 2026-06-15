@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 
+// ─── Messages WebSocket simulés ───────────────────────────────────────────────
+
 const LOBBY_STATE = JSON.stringify({ type: 'GAME_STATE', payload: 'LOBBY' })
 const PLAYER_LIST = JSON.stringify({
   type: 'PLAYER_LIST',
@@ -8,35 +10,60 @@ const PLAYER_LIST = JSON.stringify({
 const PLAYING_STATE = JSON.stringify({ type: 'GAME_STATE', payload: 'PLAYING' })
 const NEW_QUESTION = JSON.stringify({
   type: 'NewQuestion',
-  payload: { audio_url: 'https://example.com/track.webm', room_id: 'general' },
+  payload: { audio_url: 'https://example.com/track.webm', duration: 30 },
 })
 
-async function mockRoomsApi(page, roomId = 'general') {
-  await page.route('**/rooms', async (route) => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function mockAllApis(page, username = 'Alice', roomId = 'general') {
+  await page.route('**/api/auth/login', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token: 'test-jwt-token',
+        user: { id: 1, username, level: 1, xp: 0, email: `${username.toLowerCase()}@test.com` },
+      }),
+    })
+  )
+
+  await page.route('**/rooms', (route) => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
           { id: roomId, state: 'LOBBY', players_count: 0, max_rounds: 5, is_private: false },
         ]),
       })
-    } else {
-      await route.continue()
     }
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ room_id: roomId, creator_id: username }),
+    })
   })
+
+  await page.route('**/animes', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  )
 }
 
-// Helper : mock WebSocket + rejoindre la room
+async function loginAs(page, username = 'Alice') {
+  await page.getByPlaceholder('Votre pseudo').fill(username)
+  await page.locator('input[type="password"]').fill('password123')
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page.getByText('Salons Disponibles')).toBeVisible()
+}
+
 async function joinRoom(page, username = 'Alice', roomId = 'general') {
-  await mockRoomsApi(page, roomId)
+  await mockAllApis(page, username, roomId)
 
   await page.routeWebSocket(/\/ws/, (ws) => {
     ws.send(LOBBY_STATE)
     ws.send(PLAYER_LIST)
-
-    ws.onMessage((message) => {
-      const data = JSON.parse(message)
+    ws.onMessage((msg) => {
+      const data = JSON.parse(msg)
       if (data.type === 'START_GAME') {
         ws.send(PLAYING_STATE)
         ws.send(NEW_QUESTION)
@@ -45,8 +72,7 @@ async function joinRoom(page, username = 'Alice', roomId = 'general') {
   })
 
   await page.goto('/')
-  await page.getByPlaceholder('Ex: Gon, Goku...').fill(username)
-  await page.getByRole('button', { name: 'Continuer' }).click()
+  await loginAs(page, username)
   await page.getByRole('button', { name: 'Rejoindre' }).first().click()
 }
 
@@ -56,21 +82,33 @@ test.describe('Formulaire de connexion', () => {
   test('affiche le formulaire au chargement', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByPlaceholder('Ex: Gon, Goku...')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Continuer' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Connexion à AniQuiz' })).toBeVisible()
+    await expect(page.getByPlaceholder('Votre pseudo')).toBeVisible()
+    await expect(page.locator('input[type="password"]')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible()
   })
 
-  test('le bouton Continuer est désactivé si le pseudo est vide', async ({ page }) => {
-    await page.goto('/')
+  test('affiche un message d\'erreur pour des identifiants incorrects', async ({ page }) => {
+    await page.route('**/api/auth/login', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Identifiants incorrects' }),
+      })
+    )
 
-    await expect(page.getByRole('button', { name: 'Continuer' })).toBeDisabled()
+    await page.goto('/')
+    await page.getByPlaceholder('Votre pseudo').fill('inconnu')
+    await page.locator('input[type="password"]').fill('wrongpassword')
+    await page.getByRole('button', { name: 'Se connecter' }).click()
+
+    await expect(page.getByText('Identifiants incorrects')).toBeVisible()
   })
 
-  test('affiche la sélection de salon après avoir entré un pseudo', async ({ page }) => {
-    await mockRoomsApi(page)
+  test('affiche la sélection de salon après la connexion', async ({ page }) => {
+    await mockAllApis(page)
     await page.goto('/')
-    await page.getByPlaceholder('Ex: Gon, Goku...').fill('Alice')
-    await page.getByRole('button', { name: 'Continuer' }).click()
+    await loginAs(page)
 
     await expect(page.getByText('Salons Disponibles')).toBeVisible()
   })

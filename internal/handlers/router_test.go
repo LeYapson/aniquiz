@@ -32,6 +32,10 @@ func (m *mockStore) GetAllTracks() ([]models.Track, error) {
 	}
 	return nil, m.err
 }
+func (m *mockStore) CreateUser(_, _, _ string) error { return m.err }
+func (m *mockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
+	return nil, errors.New("not found")
+}
 
 // helpers
 
@@ -46,6 +50,28 @@ func doJSON(router *gin.Engine, method, path string, body any) *httptest.Respons
 	}
 	req := httptest.NewRequest(method, path, &buf)
 	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
+}
+
+func testToken(t *testing.T) string {
+	t.Helper()
+	tok, err := handlers.GenerateToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("impossible de générer le token de test: %v", err)
+	}
+	return tok
+}
+
+func doJSONAuth(router *gin.Engine, method, path string, body any, token string) *httptest.ResponseRecorder {
+	var buf bytes.Buffer
+	if body != nil {
+		json.NewEncoder(&buf).Encode(body)
+	}
+	req := httptest.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	return w
@@ -79,8 +105,9 @@ func cleanRoom(id string) {
 func TestCreateRoom_OK(t *testing.T) {
 	defer cleanRoom("test-salon")
 	router := newServer(&mockStore{})
+	tok := testToken(t)
 
-	w := doJSON(router, http.MethodPost, "/rooms", map[string]string{"room_id": "test-salon"})
+	w := doJSONAuth(router, http.MethodPost, "/rooms", map[string]string{"room_id": "test-salon"}, tok)
 
 	if w.Code != http.StatusCreated {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusCreated)
@@ -95,8 +122,9 @@ func TestCreateRoom_OK(t *testing.T) {
 
 func TestCreateRoom_MissingRoomID(t *testing.T) {
 	router := newServer(&mockStore{})
+	tok := testToken(t)
 
-	w := doJSON(router, http.MethodPost, "/rooms", map[string]string{})
+	w := doJSONAuth(router, http.MethodPost, "/rooms", map[string]string{}, tok)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
@@ -106,9 +134,10 @@ func TestCreateRoom_MissingRoomID(t *testing.T) {
 func TestCreateRoom_Duplicate(t *testing.T) {
 	defer cleanRoom("salon-doublon")
 	router := newServer(&mockStore{})
+	tok := testToken(t)
 
-	doJSON(router, http.MethodPost, "/rooms", map[string]string{"room_id": "salon-doublon"})
-	w := doJSON(router, http.MethodPost, "/rooms", map[string]string{"room_id": "salon-doublon"})
+	doJSONAuth(router, http.MethodPost, "/rooms", map[string]string{"room_id": "salon-doublon"}, tok)
+	w := doJSONAuth(router, http.MethodPost, "/rooms", map[string]string{"room_id": "salon-doublon"}, tok)
 
 	if w.Code != http.StatusConflict {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusConflict)
@@ -121,7 +150,7 @@ func TestQuizNext_OK(t *testing.T) {
 	track := &models.Track{ID: 7, AudioURL: "https://example.com/track.webm", AnimeName: "Naruto"}
 	router := newServer(&mockStore{track: track})
 
-	w := doJSON(router, http.MethodGet, "/quiz/next", nil)
+	w := doJSONAuth(router, http.MethodGet, "/quiz/next", nil, testToken(t))
 
 	if w.Code != http.StatusOK {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusOK)
@@ -146,7 +175,7 @@ func TestQuizNext_OK(t *testing.T) {
 func TestQuizNext_DBError(t *testing.T) {
 	router := newServer(&mockStore{err: errors.New("connexion DB perdue")})
 
-	w := doJSON(router, http.MethodGet, "/quiz/next", nil)
+	w := doJSONAuth(router, http.MethodGet, "/quiz/next", nil, testToken(t))
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusInternalServerError)
@@ -159,6 +188,7 @@ func TestQuizAnswer_InvalidJSON(t *testing.T) {
 	router := newServer(&mockStore{})
 	req := httptest.NewRequest(http.MethodPost, "/quiz/answer", bytes.NewBufferString("not-json"))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testToken(t))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -170,10 +200,10 @@ func TestQuizAnswer_InvalidJSON(t *testing.T) {
 func TestQuizAnswer_TrackNotFound(t *testing.T) {
 	router := newServer(&mockStore{err: errors.New("not found")})
 
-	w := doJSON(router, http.MethodPost, "/quiz/answer", map[string]any{
+	w := doJSONAuth(router, http.MethodPost, "/quiz/answer", map[string]any{
 		"track_id": 999,
 		"answer":   "Naruto",
-	})
+	}, testToken(t))
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusNotFound)
@@ -184,10 +214,10 @@ func TestQuizAnswer_CorrectAnswer(t *testing.T) {
 	track := &models.Track{ID: 1, AnimeName: "Naruto Shippuden"}
 	router := newServer(&mockStore{track: track})
 
-	w := doJSON(router, http.MethodPost, "/quiz/answer", map[string]any{
+	w := doJSONAuth(router, http.MethodPost, "/quiz/answer", map[string]any{
 		"track_id": 1,
 		"answer":   "Naruto Shippuden",
-	})
+	}, testToken(t))
 
 	if w.Code != http.StatusOK {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusOK)
@@ -207,10 +237,10 @@ func TestQuizAnswer_WrongAnswer(t *testing.T) {
 	track := &models.Track{ID: 1, AnimeName: "Naruto Shippuden"}
 	router := newServer(&mockStore{track: track})
 
-	w := doJSON(router, http.MethodPost, "/quiz/answer", map[string]any{
+	w := doJSONAuth(router, http.MethodPost, "/quiz/answer", map[string]any{
 		"track_id": 1,
 		"answer":   "One Piece",
-	})
+	}, testToken(t))
 
 	if w.Code != http.StatusOK {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusOK)
@@ -230,10 +260,10 @@ func TestQuizAnswer_PartialAnswer(t *testing.T) {
 	track := &models.Track{ID: 1, AnimeName: "Naruto Shippuden"}
 	router := newServer(&mockStore{track: track})
 
-	w := doJSON(router, http.MethodPost, "/quiz/answer", map[string]any{
+	w := doJSONAuth(router, http.MethodPost, "/quiz/answer", map[string]any{
 		"track_id": 1,
 		"answer":   "Naruto",
-	})
+	}, testToken(t))
 
 	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)

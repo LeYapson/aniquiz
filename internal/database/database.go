@@ -3,21 +3,58 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
 
-	//"os"
-
+	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect() (*pgx.Conn, error) {
-	// Dans un premier temps, on peut mettre la chaine en dur pour tester
-	// Format : postgres://utilisateur:motdepasse@localhost:5432/nom_bdd
-	connStr := "postgres://postgres@localhost:5432/postgres?sslmode=disable"
+var Pool *pgxpool.Pool
 
-	conn, err := pgx.Connect(context.Background(), connStr)
-	if err != nil {
-		return nil, fmt.Errorf("Impossible de se connecter : %v", err)
+func Connect() (*pgxpool.Pool, error) {
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://postgres@localhost:5432/postgres?sslmode=disable"
 	}
 
-	return conn, nil
+	pool, err := pgxpool.New(context.Background(), connStr)
+	if err != nil {
+		return nil, fmt.Errorf("impossible de se connecter : %v", err)
+	}
+
+	Pool = pool
+	return pool, nil
+}
+
+// CreateUser insère un nouvel utilisateur dans la base de données.
+func CreateUser(username, email, passwordHash string) error {
+	query := `
+		INSERT INTO users (username, email, password_hash, xp, level, created_at)
+		VALUES ($1, $2, $3, 0, 1, NOW())
+	`
+	_, err := Pool.Exec(context.Background(), query, username, email, passwordHash)
+	return err
+}
+
+// GetUserByUsernameOrEmail récupère un utilisateur pour vérifier ses identifiants au login
+func GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
+	var user models.User
+	query := `
+		SELECT id, username, email, password_hash, xp, level, created_at
+		FROM users
+		WHERE username = $1 OR email = $1
+	`
+
+	err := Pool.QueryRow(context.Background(), query, identifier).Scan(
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Xp, &user.Level, &user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }

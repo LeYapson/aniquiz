@@ -3,13 +3,16 @@ package models
 import "time"
 
 type User struct {
-	ID           int       `json:"id"`
-	Username     string    `json:"username"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"` //le "-" indique que ce champ ne sera pas inclus dans les réponses JSON
-	AvatarUrl    string    `json:"avatar_url"`
-	XP           int       `json:"xp"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID              int       `json:"id" db:"id"`
+	Username        string    `json:"username" db:"username"`
+	Email           string    `json:"email" db:"email"`
+	PasswordHash    string    `json:"-" db:"password_hash"` // Le tiret "-" cache le hash dans les réponses JSON
+	AvatarURL       string    `json:"avatar_url" db:"avatar_url"`
+	Xp              int       `json:"xp" db:"xp"`
+	Level           int       `json:"level" db:"level"`
+	AnilistUsername string    `json:"anilist_username" db:"anilist_username"`
+	MalUsername     string    `json:"mal_username" db:"mal_username"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 type Track struct {
