@@ -73,6 +73,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { authStore } from '../authStore';
 
 const emit = defineEmits(['room-created', 'room-joined']);
 
@@ -106,7 +107,7 @@ const submitCreate = async () => {
   try {
     const response = await fetch("http://localhost:8080/rooms", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authStore.authHeaders(),
       body: JSON.stringify(config.value)
     });
 

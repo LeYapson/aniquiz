@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,9 +11,8 @@ import (
 	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/handlers"
 	"github.com/LeYapson/aniquiz/internal/sourcing"
-	"github.com/gorilla/websocket"
-
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close(context.Background())
+	defer conn.Close()
 
 	// 2 - Router avec les routes testables (ping, rooms, quiz/next, quiz/answer)
 	store := &handlers.PgStore{}
@@ -39,23 +37,30 @@ func main() {
 
 	router.GET("/ws", func(c *gin.Context) {
 		roomID := c.Query("room")
-		username := c.Query("username")
-		password := c.Query("password") // On récupère le mot de passe fourni par le joueur
+		password := c.Query("password")
+		tokenString := c.Query("token")
+
+		// 1. Validation du token JWT
+		claims, err := handlers.ValidateToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide ou manquant"})
+			return
+		}
 
 		game.RoomsMu.Lock()
 		room, exists := game.ActiveRooms[roomID]
 		game.RoomsMu.Unlock()
 
 		fmt.Printf("--- Tentative de connexion WebSocket ---\n")
-		fmt.Printf("RoomID demandé: %s | Existe déjà: %t\n", roomID, exists)
+		fmt.Printf("RoomID: %s | User: %s | Existe: %t\n", roomID, claims.Username, exists)
 
-		// 1. Sécurité : Le salon doit avoir été créé au préalable via le POST /rooms
+		// 2. Le salon doit exister
 		if !exists {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Le salon n'existe pas. Veuillez le créer d'abord."})
 			return
 		}
 
-		// 2. Sécurité : Vérification du mot de passe si le salon est privé
+		// 3. Vérification du mot de passe si le salon est privé
 		room.Mu.Lock()
 		if room.IsPrivate && room.Password != password {
 			room.Mu.Unlock()
@@ -64,7 +69,7 @@ func main() {
 		}
 		room.Mu.Unlock()
 
-		// 3. Si tout est OK, on procède à la mise à niveau WebSocket
+		// 4. Upgrade WebSocket
 		wsConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			log.Printf("Erreur Upgrade WS: %v", err)
@@ -73,7 +78,7 @@ func main() {
 
 		client := &game.Client{
 			ID:       fmt.Sprintf("%d", time.Now().UnixNano()),
-			Username: username,
+			Username: claims.Username,
 			Conn:     wsConn,
 			Room:     room,
 			Send:     make(chan []byte, 256),
