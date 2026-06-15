@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/LeYapson/aniquiz/internal/sourcing"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -22,6 +24,9 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	// Charge .env si présent (ignoré en production où les vars sont déjà exportées)
+	_ = godotenv.Load()
+
 	// 1 - Connexion à la base de données
 	conn, err := database.Connect()
 	if err != nil {
@@ -131,7 +136,145 @@ func main() {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 	})
 
-	// 4 - Démarrage du serveur
+	// 4 - OAuth AniList
+	// GET /api/auth/anilist — redirige l'utilisateur vers la page d'autorisation AniList
+	router.GET("/api/auth/anilist", func(c *gin.Context) {
+		tokenString := c.Query("token")
+		if tokenString == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "token requis"})
+			return
+		}
+		// Valider le JWT avant de lancer l'OAuth
+		if _, err := handlers.ValidateToken(tokenString); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide"})
+			return
+		}
+		// Le JWT est passé comme state : AniList le renverra dans le callback
+		authURL := sourcing.BuildAuthURL(tokenString)
+		c.Redirect(http.StatusFound, authURL)
+	})
+
+	// GET /api/auth/anilist/callback — AniList redirige ici après autorisation
+	router.GET("/api/auth/anilist/callback", func(c *gin.Context) {
+		code := c.Query("code")
+		state := c.Query("state") // contient le JWT de l'utilisateur
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:5173"
+		}
+
+		if code == "" || state == "" {
+			c.Redirect(http.StatusFound, frontendURL+"?anilist=error&reason=missing_params")
+			return
+		}
+
+		// Valider le JWT récupéré depuis le state
+		claims, err := handlers.ValidateToken(state)
+		if err != nil {
+			c.Redirect(http.StatusFound, frontendURL+"?anilist=error&reason=invalid_token")
+			return
+		}
+
+		// Échanger le code contre un access token AniList
+		accessToken, err := sourcing.ExchangeCode(code)
+		if err != nil {
+			log.Printf("Erreur échange code AniList: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?anilist=error&reason=exchange_failed")
+			return
+		}
+
+		// Récupérer le profil AniList
+		profile, err := sourcing.GetAnilistProfile(accessToken)
+		if err != nil {
+			log.Printf("Erreur profil AniList: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?anilist=error&reason=profile_failed")
+			return
+		}
+
+		// Sauvegarder en base
+		if err := database.UpdateUserAnilist(claims.UserID, profile.ID, profile.Username, accessToken); err != nil {
+			log.Printf("Erreur sauvegarde AniList: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?anilist=error&reason=db_failed")
+			return
+		}
+
+		c.Redirect(http.StatusFound, frontendURL+"?anilist=success&username="+profile.Username)
+	})
+
+	// 5 - OAuth MyAnimeList (PKCE)
+	// GET /api/auth/mal — redirige vers MAL avec code_challenge PKCE
+	router.GET("/api/auth/mal", func(c *gin.Context) {
+		tokenString := c.Query("token")
+		if tokenString == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "token requis"})
+			return
+		}
+		if _, err := handlers.ValidateToken(tokenString); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide"})
+			return
+		}
+		authURL, _, err := sourcing.BuildMALAuthURL(tokenString)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Impossible de générer l'URL MAL"})
+			return
+		}
+		c.Redirect(http.StatusFound, authURL)
+	})
+
+	// GET /api/auth/mal/callback — MAL redirige ici après autorisation
+	router.GET("/api/auth/mal/callback", func(c *gin.Context) {
+		code := c.Query("code")
+		state := c.Query("state")
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:5173"
+		}
+
+		if code == "" || state == "" {
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=missing_params")
+			return
+		}
+
+		// Décoder le state pour récupérer JWT + code_verifier
+		jwtToken, verifier, err := sourcing.DecodeMalState(state)
+		if err != nil {
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=invalid_state")
+			return
+		}
+
+		claims, err := handlers.ValidateToken(jwtToken)
+		if err != nil {
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=invalid_token")
+			return
+		}
+
+		// Échanger le code contre un access token MAL (avec le verifier PKCE)
+		accessToken, err := sourcing.ExchangeMALCode(code, verifier)
+		if err != nil {
+			log.Printf("Erreur échange code MAL: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=exchange_failed")
+			return
+		}
+
+		// Récupérer le profil MAL
+		profile, err := sourcing.GetMALProfile(accessToken)
+		if err != nil {
+			log.Printf("Erreur profil MAL: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=profile_failed")
+			return
+		}
+
+		// Sauvegarder en base
+		if err := database.UpdateUserMAL(claims.UserID, profile.ID, profile.Username, accessToken); err != nil {
+			log.Printf("Erreur sauvegarde MAL: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?mal=error&reason=db_failed")
+			return
+		}
+
+		c.Redirect(http.StatusFound, frontendURL+"?mal=success&username="+profile.Username)
+	})
+
+	// 6 - Démarrage du serveur
 	fmt.Println("Serveur lancé sur http://localhost:8080")
 	router.Run(":8080")
 }

@@ -10,6 +10,7 @@ import (
 // Client représente un joueur connecté via WebSocket
 type Client struct {
 	ID       string
+	UserID   int
 	Username string
 	Conn     *websocket.Conn
 	Room     *Room

@@ -11,7 +11,11 @@ type User struct {
 	Xp              int       `json:"xp" db:"xp"`
 	Level           int       `json:"level" db:"level"`
 	AnilistUsername string    `json:"anilist_username" db:"anilist_username"`
+	AnilistUserID   int       `json:"anilist_user_id" db:"anilist_user_id"`
+	AnilistToken    string    `json:"-" db:"anilist_token"`
 	MalUsername     string    `json:"mal_username" db:"mal_username"`
+	MalUserID       int       `json:"mal_user_id" db:"mal_user_id"`
+	MalToken        string    `json:"-" db:"mal_token"`
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 

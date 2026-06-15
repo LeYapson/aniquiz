@@ -2,7 +2,19 @@
   <div id="app">
     <header v-if="authStore.user" class="app-header">
       <span>Bienvenue, <strong>{{ authStore.user.username }}</strong> (Niv. {{ authStore.user.level }})</span>
-      <button @click="authStore.logout" class="btn-logout">Déconnexion</button>
+      <div class="header-actions">
+        <span v-if="authStore.user.anilist_username" class="anilist-badge">
+          AniList : <strong>{{ authStore.user.anilist_username }}</strong> ✓
+        </span>
+        <button v-else @click="connectAnilist" class="btn-anilist">Connecter AniList</button>
+
+        <span v-if="authStore.user.mal_username" class="mal-badge">
+          MAL : <strong>{{ authStore.user.mal_username }}</strong> ✓
+        </span>
+        <button v-else @click="connectMAL" class="btn-mal">Connecter MAL</button>
+
+        <button @click="authStore.logout" class="btn-logout">Déconnexion</button>
+      </div>
     </header>
 
     <main>
@@ -141,6 +153,39 @@ const submitAnswer = () => {
   userGuess.value = "";
 };
 
+const connectAnilist = () => {
+  window.location.href = `http://localhost:8080/api/auth/anilist?token=${authStore.token}`
+}
+
+const connectMAL = () => {
+  window.location.href = `http://localhost:8080/api/auth/mal?token=${authStore.token}`
+}
+
+// Gestion des retours OAuth (?anilist=success&username=xxx ou ?mal=success&username=xxx)
+const checkOAuthCallback = () => {
+  const params = new URLSearchParams(window.location.search)
+
+  const anilistStatus = params.get('anilist')
+  if (anilistStatus === 'success') {
+    const username = params.get('username')
+    if (username && authStore.user) {
+      authStore.setUser({ ...authStore.user, anilist_username: username }, authStore.token)
+    }
+  }
+
+  const malStatus = params.get('mal')
+  if (malStatus === 'success') {
+    const username = params.get('username')
+    if (username && authStore.user) {
+      authStore.setUser({ ...authStore.user, mal_username: username }, authStore.token)
+    }
+  }
+
+  if (anilistStatus || malStatus) {
+    window.history.replaceState({}, '', window.location.pathname)
+  }
+}
+
 const loadAnimeDictionary = async () => {
   try {
     const response = await fetch("http://localhost:8080/animes");
@@ -164,6 +209,7 @@ const authFetch = (url, options = {}) => {
 
 onMounted(() => {
   loadAnimeDictionary();
+  checkOAuthCallback();
 });
 
 const setupWebSocket = ({ room_id, password }) => {
@@ -244,6 +290,11 @@ defineExpose({ state, isConnected });
   background: #1a1a2e;
   color: #fff;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .btn-logout {
   background: #ff4757;
   color: white;
@@ -251,6 +302,32 @@ defineExpose({ state, isConnected });
   padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
+}
+.btn-anilist {
+  background: #02a9ff;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.anilist-badge {
+  color: #02a9ff;
+  font-size: 0.9rem;
+}
+.btn-mal {
+  background: #2e51a2;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.mal-badge {
+  color: #7db4de;
+  font-size: 0.9rem;
 }
 main {
   flex: 1;
