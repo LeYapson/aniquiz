@@ -83,6 +83,7 @@ func main() {
 
 		client := &game.Client{
 			ID:       fmt.Sprintf("%d", time.Now().UnixNano()),
+			UserID:   claims.UserID,
 			Username: claims.Username,
 			Conn:     wsConn,
 			Room:     room,

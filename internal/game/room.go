@@ -3,11 +3,13 @@ package game
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/LeYapson/aniquiz/internal/database"
-	"github.com/LeYapson/aniquiz/internal/models"
 	"log"
+	"math"
 	"sync"
 	"time"
+
+	"github.com/LeYapson/aniquiz/internal/database"
+	"github.com/LeYapson/aniquiz/internal/models"
 )
 
 var (
@@ -315,7 +317,10 @@ func (r *Room) finishGame() {
 	r.CurrentTrack = nil
 	r.Mu.Unlock()
 
-	// 1. On prévient le Front que c'est fini
+	// 1. Distribuer l'XP avant de réinitialiser les scores
+	r.grantXP()
+
+	// 2. On prévient le Front que c'est fini
 	msg := map[string]interface{}{
 		"type": "GAME_OVER",
 		"payload": map[string]interface{}{
@@ -325,12 +330,62 @@ func (r *Room) finishGame() {
 	data, _ := json.Marshal(msg)
 	r.Broadcast <- data
 
-	// 2. On remet les scores de tout le monde à 0
+	// 3. On remet les scores de tout le monde à 0
 	r.resetScores()
 
-	// 3. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
+	// 4. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
 	r.broadcastGameState()
 	go r.BroadcastPlayerList()
+}
+
+// XPToLevel convertit un total d'XP en niveau selon la formule floor(sqrt(xp/100)) + 1.
+func XPToLevel(xp int) int {
+	if xp <= 0 {
+		return 1
+	}
+	level := int(math.Sqrt(float64(xp)/100)) + 1
+	if level < 1 {
+		return 1
+	}
+	return level
+}
+
+// XPForScore calcule l'XP gagné pour un score de partie (minimum 5 pour la participation).
+func XPForScore(score int) int {
+	xp := score * 10
+	if xp < 5 {
+		return 5
+	}
+	return xp
+}
+
+// grantXP attribue de l'XP à chaque joueur connecté selon son score de la partie.
+// XP gagné = score * 10 (minimum 5 pour la participation).
+// Envoie un message XP_GAINED personnel à chaque joueur authentifié.
+func (r *Room) grantXP() {
+	for c := range r.Clients {
+		if c.UserID == 0 {
+			continue
+		}
+		xpGained := XPForScore(c.Score)
+		newXP, newLevel, err := database.AddUserXP(c.UserID, xpGained)
+		if err != nil {
+			log.Printf("Erreur AddUserXP pour %s: %v", c.Username, err)
+			continue
+		}
+		msg, _ := json.Marshal(map[string]interface{}{
+			"type": "XP_GAINED",
+			"payload": map[string]interface{}{
+				"xp_gained": xpGained,
+				"new_xp":    newXP,
+				"new_level": newLevel,
+			},
+		})
+		select {
+		case c.Send <- msg:
+		default:
+		}
+	}
 }
 
 func (r *Room) resetScores() {

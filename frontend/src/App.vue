@@ -17,6 +17,17 @@
       </div>
     </header>
 
+    <Transition name="toast">
+      <div v-if="xpToast" class="xp-toast">
+        <span class="xp-icon">⭐</span>
+        <div>
+          <strong>+{{ xpToast.xpGained }} XP</strong>
+          <div v-if="xpToast.levelUp" class="level-up">Niveau {{ xpToast.newLevel }} atteint ! 🎉</div>
+          <div v-else class="xp-total">Total : {{ xpToast.newXP }} XP · Niv. {{ xpToast.newLevel }}</div>
+        </div>
+      </div>
+    </Transition>
+
     <main>
       <AuthForm v-if="!authStore.user" />
 
@@ -139,6 +150,7 @@ const currentAnswerInfo = ref({
   artist: "",
   videoUrl: "",
 });
+const xpToast = ref(null); // { xpGained, newXP, newLevel, levelUp }
 let socket = null;
 
 const startGame = () => {
@@ -252,8 +264,25 @@ const setupWebSocket = ({ room_id, password }) => {
           currentAudioUrl.value = "";
           break;
         case "GAME_OVER":
-          alert("Partie terminée ! " + (data.payload?.message ?? ""));
           state.value = "LOBBY";
+          break;
+        case "XP_GAINED":
+          const oldLevel = authStore.user?.level ?? 1;
+          const levelUp = data.payload.new_level > oldLevel;
+          xpToast.value = {
+            xpGained: data.payload.xp_gained,
+            newXP: data.payload.new_xp,
+            newLevel: data.payload.new_level,
+            levelUp,
+          };
+          // Mettre à jour le niveau dans le store
+          if (authStore.user) {
+            authStore.setUser(
+              { ...authStore.user, xp: data.payload.new_xp, level: data.payload.new_level },
+              authStore.token
+            );
+          }
+          setTimeout(() => { xpToast.value = null; }, 5000);
           break;
       }
     } catch (err) {
@@ -373,4 +402,24 @@ main {
 .answer-zone { margin: 20px 0; display: flex; gap: 10px; }
 .answer-zone input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
 .answer-zone button { background: #1e90ff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.xp-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #1a1a2e;
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  border-left: 4px solid #ffd700;
+  z-index: 1000;
+}
+.xp-icon { font-size: 1.8rem; }
+.level-up { color: #ffd700; font-weight: bold; margin-top: 2px; }
+.xp-total { color: #aaa; font-size: 0.85rem; margin-top: 2px; }
+.toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
 </style>

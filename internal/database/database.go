@@ -80,6 +80,20 @@ func UpdateUserAnilist(userID, anilistUserID int, anilistUsername, token string)
 	return err
 }
 
+// AddUserXP ajoute de l'XP à un utilisateur et recalcule son niveau.
+// Formule niveau : floor(sqrt(xp / 100)) + 1 (progression exponentielle).
+func AddUserXP(userID, xpGained int) (newXP, newLevel int, err error) {
+	query := `
+		UPDATE users
+		SET xp    = xp + $1,
+		    level = FLOOR(SQRT((xp + $1)::float / 100))::int + 1
+		WHERE id = $2
+		RETURNING xp, level
+	`
+	err = Pool.QueryRow(context.Background(), query, xpGained, userID).Scan(&newXP, &newLevel)
+	return
+}
+
 // GetUserByUsernameOrEmail récupère un utilisateur pour vérifier ses identifiants au login
 func GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
 	var user models.User
