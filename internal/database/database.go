@@ -80,6 +80,42 @@ func UpdateUserAnilist(userID, anilistUserID int, anilistUsername, token string)
 	return err
 }
 
+// SaveGameResult enregistre le résultat d'un joueur pour une partie terminée.
+func SaveGameResult(userID, score, xpGained int) error {
+	query := `
+		INSERT INTO game_results (user_id, score, xp_gained, played_at)
+		VALUES ($1, $2, $3, NOW())
+	`
+	_, err := Pool.Exec(context.Background(), query, userID, score, xpGained)
+	return err
+}
+
+// GetUserHistory retourne les 20 dernières parties d'un utilisateur.
+func GetUserHistory(userID int) ([]models.GameResult, error) {
+	query := `
+		SELECT id, user_id, score, xp_gained, played_at
+		FROM game_results
+		WHERE user_id = $1
+		ORDER BY played_at DESC
+		LIMIT 20
+	`
+	rows, err := Pool.Query(context.Background(), query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []models.GameResult
+	for rows.Next() {
+		var r models.GameResult
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Score, &r.XPGained, &r.PlayedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
 // AddUserXP ajoute de l'XP à un utilisateur et recalcule son niveau.
 // Formule niveau : floor(sqrt(xp / 100)) + 1 (progression exponentielle).
 func AddUserXP(userID, xpGained int) (newXP, newLevel int, err error) {

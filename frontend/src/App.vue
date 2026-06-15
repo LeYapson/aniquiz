@@ -69,6 +69,24 @@
                 </button>
               </div>
 
+              <div v-if="state === 'GAME_OVER'" class="game-over-screen">
+                <h2>🏆 Partie terminée !</h2>
+                <ol class="final-scores">
+                  <li
+                    v-for="(p, i) in finalScores"
+                    :key="p.id"
+                    :class="{ 'me': p.username === authStore.user.username, 'gold': i === 0 }"
+                  >
+                    <span class="rank">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}` }}</span>
+                    <span class="pname">{{ p.username }}</span>
+                    <span class="pts">{{ p.score }} pts</span>
+                  </li>
+                </ol>
+                <button @click="backToLobby" class="btn-start" style="margin-top:20px">
+                  Retour au lobby
+                </button>
+              </div>
+
               <div v-if="state === 'PLAYING'">
                 <div v-if="isRevealing" class="reveal-zone">
                   <h2>🎉 Réponse : <span style="color: #e91e63;">{{ currentAnswerInfo.animeName }}</span></h2>
@@ -151,12 +169,18 @@ const currentAnswerInfo = ref({
   videoUrl: "",
 });
 const xpToast = ref(null); // { xpGained, newXP, newLevel, levelUp }
+const finalScores = ref([]); // classement final affiché après GAME_OVER
 let socket = null;
 
 const startGame = () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "START_GAME", payload: null }));
   }
+};
+
+const backToLobby = () => {
+  finalScores.value = [];
+  state.value = "LOBBY";
 };
 
 const submitAnswer = () => {
@@ -264,7 +288,8 @@ const setupWebSocket = ({ room_id, password }) => {
           currentAudioUrl.value = "";
           break;
         case "GAME_OVER":
-          state.value = "LOBBY";
+          finalScores.value = [...players.value].sort((a, b) => b.score - a.score);
+          state.value = "GAME_OVER";
           break;
         case "XP_GAINED":
           const oldLevel = authStore.user?.level ?? 1;
@@ -422,4 +447,18 @@ main {
 .xp-total { color: #aaa; font-size: 0.85rem; margin-top: 2px; }
 .toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
+.game-over-screen { text-align: center; padding: 20px; }
+.game-over-screen h2 { font-size: 1.8rem; margin-bottom: 20px; }
+.final-scores { list-style: none; padding: 0; max-width: 400px; margin: 0 auto; }
+.final-scores li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin-bottom: 8px;
+  background: #f4f4f4; border-radius: 8px;
+  font-size: 1rem;
+}
+.final-scores li.gold { background: #fff8e1; border-left: 4px solid #ffd700; }
+.final-scores li.me { font-weight: bold; }
+.final-scores .rank { font-size: 1.3rem; width: 32px; }
+.final-scores .pname { flex: 1; }
+.final-scores .pts { color: #666; font-size: 0.9rem; }
 </style>

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/gin-gonic/gin"
@@ -124,6 +125,19 @@ func NewRouter(store Store) *gin.Engine {
 				"question": models.QuizQuestion{AudioURL: track.AudioURL},
 				"debug_id": track.ID,
 			})
+		})
+
+		protected.GET("/api/history", func(c *gin.Context) {
+			userID, _ := c.Get("userID")
+			results, err := database.GetUserHistory(userID.(int))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire l'historique"})
+				return
+			}
+			if results == nil {
+				results = []models.GameResult{}
+			}
+			c.JSON(http.StatusOK, results)
 		})
 
 		protected.POST("/quiz/answer", func(c *gin.Context) {
