@@ -72,8 +72,12 @@ func NewRouter(store Store) *gin.Engine {
 		c.JSON(http.StatusOK, animeNames)
 	})
 
-	router.POST("/api/auth/register", RegisterHandler(store))
-	router.POST("/api/auth/login", LoginHandler(store))
+	authLimited := router.Group("/")
+	authLimited.Use(AuthRateLimiter())
+	{
+		authLimited.POST("/api/auth/register", RegisterHandler(store))
+		authLimited.POST("/api/auth/login", LoginHandler(store))
+	}
 
 	// --- ROUTES PROTÉGÉES PAR JWT ---
 	protected := router.Group("/")
