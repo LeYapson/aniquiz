@@ -15,9 +15,9 @@ import (
 
 // authMockStore offre un contrôle fin sur les réponses d'auth.
 type authMockStore struct {
-	existingUser  *models.User
-	createErr     error
-	getUserErr    error
+	existingUser *models.User
+	createErr    error
+	getUserErr   error
 }
 
 func (m *authMockStore) GetRandomTrack() (*models.Track, error)    { return nil, nil }

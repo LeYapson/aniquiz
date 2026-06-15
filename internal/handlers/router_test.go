@@ -32,8 +32,10 @@ func (m *mockStore) GetAllTracks() ([]models.Track, error) {
 	}
 	return nil, m.err
 }
-func (m *mockStore) CreateUser(_, _, _ string) error                        { return m.err }
-func (m *mockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) { return nil, errors.New("not found") }
+func (m *mockStore) CreateUser(_, _, _ string) error { return m.err }
+func (m *mockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
+	return nil, errors.New("not found")
+}
 
 // helpers
 
