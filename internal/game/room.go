@@ -373,6 +373,9 @@ func (r *Room) grantXP() {
 			log.Printf("Erreur AddUserXP pour %s: %v", c.Username, err)
 			continue
 		}
+		if err := database.SaveGameResult(c.UserID, c.Score, xpGained); err != nil {
+			log.Printf("Erreur SaveGameResult pour %s: %v", c.Username, err)
+		}
 		msg, _ := json.Marshal(map[string]interface{}{
 			"type": "XP_GAINED",
 			"payload": map[string]interface{}{

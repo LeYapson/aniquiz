@@ -34,3 +34,11 @@ type Score struct {
 	UserID int `json:"user_id"`
 	Score  int `json:"score"`
 }
+
+type GameResult struct {
+	ID       int       `json:"id"`
+	UserID   int       `json:"user_id"`
+	Score    int       `json:"score"`
+	XPGained int       `json:"xp_gained"`
+	PlayedAt time.Time `json:"played_at"`
+}
