@@ -119,8 +119,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-
 import { authStore } from "../authStore";
+import { API_URL } from "../config";
 
 const profile = ref(null);
 const history = ref([]);
@@ -129,8 +129,8 @@ const loading = ref(true);
 onMounted(async () => {
   try {
     const [profileRes, historyRes] = await Promise.all([
-      fetch("http://localhost:8080/api/profile", { headers: authStore.authHeaders() }),
-      fetch("http://localhost:8080/api/history", { headers: authStore.authHeaders() }),
+      fetch(`${API_URL}/api/profile`, { headers: authStore.authHeaders() }),
+      fetch(`${API_URL}/api/history`, { headers: authStore.authHeaders() }),
     ]);
     if (profileRes.ok) profile.value = await profileRes.json();
     if (historyRes.ok) history.value = await historyRes.json();
@@ -185,7 +185,7 @@ const searchAnime = async () => {
   searchDone.value = false;
   try {
     const res = await fetch(
-      `http://localhost:8080/api/anime/search?q=${encodeURIComponent(searchQuery.value)}`,
+      `${API_URL}/api/anime/search?q=${encodeURIComponent(searchQuery.value)}`,
       { headers: authStore.authHeaders() }
     );
     if (res.ok) searchResults.value = await res.json();
@@ -198,7 +198,7 @@ const searchAnime = async () => {
 const importAnime = async (anime) => {
   importStatus.value[anime.mal_id] = "loading";
   try {
-    const res = await fetch("http://localhost:8080/api/admin/import", {
+    const res = await fetch(`${API_URL}/api/admin/import`, {
       method: "POST",
       headers: authStore.authHeaders(),
       body: JSON.stringify({ ids: [anime.mal_id] }),

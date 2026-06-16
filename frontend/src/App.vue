@@ -169,6 +169,7 @@ import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
 import GameSettings from "./components/GameSettings.vue";
 import { authStore } from "./authStore";
+import { API_URL, WS_URL } from "./config";
 
 const isConnected = ref(false);
 const room = ref("");
@@ -213,11 +214,11 @@ const submitAnswer = () => {
 };
 
 const connectAnilist = () => {
-  window.location.href = `http://localhost:8080/api/auth/anilist?token=${authStore.token}`
+  window.location.href = `${API_URL}/api/auth/anilist?token=${authStore.token}`
 }
 
 const connectMAL = () => {
-  window.location.href = `http://localhost:8080/api/auth/mal?token=${authStore.token}`
+  window.location.href = `${API_URL}/api/auth/mal?token=${authStore.token}`
 }
 
 // Gestion des retours OAuth (?anilist=success&username=xxx ou ?mal=success&username=xxx)
@@ -247,7 +248,7 @@ const checkOAuthCallback = () => {
 
 const loadAnimeDictionary = async () => {
   try {
-    const response = await fetch("http://localhost:8080/animes");
+    const response = await fetch(`${API_URL}/animes`);
     if (response.ok) {
       animeDictionary.value = await response.json();
     }
@@ -280,7 +281,7 @@ const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
 };
 
 const connectWebSocket = (room_id, password) => {
-  const wsUrl = `ws://localhost:8080/ws?room=${room_id}&password=${password || ""}&token=${authStore.token}`;
+  const wsUrl = `${WS_URL}/ws?room=${room_id}&password=${password || ""}&token=${authStore.token}`;
   socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
