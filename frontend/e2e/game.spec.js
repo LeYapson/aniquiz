@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 const LOBBY_STATE = JSON.stringify({ type: 'GAME_STATE', payload: 'LOBBY' })
 const PLAYER_LIST = JSON.stringify({
   type: 'PLAYER_LIST',
-  payload: [{ id: '1', username: 'Alice', score: 0 }],
+  payload: { players: [{ id: '1', username: 'Alice', score: 0 }], spectator_count: 0 },
 })
 const PLAYING_STATE = JSON.stringify({ type: 'GAME_STATE', payload: 'PLAYING' })
 const NEW_QUESTION = JSON.stringify({
