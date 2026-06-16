@@ -54,6 +54,7 @@
 
         <div v-else class="game-layout">
           <aside class="sidebar">
+            <div v-if="isSpectator" class="spectator-badge">👁 Mode spectateur</div>
             <h3>Joueurs ({{ players.length }})</h3>
             <ul>
               <li v-for="p in players" :key="p.id">
@@ -61,6 +62,9 @@
                 <small>({{ p.score }} pts)</small>
               </li>
             </ul>
+            <div v-if="spectatorCount > 0" class="spectator-count">
+              👁 {{ spectatorCount }} spectateur{{ spectatorCount > 1 ? 's' : '' }}
+            </div>
           </aside>
 
           <main class="game-area">
@@ -132,7 +136,11 @@
                     autoplay
                   ></audio>
 
-                  <div class="answer-zone">
+                  <div v-if="isSpectator" class="spectator-watching">
+                    👁 Vous regardez la partie en tant que spectateur
+                  </div>
+
+                  <div v-else class="answer-zone">
                     <input
                       v-model="userGuess"
                       @keyup.enter="submitAnswer"
@@ -210,6 +218,8 @@ const showLeaderboard = ref(false);
 const isCreator = ref(false);
 const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
 const chatMessages = ref([]);
+const isSpectator = ref(false);
+const spectatorCount = ref(0);
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -313,7 +323,11 @@ const connectWebSocket = (room_id, password) => {
       const data = JSON.parse(event.data);
       switch (data.type) {
         case "PLAYER_LIST":
-          players.value = data.payload;
+          players.value = data.payload.players ?? [];
+          spectatorCount.value = data.payload.spectator_count ?? 0;
+          break;
+        case "SPECTATOR_STATUS":
+          isSpectator.value = data.payload;
           break;
         case "GAME_STATE":
           state.value = data.payload;
@@ -407,6 +421,8 @@ const sendChat = (text) => {
 const disconnect = () => {
   intentionalClose = true;
   chatMessages.value = [];
+  isSpectator.value = false;
+  spectatorCount.value = 0;
   if (socket) socket.close();
 };
 
@@ -569,6 +585,32 @@ main {
 .final-scores .rank { font-size: 1.3rem; width: 32px; }
 .final-scores .pname { flex: 1; }
 .final-scores .pts { color: #666; font-size: 0.9rem; }
+.spectator-badge {
+  background: #1a1a2e;
+  color: #f97316;
+  font-size: 0.78rem;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.spectator-count {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+}
+.spectator-watching {
+  margin: 20px 0;
+  padding: 14px;
+  background: #f0f4ff;
+  border: 1px dashed #93c5fd;
+  border-radius: 8px;
+  color: #3b82f6;
+  font-size: 0.9rem;
+  text-align: center;
+}
 .reconnect-banner {
   background: #fff3cd;
   color: #856404;
