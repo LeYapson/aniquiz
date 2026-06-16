@@ -41,13 +41,17 @@ func CreateUser(username, email, passwordHash string) error {
 func GetUserByID(userID int) (*models.User, error) {
 	var user models.User
 	query := `
-		SELECT id, username, email, password_hash, xp, level, anilist_username, anilist_user_id, anilist_token, created_at
+		SELECT id, username, email, password_hash, xp, level,
+		       anilist_username, anilist_user_id, anilist_token,
+		       mal_username, mal_user_id, mal_token, created_at
 		FROM users
 		WHERE id = $1
 	`
 	err := Pool.QueryRow(context.Background(), query, userID).Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.Xp, &user.Level, &user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken, &user.CreatedAt,
+		&user.Xp, &user.Level,
+		&user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken,
+		&user.MalUsername, &user.MalUserID, &user.MalToken, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {

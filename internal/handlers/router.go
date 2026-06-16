@@ -131,6 +131,16 @@ func NewRouter(store Store) *gin.Engine {
 			})
 		})
 
+		protected.GET("/api/profile", func(c *gin.Context) {
+			userID, _ := c.Get("userID")
+			user, err := database.GetUserByID(userID.(int))
+			if err != nil || user == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "utilisateur introuvable"})
+				return
+			}
+			c.JSON(http.StatusOK, user)
+		})
+
 		protected.GET("/api/history", func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 			results, err := database.GetUserHistory(userID.(int))
