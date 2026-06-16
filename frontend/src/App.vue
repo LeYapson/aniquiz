@@ -13,6 +13,9 @@
         </span>
         <button v-else @click="connectMAL" class="btn-mal">Connecter MAL</button>
 
+        <button @click="showProfile = !showProfile" class="btn-profile">
+          {{ showProfile ? '🎮 Jeu' : '👤 Profil' }}
+        </button>
         <button @click="authStore.logout" class="btn-logout">Déconnexion</button>
       </div>
     </header>
@@ -31,7 +34,10 @@
     <main>
       <AuthForm v-if="!authStore.user" />
 
-      <div v-else>
+      <template v-else>
+        <ProfilePage v-if="showProfile" />
+
+        <div v-else>
         <h1>AniQuiz 🎵</h1>
 
         <div v-if="!isConnected">
@@ -144,7 +150,8 @@
             </div>
           </main>
         </div>
-      </div>
+        </div>
+      </template>
     </main>
   </div>
 </template>
@@ -154,6 +161,7 @@ import { ref, onMounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
+import ProfilePage from "./components/ProfilePage.vue";
 import { authStore } from "./authStore";
 
 const isConnected = ref(false);
@@ -174,6 +182,7 @@ const currentAnswerInfo = ref({
 const xpToast = ref(null); // { xpGained, newXP, newLevel, levelUp }
 const finalScores = ref([]); // classement final affiché après GAME_OVER
 const reconnectMsg = ref(""); // message affiché pendant les tentatives de reconnexion
+const showProfile = ref(false);
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -372,6 +381,14 @@ defineExpose({ state, isConnected });
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.btn-profile {
+  background: #444;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 .btn-logout {
   background: #ff4757;
