@@ -12,7 +12,8 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
-    "vue": "^3.5.32"
+    "vue": "^3.5.32",
+    "vue-router": "^5.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

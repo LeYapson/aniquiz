@@ -33,7 +33,7 @@ describe('App Quiz Logic', () => {
   it('affiche le bouton de lancement quand on est en LOBBY', async () => {
     const wrapper = mount(App, {
       global: {
-        stubs: { RoomSelection: true, GameTimer: true, AuthForm: true },
+        stubs: { RoomSelection: true, GameTimer: true, AuthForm: true, LandingPage: true, LeaderboardPage: true, ProfilePage: true, ChatPanel: true },
       },
     })
 
@@ -47,7 +47,7 @@ describe('App Quiz Logic', () => {
   it('affiche le message de lecture quand on est en PLAYING', async () => {
     const wrapper = mount(App, {
       global: {
-        stubs: { RoomSelection: true, GameTimer: true, AuthForm: true },
+        stubs: { RoomSelection: true, GameTimer: true, AuthForm: true, LandingPage: true, LeaderboardPage: true, ProfilePage: true, ChatPanel: true },
       },
     })
 

@@ -50,6 +50,11 @@ async function mockAllApis(page, username = 'Alice', roomId = 'general') {
 }
 
 async function loginAs(page, username = 'Alice') {
+  // Passer la landing page si elle est affichée
+  const playBtn = page.getByRole('button', { name: 'Jouer maintenant' })
+  if (await playBtn.isVisible()) {
+    await playBtn.click()
+  }
   await page.getByPlaceholder('Votre pseudo').fill(username)
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
@@ -79,8 +84,16 @@ async function joinRoom(page, username = 'Alice', roomId = 'general') {
 // ─── Formulaire de connexion ──────────────────────────────────────────────────
 
 test.describe('Formulaire de connexion', () => {
-  test('affiche le formulaire au chargement', async ({ page }) => {
+  test('affiche la landing page au chargement', async ({ page }) => {
     await page.goto('/')
+
+    await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '🏆 Classement' })).toBeVisible()
+  })
+
+  test('affiche le formulaire après "Jouer maintenant"', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Jouer maintenant' }).click()
 
     await expect(page.getByRole('heading', { name: 'Connexion à AniQuiz' })).toBeVisible()
     await expect(page.getByPlaceholder('Votre pseudo')).toBeVisible()
@@ -98,6 +111,7 @@ test.describe('Formulaire de connexion', () => {
     )
 
     await page.goto('/')
+    await page.getByRole('button', { name: 'Jouer maintenant' }).click()
     await page.getByPlaceholder('Votre pseudo').fill('inconnu')
     await page.locator('input[type="password"]').fill('wrongpassword')
     await page.getByRole('button', { name: 'Se connecter' }).click()

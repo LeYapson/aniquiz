@@ -1,30 +1,33 @@
 <template>
   <div id="app">
     <header v-if="authStore.user" class="app-header">
-      <span>Bienvenue, <strong>{{ authStore.user.username }}</strong> (Niv. {{ authStore.user.level }})</span>
+      <div class="header-brand">
+        <img :src="headerLogo" alt="AniQuiz" class="header-logo" />
+        <span class="header-level">Niv. <strong>{{ authStore.user.level }}</strong> · {{ authStore.user.username }}</span>
+      </div>
       <div class="header-actions">
-        <span v-if="authStore.user.anilist_username" class="anilist-badge">
-          AniList : <strong>{{ authStore.user.anilist_username }}</strong> ✓
+        <span v-if="authStore.user.anilist_username" class="badge-linked badge-anilist">
+          AniList ✓
         </span>
-        <button v-else @click="connectAnilist" class="btn-anilist">Connecter AniList</button>
+        <button v-else @click="connectAnilist" class="hbtn hbtn-anilist">Connecter AniList</button>
 
-        <span v-if="authStore.user.mal_username" class="mal-badge">
-          MAL : <strong>{{ authStore.user.mal_username }}</strong> ✓
+        <span v-if="authStore.user.mal_username" class="badge-linked badge-mal">
+          MAL ✓
         </span>
-        <button v-else @click="connectMAL" class="btn-mal">Connecter MAL</button>
+        <button v-else @click="connectMAL" class="hbtn hbtn-mal">Connecter MAL</button>
 
-        <button @click="showLeaderboard = !showLeaderboard; showProfile = false" class="btn-leaderboard">
+        <button @click="showLeaderboard = !showLeaderboard; showProfile = false" class="hbtn hbtn-orange">
           {{ showLeaderboard ? '🎮 Jeu' : '🏆 Classement' }}
         </button>
-        <button @click="showProfile = !showProfile; showLeaderboard = false" class="btn-profile">
+        <button @click="showProfile = !showProfile; showLeaderboard = false" class="hbtn hbtn-navy">
           {{ showProfile ? '🎮 Jeu' : '👤 Profil' }}
         </button>
-        <button @click="authStore.logout" class="btn-logout">Déconnexion</button>
+        <button @click="authStore.logout" class="hbtn hbtn-red">Déconnexion</button>
       </div>
     </header>
 
     <Transition name="toast">
-      <div v-if="xpToast" class="xp-toast">
+      <div v-if="xpToast" class="xp-toast" role="status" aria-live="polite" aria-atomic="true">
         <span class="xp-icon">⭐</span>
         <div>
           <strong>+{{ xpToast.xpGained }} XP</strong>
@@ -35,48 +38,60 @@
     </Transition>
 
     <main>
-      <AuthForm v-if="!authStore.user" />
+      <LandingPage
+        v-if="!authStore.user && showLanding"
+        @play="showLanding = false"
+        @leaderboard="showLanding = false; showLeaderboard = true"
+      />
+      <div v-else-if="!authStore.user && showLeaderboard" class="public-leaderboard">
+        <button class="btn-back-landing" @click="showLanding = true; showLeaderboard = false">
+          ← Retour
+        </button>
+        <LeaderboardPage :ownUsername="''" />
+      </div>
+      <AuthForm v-else-if="!authStore.user" />
 
       <template v-else>
         <LeaderboardPage v-if="showLeaderboard" :ownUsername="authStore.user?.username" />
 
         <ProfilePage v-else-if="showProfile" />
 
-        <div v-else>
-        <h1>AniQuiz 🎵</h1>
+        <div v-else class="app-main">
 
-        <div v-if="!isConnected">
-          <div style="max-width: 800px; margin: 0 auto; padding: 0 20px;">
-            <p>Joueur : <strong>{{ authStore.user.username }}</strong></p>
-          </div>
+        <div v-if="!isConnected" class="lobby-wrapper">
           <RoomSelection @room-created="setupWebSocket" @room-joined="setupWebSocket" />
         </div>
 
-        <div v-else class="game-layout">
-          <aside class="sidebar">
-            <div v-if="isSpectator" class="spectator-badge">👁 Mode spectateur</div>
-            <h3>Joueurs ({{ players.length }})</h3>
-            <ul>
-              <li v-for="p in players" :key="p.id">
-                {{ p.username }} <span v-if="p.username === authStore.user.username">⭐</span>
-                <small>({{ p.score }} pts)</small>
+        <div v-else class="game-layout" :data-mobile-tab="mobileTab">
+          <aside class="sidebar" aria-label="Liste des joueurs">
+            <div v-if="isSpectator" class="spectator-badge" role="status">👁 Mode spectateur</div>
+            <h3 id="players-heading">Joueurs ({{ players.length }})</h3>
+            <ul aria-labelledby="players-heading">
+              <li
+                v-for="p in players"
+                :key="p.id"
+                :aria-current="p.username === authStore.user.username ? 'true' : undefined"
+              >
+                {{ p.username }}
+                <span v-if="p.username === authStore.user.username" aria-label="Vous">⭐</span>
+                <small aria-label="`${p.score} points`">({{ p.score }} pts)</small>
               </li>
             </ul>
-            <div v-if="spectatorCount > 0" class="spectator-count">
+            <div v-if="spectatorCount > 0" class="spectator-count" aria-live="polite">
               👁 {{ spectatorCount }} spectateur{{ spectatorCount > 1 ? 's' : '' }}
             </div>
           </aside>
 
-          <main class="game-area">
-            <div v-if="reconnectMsg" class="reconnect-banner">
+          <div class="game-area">
+            <div v-if="reconnectMsg" class="reconnect-banner" role="alert">
               🔄 {{ reconnectMsg }}
             </div>
             <div class="status-bar">
               <p>
-                Salon : <strong>{{ room }}</strong> | Joueur :
+                Salon&nbsp;: <strong>{{ room }}</strong> &mdash; Joueur&nbsp;:
                 <strong>{{ authStore.user.username }}</strong>
               </p>
-              <button @click="disconnect" class="btn-quit">Quitter</button>
+              <button @click="disconnect" class="btn-quit" aria-label="Quitter le salon">Quitter</button>
             </div>
 
             <div class="quiz-box">
@@ -94,13 +109,13 @@
 
               <div v-if="state === 'GAME_OVER'" class="game-over-screen">
                 <h2>🏆 Partie terminée !</h2>
-                <ol class="final-scores">
+                <ol class="final-scores" aria-label="Classement final">
                   <li
                     v-for="(p, i) in finalScores"
                     :key="p.id"
                     :class="{ 'me': p.username === authStore.user.username, 'gold': i === 0 }"
                   >
-                    <span class="rank">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}` }}</span>
+                    <span class="rank" aria-hidden="true">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}` }}</span>
                     <span class="pname">{{ p.username }}</span>
                     <span class="pts">{{ p.score }} pts</span>
                   </li>
@@ -111,18 +126,19 @@
               </div>
 
               <div v-if="state === 'PLAYING'">
-                <div v-if="isRevealing" class="reveal-zone">
-                  <h2>🎉 Réponse : <span style="color: #e91e63;">{{ currentAnswerInfo.animeName }}</span></h2>
-                  <p><strong>{{ currentAnswerInfo.title }}</strong> - {{ currentAnswerInfo.artist }}</p>
+                <div v-if="isRevealing" class="reveal-zone" aria-live="assertive">
+                  <h2>🎉 Réponse : <span class="answer-name">{{ currentAnswerInfo.animeName }}</span></h2>
+                  <p><strong>{{ currentAnswerInfo.title }}</strong> &mdash; {{ currentAnswerInfo.artist }}</p>
 
                   <video
                     v-if="currentAnswerInfo.videoUrl"
                     :src="currentAnswerInfo.videoUrl"
                     autoplay
                     controls
+                    :aria-label="`Générique de ${currentAnswerInfo.animeName}`"
                     style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 10px;"
                   ></video>
-                  <p v-else style="font-style: italic; margin-top: 20px;">Pas de vidéo disponible pour cette piste.</p>
+                  <p v-else class="no-video">Pas de vidéo disponible pour cette piste.</p>
                 </div>
 
                 <div v-else>
@@ -133,30 +149,35 @@
                   <audio
                     v-if="currentAudioUrl"
                     :src="currentAudioUrl"
+                    :aria-label="`Extrait audio — trouvez le nom de l'anime`"
                     autoplay
+                    controls
                   ></audio>
 
-                  <div v-if="isSpectator" class="spectator-watching">
+                  <div v-if="isSpectator" class="spectator-watching" role="status">
                     👁 Vous regardez la partie en tant que spectateur
                   </div>
 
                   <div v-else class="answer-zone">
+                    <label for="anime-guess" class="sr-only">Nom de l'anime</label>
                     <input
+                      id="anime-guess"
                       v-model="userGuess"
                       @keyup.enter="submitAnswer"
                       placeholder="Nom de l'anime..."
                       list="anime-suggestions"
+                      autocomplete="off"
                     />
 
                     <datalist id="anime-suggestions">
                       <option v-for="anime in animeDictionary" :key="anime" :value="anime"></option>
                     </datalist>
 
-                    <button @click="submitAnswer">Envoyer</button>
+                    <button @click="submitAnswer" aria-label="Envoyer ma réponse">Envoyer</button>
                   </div>
                 </div>
 
-                <div class="leaderboard" style="margin-top: 20px;">
+                <div class="leaderboard" style="margin-top: 20px;" aria-label="Scores en cours">
                   <h3>Classement</h3>
                   <ul>
                     <li v-for="p in players" :key="p.id">
@@ -166,9 +187,9 @@
                 </div>
               </div>
             </div>
-          </main>
+          </div>
 
-          <aside class="chat-aside">
+          <aside class="chat-aside" aria-label="Chat de la partie">
             <ChatPanel
               :messages="chatMessages"
               :ownUsername="authStore.user?.username"
@@ -176,6 +197,31 @@
               @send="sendChat"
             />
           </aside>
+
+          <!-- Barre de navigation mobile (visible uniquement < 768px) -->
+          <nav class="mobile-tabs" aria-label="Navigation du jeu">
+            <button
+              :class="{ active: mobileTab === 'players' }"
+              @click="mobileTab = 'players'"
+              :aria-pressed="mobileTab === 'players'"
+            >
+              <span aria-hidden="true">👥</span> Joueurs
+            </button>
+            <button
+              :class="{ active: mobileTab === 'game' }"
+              @click="mobileTab = 'game'"
+              :aria-pressed="mobileTab === 'game'"
+            >
+              <span aria-hidden="true">🎮</span> Jeu
+            </button>
+            <button
+              :class="{ active: mobileTab === 'chat' }"
+              @click="mobileTab = 'chat'"
+              :aria-pressed="mobileTab === 'chat'"
+            >
+              <span aria-hidden="true">💬</span> Chat
+            </button>
+          </nav>
         </div>
         </div>
       </template>
@@ -192,8 +238,11 @@ import ProfilePage from "./components/ProfilePage.vue";
 import GameSettings from "./components/GameSettings.vue";
 import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import LandingPage from "./components/LandingPage.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
+
+const headerLogo = '/logo.png';
 
 const isConnected = ref(false);
 const room = ref("");
@@ -213,6 +262,7 @@ const currentAnswerInfo = ref({
 const xpToast = ref(null);
 const finalScores = ref([]);
 const reconnectMsg = ref("");
+const showLanding = ref(true);
 const showProfile = ref(false);
 const showLeaderboard = ref(false);
 const isCreator = ref(false);
@@ -220,6 +270,7 @@ const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", deca
 const chatMessages = ref([]);
 const isSpectator = ref(false);
 const spectatorCount = ref(0);
+const mobileTab = ref("game");
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -423,6 +474,7 @@ const disconnect = () => {
   chatMessages.value = [];
   isSpectator.value = false;
   spectatorCount.value = 0;
+  mobileTab.value = "game";
   if (socket) socket.close();
 };
 
@@ -430,194 +482,422 @@ defineExpose({ state, isConnected });
 </script>
 
 <style>
-#app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+/* ── Header ─────────────────────────────────────────────── */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  background: #1a1a2e;
-  color: #fff;
+  padding: 0 24px;
+  height: 56px;
+  background: #0f0f23;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
 }
-.header-actions {
+.header-brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.btn-leaderboard {
-  background: #f97316;
-  color: white;
+.header-logo { height: 32px; }
+.header-level {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.header-level strong { color: #f97316; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.hbtn {
   border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
+  border-radius: 6px;
+  padding: 6px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: bold;
+  transition: opacity 0.15s;
 }
-.btn-profile {
-  background: #444;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
+.hbtn:hover { opacity: 0.85; }
+.hbtn-orange  { background: #f97316; color: #fff; }
+.hbtn-blue    { background: #3b82f6; color: #fff; }
+.hbtn-navy    { background: #1e2a45; color: #cbd5e1; }
+.hbtn-red     { background: #ef4444; color: #fff; }
+.hbtn-mal     { background: #2e51a2; color: #fff; }
+.hbtn-anilist { background: #02a9ff; color: #fff; }
+
+.badge-linked {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
 }
-.btn-logout {
-  background: #ff4757;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.btn-anilist {
-  background: #02a9ff;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.anilist-badge {
-  color: #02a9ff;
-  font-size: 0.9rem;
-}
-.btn-mal {
-  background: #2e51a2;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.mal-badge {
-  color: #7db4de;
-  font-size: 0.9rem;
-}
-main {
+.badge-anilist { color: #02a9ff; background: rgba(2,169,255,0.12); }
+.badge-mal     { color: #7db4de; background: rgba(46,81,162,0.2); }
+
+/* ── Layout principal ───────────────────────────────────── */
+main { flex: 1; display: flex; flex-direction: column; }
+.app-main { flex: 1; display: flex; flex-direction: column; }
+
+.lobby-wrapper {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
+
+/* ── Layout jeu ─────────────────────────────────────────── */
 .game-layout {
   display: flex;
-  gap: 20px;
-  max-width: 1200px;
-  margin: 20px auto;
-  text-align: left;
-  align-items: stretch;
+  gap: 0;
+  flex: 1;
+  min-height: calc(100vh - 56px);
+  overflow: hidden;
 }
+
 .sidebar {
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
-  background: #f4f4f4;
-  padding: 15px;
-  border-radius: 8px;
+  background: #0f0f23;
+  border-right: 1px solid rgba(255,255,255,0.07);
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
 }
+.sidebar h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+.sidebar li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  background: rgba(255,255,255,0.03);
+}
+.sidebar li small { color: #f97316; font-weight: 600; font-size: 0.78rem; }
+
 .game-area {
   flex: 1;
-  background: #fff;
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  background: #16213e;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
+
 .chat-aside {
-  width: 260px;
+  width: 280px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  border-left: 1px solid rgba(255,255,255,0.07);
 }
+
+/* ── Status bar ─────────────────────────────────────────── */
 .status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding-bottom: 14px;
   margin-bottom: 20px;
+  font-size: 0.88rem;
+  color: #94a3b8;
 }
+.status-bar strong { color: #f1f5f9; }
 .btn-quit {
-  background: #ff4757;
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn-quit:hover { background: rgba(239,68,68,0.25); }
+
+/* ── Quiz box ───────────────────────────────────────────── */
+.quiz-box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 24px;
+  flex: 1;
+}
+.btn-start {
+  background: linear-gradient(135deg, #f97316, #ea580c);
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
   cursor: pointer;
+  width: 100%;
+  box-shadow: 0 4px 14px rgba(249,115,22,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
-.quiz-box { background: #fafafa; padding: 20px; border-radius: 8px; border: 1px dashed #ccc; }
-.btn-start { background: #2ed573; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
+.btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(249,115,22,0.4); }
+
+/* ── Réponse ────────────────────────────────────────────── */
 .answer-zone { margin: 20px 0; display: flex; gap: 10px; }
-.answer-zone input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-.answer-zone button { background: #1e90ff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
-.xp-toast {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  background: #1a1a2e;
-  color: #fff;
-  padding: 14px 20px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  border-left: 4px solid #ffd700;
-  z-index: 1000;
+.answer-zone input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #0f0f23;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.xp-icon { font-size: 1.8rem; }
-.level-up { color: #ffd700; font-weight: bold; margin-top: 2px; }
-.xp-total { color: #aaa; font-size: 0.85rem; margin-top: 2px; }
-.toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
+.answer-zone input:focus { border-color: #f97316; }
+.answer-zone input::placeholder { color: #475569; }
+.answer-zone button {
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: opacity 0.15s;
+}
+.answer-zone button:hover { opacity: 0.85; }
+
+/* Classe utilitaire accessibilité (label visually hidden) */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Reveal / Game Over ─────────────────────────────────── */
+.reveal-zone {
+  text-align: center;
+  padding: 20px 0;
+}
+.reveal-zone h2 { font-size: 1.4rem; margin-bottom: 10px; }
+.answer-name { color: #f9a8d4; font-weight: 700; }
+.no-video { font-style: italic; margin-top: 20px; color: #94a3b8; }
 .game-over-screen { text-align: center; padding: 20px; }
-.game-over-screen h2 { font-size: 1.8rem; margin-bottom: 20px; }
-.final-scores { list-style: none; padding: 0; max-width: 400px; margin: 0 auto; }
+.game-over-screen h2 { font-size: 1.8rem; margin-bottom: 20px; color: #f1f5f9; }
+.final-scores { padding: 0; max-width: 420px; margin: 0 auto; }
 .final-scores li {
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 16px; margin-bottom: 8px;
-  background: #f4f4f4; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
   font-size: 1rem;
+  color: #e2e8f0;
 }
-.final-scores li.gold { background: #fff8e1; border-left: 4px solid #ffd700; }
-.final-scores li.me { font-weight: bold; }
-.final-scores .rank { font-size: 1.3rem; width: 32px; }
+.final-scores li.gold { background: rgba(255,215,0,0.08); border-color: rgba(255,215,0,0.3); }
+.final-scores li.me  { border-color: #f97316; }
+.final-scores .rank  { font-size: 1.3rem; width: 32px; }
 .final-scores .pname { flex: 1; }
-.final-scores .pts { color: #666; font-size: 0.9rem; }
+.final-scores .pts   { color: #f97316; font-size: 0.9rem; font-weight: 600; }
 .spectator-badge {
-  background: #1a1a2e;
+  background: rgba(249,115,22,0.12);
   color: #f97316;
+  border: 1px solid rgba(249,115,22,0.3);
   font-size: 0.78rem;
-  font-weight: bold;
-  padding: 4px 10px;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
   text-align: center;
 }
 .spectator-count {
-  margin-top: 12px;
-  font-size: 0.8rem;
-  color: #888;
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: #475569;
   text-align: center;
 }
 .spectator-watching {
   margin: 20px 0;
-  padding: 14px;
-  background: #f0f4ff;
-  border: 1px dashed #93c5fd;
-  border-radius: 8px;
-  color: #3b82f6;
+  padding: 16px;
+  background: rgba(59,130,246,0.08);
+  border: 1px dashed rgba(59,130,246,0.3);
+  border-radius: 10px;
+  color: #93c5fd;
   font-size: 0.9rem;
   text-align: center;
 }
 .reconnect-banner {
-  background: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffc107;
-  border-radius: 6px;
+  background: rgba(250,204,21,0.1);
+  color: #fde68a;
+  border: 1px solid rgba(250,204,21,0.25);
+  border-radius: 8px;
   padding: 8px 14px;
   margin-bottom: 12px;
+  font-size: 0.88rem;
+}
+
+/* ── XP Toast ───────────────────────────────────────────── */
+.xp-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #f1f5f9;
+  padding: 14px 20px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  border-left: 4px solid #ffd700;
+  z-index: 1000;
+}
+.xp-icon { font-size: 1.8rem; }
+.level-up { color: #ffd700; font-weight: 700; margin-top: 2px; }
+.xp-total { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
+.toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
+
+/* ── Leaderboard public (avant login) ───────────────────── */
+.public-leaderboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f23;
+  padding-top: 10px;
+}
+.btn-back-landing {
+  display: inline-block;
+  margin: 8px 0 0 24px;
+  background: none;
+  border: none;
+  color: #f97316;
   font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.btn-back-landing:hover { text-decoration: underline; }
+
+/* ── In-game leaderboard mini ───────────────────────────── */
+.game-area .leaderboard { margin-top: 20px; }
+.game-area .leaderboard h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+.game-area .leaderboard ul li {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.88rem;
+  color: #cbd5e1;
+}
+
+/* ── Barre de navigation mobile ─────────────────────────── */
+.mobile-tabs { display: none; }
+
+/* ── Responsive ≤ 768px ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 14px;
+    height: auto;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+  .header-actions { gap: 6px; }
+  .hbtn { padding: 5px 10px; font-size: 0.76rem; }
+
+  .game-layout {
+    flex-direction: column;
+    min-height: unset;
+    padding-bottom: 56px; /* espace pour la nav mobile */
+    overflow: visible;
+  }
+
+  /* Sur mobile : seul le panneau actif est visible */
+  .game-layout .sidebar,
+  .game-layout .game-area,
+  .game-layout .chat-aside { display: none; }
+
+  .game-layout[data-mobile-tab="players"] .sidebar  { display: flex; flex-direction: column; width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 16px; min-height: calc(100vh - 56px - 56px); }
+  .game-layout[data-mobile-tab="game"]    .game-area { display: flex; }
+  .game-layout[data-mobile-tab="chat"]    .chat-aside { display: flex; flex-direction: column; width: 100%; border-left: none; height: calc(100vh - 56px - 56px); }
+
+  .game-area { padding: 14px 16px; }
+  .answer-zone { flex-direction: column; }
+  .answer-zone input { width: 100%; }
+  .answer-zone button { width: 100%; }
+
+  /* Barre de navigation mobile */
+  .mobile-tabs {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: #0f0f23;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    z-index: 200;
+  }
+  .mobile-tabs button {
+    flex: 1;
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transition: color 0.15s, border-color 0.15s;
+    padding: 0;
+  }
+  .mobile-tabs button span { font-size: 1.1rem; }
+  .mobile-tabs button.active {
+    color: #f97316;
+    border-top-color: #f97316;
+  }
+  .mobile-tabs button:focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: -2px;
+  }
+
+  .xp-toast { right: 12px; bottom: 68px; left: 12px; }
+
+  .sidebar { width: 100%; border-right: none; }
+  .chat-aside { width: 100%; border-left: none; }
+}
+
+/* ── Responsive ≤ 480px ─────────────────────────────────── */
+@media (max-width: 480px) {
+  .status-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .status-bar .btn-quit { align-self: flex-end; }
+  .quiz-box { padding: 16px; }
+  .final-scores { max-width: 100%; }
+  .room-selection-container { padding: 20px 14px; }
 }
 </style>

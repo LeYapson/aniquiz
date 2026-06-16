@@ -5,18 +5,18 @@
       
       <form @submit.prevent="handleSubmit">
         <div v-if="!isLogin" class="form-group">
-          <label>Adresse Email</label>
-          <input type="email" v-model="form.email" required placeholder="exemple@mail.com" />
+          <label for="auth-email">Adresse Email</label>
+          <input id="auth-email" type="email" v-model="form.email" required placeholder="exemple@mail.com" autocomplete="email" />
         </div>
 
         <div class="form-group">
-          <label>{{ isLogin ? 'Pseudo ou Email' : 'Pseudo' }}</label>
-          <input type="text" v-model="form.identifier" required placeholder="Votre pseudo" />
+          <label for="auth-identifier">{{ isLogin ? 'Pseudo ou Email' : 'Pseudo' }}</label>
+          <input id="auth-identifier" type="text" v-model="form.identifier" required placeholder="Votre pseudo" autocomplete="username" />
         </div>
 
         <div class="form-group">
-          <label>Mot de passe</label>
-          <input type="password" v-model="form.password" required placeholder="••••••••" />
+          <label for="auth-password">Mot de passe</label>
+          <input id="auth-password" type="password" v-model="form.password" required placeholder="••••••••" autocomplete="current-password" />
         </div>
 
         <p v-if="message.text" :class="['message', message.type]">{{ message.text }}</p>
@@ -98,66 +98,83 @@ const handleSubmit = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 80vh;
+  min-height: calc(100vh - 56px);
+  padding: 24px;
 }
 .auth-box {
-  background: #2a2a2a;
-  padding: 30px;
-  border-radius: 8px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  padding: 36px 32px;
+  border-radius: 16px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  color: white;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
-.form-group {
-  margin-bottom: 15px;
+.auth-box h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 24px;
+  text-align: center;
 }
+.form-group { margin-bottom: 16px; }
 label {
   display: block;
-  margin-bottom: 5px;
-  font-size: 0.9rem;
-  color: #ccc;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 input {
   width: 100%;
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background: #1a1a1a;
-  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #0f0f23;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
   box-sizing: border-box;
 }
+input:focus { border-color: #f97316; }
+input::placeholder { color: #475569; }
 .btn-submit {
   width: 100%;
   padding: 12px;
-  background: #e91e63;
+  background: linear-gradient(135deg, #f97316, #ea580c);
   border: none;
   color: white;
-  font-weight: bold;
-  border-radius: 4px;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 8px;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 6px;
+  box-shadow: 0 4px 14px rgba(249,115,22,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 .btn-submit:hover {
-  background: #c2185b;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(249,115,22,0.4);
 }
-.toggle-mode {
-  text-align: center;
-  margin-top: 15px;
-}
+.toggle-mode { text-align: center; margin-top: 18px; }
 .toggle-mode button {
   background: none;
   border: none;
-  color: #ff9800;
+  color: #f97316;
   cursor: pointer;
+  font-size: 0.88rem;
   text-decoration: underline;
 }
+.toggle-mode button:hover { color: #fb923c; }
 .message {
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
   margin-top: 10px;
 }
-.error { background: #d32f2f; color: white; }
-.success { background: #388e3c; color: white; }
+.error { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+.success { background: rgba(34,197,94,0.12); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
 </style>

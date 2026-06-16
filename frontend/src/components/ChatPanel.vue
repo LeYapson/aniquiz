@@ -24,7 +24,7 @@
         :disabled="!connected"
         class="chat-input"
       />
-      <button type="submit" :disabled="!connected || !draft.trim()" class="chat-send">➤</button>
+      <button type="submit" :disabled="!connected || !draft.trim()" class="chat-send" aria-label="Envoyer le message">➤</button>
     </form>
   </div>
 </template>
@@ -95,7 +95,7 @@ watch(
 }
 
 .chat-empty {
-  color: #555;
+  color: #94a3b8;
   font-size: 0.8rem;
   text-align: center;
   margin-top: 12px;
@@ -118,7 +118,7 @@ watch(
 }
 
 .chat-msg--system .chat-text {
-  color: #888;
+  color: #94a3b8;
   font-style: italic;
   font-size: 0.8rem;
 }
@@ -153,7 +153,7 @@ watch(
 }
 
 .chat-input::placeholder {
-  color: #444;
+  color: #64748b;
 }
 
 .chat-send {

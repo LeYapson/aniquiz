@@ -229,40 +229,49 @@ const importLabel = (malId) => {
 </script>
 
 <style scoped>
-.profile-page { max-width: 700px; margin: 30px auto; padding: 0 20px; }
-.loading, .error, .empty { text-align: center; color: #888; padding: 40px; }
+.profile-page { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+.loading, .error, .empty { text-align: center; color: #64748b; padding: 40px; font-style: italic; }
 
 .profile-header {
   display: flex; gap: 20px; align-items: center;
-  background: #1a1a2e; color: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 24px; margin-bottom: 24px;
 }
 .avatar {
   width: 64px; height: 64px; border-radius: 50%;
-  background: #e91e63; color: #fff;
+  background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.8rem; font-weight: bold; flex-shrink: 0;
 }
 .profile-info { flex: 1; }
-.profile-info h2 { margin: 0 0 4px; font-size: 1.4rem; }
+.profile-info h2 { margin: 0 0 6px; font-size: 1.4rem; color: #f1f5f9; }
 .level-badge {
-  display: inline-block; background: #ffd700; color: #1a1a2e;
-  font-weight: bold; font-size: 0.8rem; padding: 2px 10px;
-  border-radius: 20px; margin-bottom: 8px;
+  display: inline-block;
+  background: rgba(249,115,22,0.2); color: #fb923c;
+  font-weight: 700; font-size: 0.78rem; padding: 2px 10px;
+  border-radius: 20px; margin-bottom: 10px;
 }
-.xp-bar-wrap { background: #333; border-radius: 4px; height: 8px; margin-bottom: 4px; }
-.xp-bar { background: #e91e63; height: 8px; border-radius: 4px; transition: width 0.4s ease; }
-.profile-info small { color: #aaa; font-size: 0.8rem; }
+.xp-bar-wrap { background: #0f0f23; border-radius: 4px; height: 8px; margin-bottom: 6px; }
+.xp-bar { background: linear-gradient(90deg, #f97316, #ea580c); height: 8px; border-radius: 4px; transition: width 0.4s ease; }
+.profile-info small { color: #64748b; font-size: 0.8rem; }
 
 .section { margin-bottom: 28px; }
-.section h3 { font-size: 1rem; font-weight: bold; color: #333; border-bottom: 2px solid #eee; padding-bottom: 6px; margin-bottom: 14px; }
-
-.linked-accounts { display: flex; gap: 12px; }
-.account-card {
-  flex: 1; display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; border-radius: 8px;
-  background: #f4f4f4; border: 1px solid #ddd;
+.section h3 {
+  font-size: 0.85rem; font-weight: 700; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding-bottom: 8px; margin-bottom: 14px;
 }
-.account-card.linked { background: #f0fdf4; border-color: #86efac; }
+
+.linked-accounts { display: flex; gap: 12px; flex-wrap: wrap; }
+.account-card {
+  flex: 1; min-width: 200px; display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  color: #94a3b8;
+}
+.account-card.linked { border-color: rgba(52,211,153,0.3); color: #f1f5f9; }
 .acc-icon {
   width: 28px; height: 28px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
@@ -270,33 +279,59 @@ const importLabel = (malId) => {
 }
 .anilist-color { background: #02a9ff; }
 .mal-color { background: #2e51a2; }
-.not-linked { color: #999; font-size: 0.9rem; }
+.not-linked { color: #475569; font-size: 0.9rem; }
 
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .stat-card {
-  background: #f4f4f4; border-radius: 8px; padding: 16px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 16px;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
-.stat-value { font-size: 1.6rem; font-weight: bold; color: #1a1a2e; }
-.stat-label { font-size: 0.75rem; color: #666; text-align: center; }
+.stat-value { font-size: 1.6rem; font-weight: 700; color: #f97316; }
+.stat-label { font-size: 0.73rem; color: #64748b; text-align: center; }
 
-.history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.history-table th { background: #f4f4f4; padding: 8px 12px; text-align: left; font-weight: 600; }
-.history-table td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+.history-table {
+  width: 100%; border-collapse: collapse; font-size: 0.9rem;
+  background: #16213e; border-radius: 10px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.history-table th { background: #0f0f23; color: #f97316; padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.history-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; }
 .history-table tr:last-child td { border-bottom: none; }
+
 .import-row { display: flex; gap: 10px; }
-.import-input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
-.btn-import { background: #e91e63; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; }
-.btn-import:disabled { background: #ccc; cursor: not-allowed; }
+.import-input {
+  flex: 1; padding: 9px 12px;
+  background: #0f0f23; border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9; border-radius: 7px; font-size: 0.9rem; outline: none;
+  transition: border-color 0.15s;
+}
+.import-input:focus { border-color: #f97316; }
+.import-input::placeholder { color: #475569; }
+.import-input:disabled { opacity: 0.5; }
+.btn-import {
+  background: #f97316; color: white; border: none;
+  padding: 9px 16px; border-radius: 7px; cursor: pointer;
+  font-weight: 700; white-space: nowrap; transition: opacity 0.15s;
+}
+.btn-import:hover { opacity: 0.85; }
+.btn-import:disabled { background: #334155; color: #64748b; cursor: not-allowed; opacity: 1; }
 .search-results { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.anime-card { display: flex; align-items: center; gap: 12px; padding: 8px; background: #f8f8f8; border-radius: 8px; border: 1px solid #eee; }
-.anime-thumb { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.anime-card {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: #16213e; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.anime-thumb { width: 40px; height: 56px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
 .anime-card-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.anime-card-info strong { font-size: 0.9rem; }
-.anime-card-info small { color: #888; font-size: 0.78rem; }
-.btn-add { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; background: #1e90ff; color: white; white-space: nowrap; }
+.anime-card-info strong { font-size: 0.88rem; color: #f1f5f9; }
+.anime-card-info small { color: #64748b; font-size: 0.77rem; }
+.btn-add { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.83rem; font-weight: 700; background: #3b82f6; color: white; white-space: nowrap; transition: opacity 0.15s; }
+.btn-add:hover { opacity: 0.85; }
 .btn-add:disabled { cursor: not-allowed; }
-.btn-add.done { background: #4caf50; }
-.btn-add.error { background: #f44336; }
-.btn-add.loading { background: #aaa; }
+.btn-add.done { background: #22c55e; }
+.btn-add.error { background: #ef4444; }
+.btn-add.loading { background: #475569; }
+.btn-add.skipped { background: #64748b; }
 </style>

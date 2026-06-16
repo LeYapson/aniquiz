@@ -142,19 +142,94 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Ajoute ici ton style pour les cartes, inputs et badges */
-.room-selection-container { max-width: 800px; margin: 0 auto; padding: 20px; color: white; }
-.rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
-.room-card { background: #2a2a2a; padding: 15px; border-radius: 8px; border-left: 5px solid #e91e63; display: flex; flex-direction: column; justify-content: space-between; }
-.room-info { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-.badge-private { color: #ff5722; font-weight: bold; }
-.badge-public { color: #4caf50; font-weight: bold; }
-.settings-hint { color: #aaa; font-size: 0.82rem; margin: -8px 0 12px; font-style: italic; }
-.form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
-.form-group.checkbox { flex-direction: row; gap: 10px; align-items: center; }
-input[type="text"], input[type="number"], input[type="password"] { padding: 8px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; }
-button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #e91e63; color: white; font-weight: bold; }
-button:disabled { background: #555; cursor: not-allowed; }
-.btn-refresh { background: #2196f3; margin-bottom: 15px; }
+.room-selection-container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  color: #e2e8f0;
+}
+.room-selection-container h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #f1f5f9;
+}
+
+hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 16px 0; }
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.room-card {
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-left: 4px solid #f97316;
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+.room-card:hover { border-left-color: #ea580c; }
+.room-info { display: flex; flex-direction: column; gap: 5px; font-size: 0.88rem; color: #94a3b8; }
+.room-info strong { color: #f1f5f9; font-size: 1rem; }
+.badge-private { color: #fb923c; font-weight: 600; }
+.badge-public  { color: #34d399; font-weight: 600; }
+.no-rooms { color: #64748b; text-align: center; padding: 40px 0; font-style: italic; }
+
+.form-container {
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+}
+.form-container h3 { color: #f1f5f9; margin-bottom: 18px; }
+.form-group { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 0.85rem; color: #94a3b8; }
+.form-group.checkbox { flex-direction: row; align-items: center; gap: 10px; }
+.settings-hint { color: #64748b; font-size: 0.8rem; font-style: italic; margin: -4px 0 12px; }
+
+input[type="text"],
+input[type="number"],
+input[type="password"] {
+  padding: 9px 12px;
+  background: #0f0f23;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9;
+  border-radius: 7px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus { border-color: #f97316; }
+input[type="text"]::placeholder,
+input[type="password"]::placeholder { color: #475569; }
+
+button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  background: #f97316;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { background: #334155; color: #64748b; cursor: not-allowed; opacity: 1; }
+.btn-toggle { background: #1e2a45; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px; }
+.btn-refresh { background: #3b82f6; margin-bottom: 14px; }
 .btn-spectate { background: #6366f1; }
+.btn-join-confirm { background: #f97316; }
+
+.password-prompt { display: flex; gap: 8px; }
+.password-prompt input { flex: 1; }
 </style>

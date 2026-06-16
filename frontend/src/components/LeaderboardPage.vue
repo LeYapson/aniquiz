@@ -70,80 +70,85 @@ onMounted(async () => {
 
 <style scoped>
 .leaderboard-page {
-  max-width: 800px;
-  margin: 30px auto;
-  padding: 0 20px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 24px;
 }
 
 .leaderboard-page h2 {
   font-size: 1.6rem;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin-bottom: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 24px;
 }
 
 .loading, .empty {
   text-align: center;
-  color: #888;
-  padding: 40px;
+  color: #64748b;
+  padding: 60px;
+  font-style: italic;
 }
 
 .lb-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  background: #16213e;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
 }
 
 .lb-table thead th {
-  background: #1a1a2e;
+  background: #0f0f23;
   color: #f97316;
-  padding: 10px 14px;
+  padding: 12px 16px;
   text-align: left;
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 700;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .lb-table tbody tr {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   transition: background 0.15s;
+  color: #cbd5e1;
 }
 
-.lb-table tbody tr:hover { background: #f9f9f9; }
-
-.lb-table td { padding: 10px 14px; }
+.lb-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+.lb-table td { padding: 12px 16px; }
 
 .lb-rank { font-size: 1.2rem; text-align: center; width: 52px; }
 
-.lb-username { font-weight: 600; color: #1a1a2e; }
+.lb-username { font-weight: 600; color: #f1f5f9; }
 
 .lb-you {
-  background: #1a1a2e;
+  background: rgba(249,115,22,0.2);
   color: #f97316;
-  font-size: 0.7rem;
-  font-weight: bold;
-  padding: 1px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
   border-radius: 10px;
   margin-left: 6px;
   vertical-align: middle;
 }
 
 .lb-level {
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 0.78rem;
-  font-weight: bold;
-  padding: 2px 8px;
+  background: rgba(249,115,22,0.15);
+  color: #fb923c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 9px;
   border-radius: 10px;
 }
 
-.lb-xp { color: #f97316; font-weight: bold; }
+.lb-xp { color: #f97316; font-weight: 700; }
 
 /* Podium */
-.lb-gold   { background: #fffbeb !important; }
-.lb-silver { background: #f8fafc !important; }
-.lb-bronze { background: #fff7ed !important; }
+.lb-gold   { background: rgba(255,215,0,0.07) !important; }
+.lb-silver { background: rgba(192,192,192,0.06) !important; }
+.lb-bronze { background: rgba(205,127,50,0.07) !important; }
 
 .lb-me { outline: 2px solid #f97316; outline-offset: -2px; }
 </style>
