@@ -57,6 +57,23 @@ func (c *Client) ReadPump() {
 
 			fmt.Printf("Réponse reçue : %s\n", answer)
 			c.Room.CheckAnswer(c, answer)
+		case "CHAT":
+			var text string
+			if err := json.Unmarshal(msg.Payload, &text); err != nil || len([]rune(text)) == 0 {
+				continue
+			}
+			if len([]rune(text)) > 200 {
+				text = string([]rune(text)[:200])
+			}
+			chatMsg, _ := json.Marshal(map[string]interface{}{
+				"type": "CHAT_MESSAGE",
+				"payload": map[string]interface{}{
+					"username": c.Username,
+					"message":  text,
+				},
+			})
+			c.Room.Broadcast <- chatMsg
+
 		case "UPDATE_SETTINGS":
 			type SettingsPayload struct {
 				MaxRounds     int    `json:"max_rounds"`

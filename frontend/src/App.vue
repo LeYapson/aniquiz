@@ -154,6 +154,15 @@
               </div>
             </div>
           </main>
+
+          <aside class="chat-aside">
+            <ChatPanel
+              :messages="chatMessages"
+              :ownUsername="authStore.user?.username"
+              :connected="isConnected"
+              @send="sendChat"
+            />
+          </aside>
         </div>
         </div>
       </template>
@@ -168,6 +177,7 @@ import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
 import GameSettings from "./components/GameSettings.vue";
+import ChatPanel from "./components/ChatPanel.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
 
@@ -192,6 +202,7 @@ const reconnectMsg = ref("");
 const showProfile = ref(false);
 const isCreator = ref(false);
 const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
+const chatMessages = ref([]);
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -332,6 +343,13 @@ const connectWebSocket = (room_id, password) => {
           finalScores.value = [...players.value].sort((a, b) => b.score - a.score);
           state.value = "GAME_OVER";
           break;
+        case "CHAT_MESSAGE":
+          chatMessages.value.push({
+            username: data.payload.username,
+            message: data.payload.message,
+          });
+          if (chatMessages.value.length > 200) chatMessages.value.shift();
+          break;
         case "XP_GAINED":
           const oldLevel = authStore.user?.level ?? 1;
           const levelUp = data.payload.new_level > oldLevel;
@@ -373,8 +391,15 @@ const connectWebSocket = (room_id, password) => {
   };
 };
 
+const sendChat = (text) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "CHAT", payload: text }));
+  }
+};
+
 const disconnect = () => {
   intentionalClose = true;
+  chatMessages.value = [];
   if (socket) socket.close();
 };
 
@@ -448,12 +473,14 @@ main {
 .game-layout {
   display: flex;
   gap: 20px;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 20px auto;
   text-align: left;
+  align-items: stretch;
 }
 .sidebar {
-  width: 200px;
+  width: 180px;
+  flex-shrink: 0;
   background: #f4f4f4;
   padding: 15px;
   border-radius: 8px;
@@ -464,6 +491,12 @@ main {
   padding: 15px;
   border: 1px solid #ddd;
   border-radius: 8px;
+}
+.chat-aside {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 .status-bar {
   display: flex;
