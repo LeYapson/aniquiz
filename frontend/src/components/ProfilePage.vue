@@ -73,6 +73,44 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Import par recherche -->
+      <div class="section">
+        <h3>📥 Ajouter des animes à la bibliothèque</h3>
+        <div class="import-row">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Rechercher un anime… (ex: Naruto, Attack on Titan)"
+            class="import-input"
+            @keyup.enter="searchAnime"
+            :disabled="searching"
+          />
+          <button @click="searchAnime" :disabled="searching || searchQuery.length < 2" class="btn-import">
+            {{ searching ? '…' : '🔍 Rechercher' }}
+          </button>
+        </div>
+
+        <!-- Résultats de recherche -->
+        <div v-if="searchResults.length" class="search-results">
+          <div v-for="anime in searchResults" :key="anime.mal_id" class="anime-card">
+            <img v-if="anime.image" :src="anime.image" :alt="anime.title" class="anime-thumb" />
+            <div class="anime-card-info">
+              <strong>{{ anime.title }}</strong>
+              <small>{{ anime.type }} · {{ anime.year || '?' }}</small>
+            </div>
+            <button
+              @click="importAnime(anime)"
+              :disabled="importStatus[anime.mal_id] === 'loading'"
+              class="btn-add"
+              :class="importStatus[anime.mal_id]"
+            >
+              {{ importLabel(anime.mal_id) }}
+            </button>
+          </div>
+        </div>
+        <p v-else-if="searchDone" class="empty">Aucun résultat pour "{{ searchQuery }}".</p>
+      </div>
     </template>
 
     <div v-else class="error">Impossible de charger le profil.</div>
@@ -81,6 +119,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
+
 import { authStore } from "../authStore";
 
 const profile = ref(null);
@@ -130,6 +169,62 @@ const stats = computed(() => {
 const formatDate = (iso) => {
   const d = new Date(iso);
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
+// Recherche et import d'animes
+const searchQuery = ref("");
+const searching = ref(false);
+const searchResults = ref([]);
+const searchDone = ref(false);
+const importStatus = ref({}); // mal_id => 'loading' | 'done' | 'error'
+
+const searchAnime = async () => {
+  if (searchQuery.value.length < 2) return;
+  searching.value = true;
+  searchResults.value = [];
+  searchDone.value = false;
+  try {
+    const res = await fetch(
+      `http://localhost:8080/api/anime/search?q=${encodeURIComponent(searchQuery.value)}`,
+      { headers: authStore.authHeaders() }
+    );
+    if (res.ok) searchResults.value = await res.json();
+  } finally {
+    searching.value = false;
+    searchDone.value = true;
+  }
+};
+
+const importAnime = async (anime) => {
+  importStatus.value[anime.mal_id] = "loading";
+  try {
+    const res = await fetch("http://localhost:8080/api/admin/import", {
+      method: "POST",
+      headers: authStore.authHeaders(),
+      body: JSON.stringify({ ids: [anime.mal_id] }),
+    });
+    if (res.status === 429) {
+      importStatus.value[anime.mal_id] = "ratelimit";
+      return;
+    }
+    const data = res.ok ? await res.json() : null;
+    const result = data?.results?.[0];
+    if (result?.skipped) importStatus.value[anime.mal_id] = "skipped";
+    else if (result?.error) importStatus.value[anime.mal_id] = "error";
+    else importStatus.value[anime.mal_id] = "done";
+  } catch {
+    importStatus.value[anime.mal_id] = "error";
+  }
+};
+
+const importLabel = (malId) => {
+  const s = importStatus.value[malId];
+  if (s === "loading")  return "…";
+  if (s === "done")     return "✅ Ajouté";
+  if (s === "skipped")  return "✔ Déjà présent";
+  if (s === "ratelimit") return "⏳ Attends…";
+  if (s === "error")    return "❌ Erreur";
+  return "➕ Ajouter";
 };
 </script>
 
@@ -189,4 +284,19 @@ const formatDate = (iso) => {
 .history-table th { background: #f4f4f4; padding: 8px 12px; text-align: left; font-weight: 600; }
 .history-table td { padding: 8px 12px; border-bottom: 1px solid #eee; }
 .history-table tr:last-child td { border-bottom: none; }
+.import-row { display: flex; gap: 10px; }
+.import-input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+.btn-import { background: #e91e63; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+.btn-import:disabled { background: #ccc; cursor: not-allowed; }
+.search-results { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.anime-card { display: flex; align-items: center; gap: 12px; padding: 8px; background: #f8f8f8; border-radius: 8px; border: 1px solid #eee; }
+.anime-thumb { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.anime-card-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.anime-card-info strong { font-size: 0.9rem; }
+.anime-card-info small { color: #888; font-size: 0.78rem; }
+.btn-add { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; background: #1e90ff; color: white; white-space: nowrap; }
+.btn-add:disabled { cursor: not-allowed; }
+.btn-add.done { background: #4caf50; }
+.btn-add.error { background: #f44336; }
+.btn-add.loading { background: #aaa; }
 </style>
