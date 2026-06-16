@@ -13,6 +13,7 @@ type AnimeMusicInfo struct {
 	Title    string
 	Openings []string
 	Endings  []string
+	Year     int
 }
 
 func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
@@ -25,28 +26,44 @@ func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
 	// 2. Récupération Audio (Linker)
 	audiolinks, _ := GetAudioURL(animeId)
 
-	// 3. Boucle sur les Openings
+	// 3. Openings
 	for i, op := range musicInfo.Openings {
-		// NETTOYAGE : On utilise ta fonction parseTrack
 		cleanTitle, cleanArtist := parseTrack(op)
-
-		// AUDIO : Themes.moe utilise "OP1", "OP2"... pas "opening1"
 		opKey := fmt.Sprintf("OP%d", i+1)
 		audioURL := "not_found"
 		if url, ok := audiolinks[opKey]; ok {
 			audioURL = url
 		}
-
-		track := models.Track{
+		database.SaveTrack(models.Track{
 			Title:      cleanTitle,
 			Artist:     cleanArtist,
 			AnimeName:  musicInfo.Title,
 			AudioURL:   audioURL,
 			MalID:      animeId,
-			Difficulty: 1, // On force à 1 pour éviter le 0 par défaut
-		}
+			Difficulty: 1,
+			TrackType:  "OP",
+			AnimeYear:  musicInfo.Year,
+		})
+	}
 
-		database.SaveTrack(track)
+	// 4. Endings
+	for i, ed := range musicInfo.Endings {
+		cleanTitle, cleanArtist := parseTrack(ed)
+		edKey := fmt.Sprintf("ED%d", i+1)
+		audioURL := "not_found"
+		if url, ok := audiolinks[edKey]; ok {
+			audioURL = url
+		}
+		database.SaveTrack(models.Track{
+			Title:      cleanTitle,
+			Artist:     cleanArtist,
+			AnimeName:  musicInfo.Title,
+			AudioURL:   audioURL,
+			MalID:      animeId,
+			Difficulty: 1,
+			TrackType:  "ED",
+			AnimeYear:  musicInfo.Year,
+		})
 	}
 
 	return musicInfo, nil
@@ -69,6 +86,7 @@ func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
 		Title:    anime.Data.Title,
 		Openings: themes.Data.Openings,
 		Endings:  themes.Data.Endings,
+		Year:     anime.Data.Year,
 	}, nil
 }
 

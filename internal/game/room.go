@@ -27,17 +27,15 @@ const (
 )
 
 type Room struct {
-	ID         string
-	Clients    map[*Client]bool
-	Broadcast  chan []byte
-	Register   chan *Client
-	Unregister chan *Client
-	State      RoomState
-	// --- AJOUTS ICI ---
-	CurrentTrack *models.Track // La musique que les gens doivent deviner
-	Start        chan bool     // Canal pour recevoir l'ordre de démarrage
-	IsPlaying    bool          // Le quiz a-t-il démarré ?
-	// ------------------
+	ID            string
+	Clients       map[*Client]bool
+	Broadcast     chan []byte
+	Register      chan *Client
+	Unregister    chan *Client
+	State         RoomState
+	CurrentTrack  *models.Track
+	Start         chan bool
+	IsPlaying     bool
 	CurrentRound  int
 	MaxRounds     int
 	RoundDuration int
@@ -45,6 +43,10 @@ type Room struct {
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
+	// Filtres de piste
+	FilterType string // "OP", "ED", "" (tout)
+	MinYear    int    // 0 = pas de filtre
+	MaxYear    int    // 0 = pas de filtre
 
 	Mu sync.Mutex
 }
@@ -274,7 +276,15 @@ func (r *Room) nextRound() {
 	duration := r.RoundDuration
 	r.Mu.Unlock()
 
-	track, err := database.GetRandomTrack()
+	r.Mu.Lock()
+	filters := models.TrackFilters{
+		TrackType: r.FilterType,
+		MinYear:   r.MinYear,
+		MaxYear:   r.MaxYear,
+	}
+	r.Mu.Unlock()
+
+	track, err := database.GetRandomTrackFiltered(filters)
 	if err != nil {
 		log.Printf("Erreur récup musique: %v", err)
 		return

@@ -27,6 +27,14 @@ type Track struct {
 	AudioURL   string `json:"audio_url"`
 	Difficulty int    `json:"difficulty"`
 	MalID      int    `json:"mal_id"`
+	TrackType  string `json:"track_type"` // "OP" ou "ED"
+	AnimeYear  int    `json:"anime_year"`
+}
+
+type TrackFilters struct {
+	TrackType string // "OP", "ED", ou "" pour tout
+	MinYear   int    // 0 = pas de filtre
+	MaxYear   int    // 0 = pas de filtre
 }
 
 type Score struct {
