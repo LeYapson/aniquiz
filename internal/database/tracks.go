@@ -54,7 +54,8 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	query := `
 		SELECT id, title, artist, anime_name, audio_url
 		FROM tracks
-		WHERE ($1 = '' OR track_type = $1)
+		WHERE audio_url != 'not_found'
+		  AND ($1 = '' OR track_type = $1)
 		  AND ($2 = 0  OR anime_year >= $2)
 		  AND ($3 = 0  OR anime_year <= $3)
 		ORDER BY RANDOM()
@@ -66,6 +67,14 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 		return nil, err
 	}
 	return &t, nil
+}
+
+// IsAnimeImported retourne true si des pistes existent déjà pour cet anime.
+func IsAnimeImported(malID int) (bool, error) {
+	var count int
+	err := Pool.QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM tracks WHERE mal_id = $1", malID).Scan(&count)
+	return count > 0, err
 }
 
 func GetTrackByID(id int) (*models.Track, error) {
