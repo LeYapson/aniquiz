@@ -53,6 +53,9 @@
           </aside>
 
           <main class="game-area">
+            <div v-if="reconnectMsg" class="reconnect-banner">
+              🔄 {{ reconnectMsg }}
+            </div>
             <div class="status-bar">
               <p>
                 Salon : <strong>{{ room }}</strong> | Joueur :
@@ -170,7 +173,10 @@ const currentAnswerInfo = ref({
 });
 const xpToast = ref(null); // { xpGained, newXP, newLevel, levelUp }
 const finalScores = ref([]); // classement final affiché après GAME_OVER
+const reconnectMsg = ref(""); // message affiché pendant les tentatives de reconnexion
 let socket = null;
+let reconnectAttempts = 0;
+let intentionalClose = false;
 
 const startGame = () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -250,11 +256,19 @@ onMounted(() => {
 
 const setupWebSocket = ({ room_id, password }) => {
   room.value = room_id;
+  intentionalClose = false;
+  reconnectAttempts = 0;
+  connectWebSocket(room_id, password);
+};
+
+const connectWebSocket = (room_id, password) => {
   const wsUrl = `ws://localhost:8080/ws?room=${room_id}&password=${password || ""}&token=${authStore.token}`;
   socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
     isConnected.value = true;
+    reconnectAttempts = 0;
+    reconnectMsg.value = "";
   };
 
   socket.onmessage = (event) => {
@@ -316,14 +330,24 @@ const setupWebSocket = ({ room_id, password }) => {
   };
 
   socket.onclose = () => {
-    isConnected.value = false;
-    players.value = [];
-    state.value = "LOBBY";
-    isRevealing.value = false;
+    if (intentionalClose) {
+      isConnected.value = false;
+      players.value = [];
+      state.value = "LOBBY";
+      isRevealing.value = false;
+      reconnectMsg.value = "";
+      return;
+    }
+    // Déconnexion involontaire : backoff exponentiel (1s, 2s, 4s… max 30s)
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    reconnectAttempts++;
+    reconnectMsg.value = `Connexion perdue. Reconnexion dans ${Math.round(delay / 1000)}s… (tentative ${reconnectAttempts})`;
+    setTimeout(() => connectWebSocket(room.value, ""), delay);
   };
 };
 
 const disconnect = () => {
+  intentionalClose = true;
   if (socket) socket.close();
 };
 
@@ -461,4 +485,13 @@ main {
 .final-scores .rank { font-size: 1.3rem; width: 32px; }
 .final-scores .pname { flex: 1; }
 .final-scores .pts { color: #666; font-size: 0.9rem; }
+.reconnect-banner {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
 </style>
