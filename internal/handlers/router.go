@@ -131,6 +131,9 @@ func NewRouter(store Store) *gin.Engine {
 			})
 		})
 
+		protected.POST("/api/admin/import", BatchImportHandler)
+		protected.GET("/api/anime/search", AnimeSearchHandler)
+
 		protected.GET("/api/profile", func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 			user, err := database.GetUserByID(userID.(int))
