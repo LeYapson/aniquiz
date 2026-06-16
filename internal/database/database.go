@@ -134,6 +134,37 @@ func AddUserXP(userID, xpGained int) (newXP, newLevel int, err error) {
 	return
 }
 
+// GetLeaderboard retourne les N meilleurs joueurs triés par XP décroissant.
+func GetLeaderboard(limit int) ([]models.LeaderboardEntry, error) {
+	query := `
+		SELECT
+			ROW_NUMBER() OVER (ORDER BY u.xp DESC) AS rank,
+			u.id, u.username, u.level, u.xp,
+			COUNT(g.id)         AS total_games,
+			COALESCE(MAX(g.score), 0) AS best_score
+		FROM users u
+		LEFT JOIN game_results g ON g.user_id = u.id
+		GROUP BY u.id, u.username, u.level, u.xp
+		ORDER BY u.xp DESC
+		LIMIT $1
+	`
+	rows, err := Pool.Query(context.Background(), query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.LeaderboardEntry
+	for rows.Next() {
+		var e models.LeaderboardEntry
+		if err := rows.Scan(&e.Rank, &e.UserID, &e.Username, &e.Level, &e.XP, &e.TotalGames, &e.BestScore); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 // GetUserByUsernameOrEmail récupère un utilisateur pour vérifier ses identifiants au login
 func GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
 	var user models.User
