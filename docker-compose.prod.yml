@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aniquiz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-aniquiz}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aniquiz}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/leyapson/aniquiz:latest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-aniquiz}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aniquiz}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID}
+      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET}
+      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI}
+      MAL_CLIENT_ID: ${MAL_CLIENT_ID}
+      MAL_CLIENT_SECRET: ${MAL_CLIENT_SECRET}
+      MAL_REDIRECT_URI: ${MAL_REDIRECT_URI}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

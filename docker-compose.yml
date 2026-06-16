@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aniquiz
+      POSTGRES_PASSWORD: aniquiz
+      POSTGRES_DB: aniquiz
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aniquiz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      target: backend-builder
+    command: go run ./cmd/api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://aniquiz:aniquiz@db:5432/aniquiz?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      FRONTEND_URL: http://localhost:5173
+      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID}
+      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET}
+      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI}
+      MAL_CLIENT_ID: ${MAL_CLIENT_ID}
+      MAL_CLIENT_SECRET: ${MAL_CLIENT_SECRET}
+      MAL_REDIRECT_URI: ${MAL_REDIRECT_URI}
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    working_dir: /app
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+
+volumes:
+  postgres_data:

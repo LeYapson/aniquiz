@@ -275,7 +275,26 @@ func main() {
 		c.Redirect(http.StatusFound, frontendURL+"?mal=success&username="+profile.Username)
 	})
 
-	// 6 - Démarrage du serveur
-	fmt.Println("Serveur lancé sur http://localhost:8080")
-	router.Run(":8080")
+	// 6 - Fichiers statiques du frontend (build Vue)
+	// En production l'image Docker copie dist/ dans ./static
+	if _, err := os.Stat("./static"); err == nil {
+		router.Static("/assets", "./static/assets")
+		router.StaticFile("/favicon.ico", "./static/favicon.ico")
+		// SPA fallback : toute route inconnue sert index.html
+		router.NoRoute(func(c *gin.Context) {
+			if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "route introuvable"})
+				return
+			}
+			c.File("./static/index.html")
+		})
+	}
+
+	// 7 - Démarrage du serveur
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Printf("Serveur lancé sur http://localhost:%s\n", port)
+	router.Run(":" + port)
 }
