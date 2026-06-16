@@ -66,6 +66,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { authStore } from '../authStore';
+import { API_URL } from '../config';
 
 const emit = defineEmits(['room-created', 'room-joined']);
 
@@ -83,7 +84,7 @@ const config = ref({
 // Récupérer la liste des salons depuis l'API Back
 const fetchRooms = async () => {
   try {
-    const response = await fetch("http://localhost:8080/rooms");
+    const response = await fetch(`${API_URL}/rooms`);
     if (response.ok) {
       rooms.value = await response.json() || [];
     }
@@ -95,7 +96,7 @@ const fetchRooms = async () => {
 // Demander la création au Back
 const submitCreate = async () => {
   try {
-    const response = await fetch("http://localhost:8080/rooms", {
+    const response = await fetch(`${API_URL}/rooms`, {
       method: "POST",
       headers: authStore.authHeaders(),
       body: JSON.stringify(config.value)

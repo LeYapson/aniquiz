@@ -38,6 +38,7 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { authStore } from '../authStore';
+import { API_URL } from '../config';
 
 const isLogin = ref(true);
 const message = reactive({ text: '', type: '' });
@@ -56,7 +57,7 @@ const toggleMode = () => {
 const handleSubmit = async () => {
   message.text = '';
   
-  const url = isLogin.value ? 'http://localhost:8080/api/auth/login' : 'http://localhost:8080/api/auth/register';
+  const url = isLogin.value ? `${API_URL}/api/auth/login` : `${API_URL}/api/auth/register`;
   
   // Préparation du corps de la requête selon le mode
   const bodyData = isLogin.value 
