@@ -63,6 +63,9 @@ func (c *Client) ReadPump() {
 				RoundDuration int    `json:"round_duration"`
 				IsPrivate     bool   `json:"is_private"`
 				Password      string `json:"password"`
+				FilterType    string `json:"filter_type"`
+				MinYear       int    `json:"min_year"`
+				MaxYear       int    `json:"max_year"`
 			}
 
 			var settings SettingsPayload
@@ -72,7 +75,7 @@ func (c *Client) ReadPump() {
 			}
 
 			c.Room.Mu.Lock()
-			// Sécurité : Seul le créateur peut modifier les paramètres
+			// Sécurité : seul le créateur peut modifier les paramètres en lobby
 			if c.Room.CreatorID == c.ID && c.Room.State == StateLobby {
 				if settings.MaxRounds > 0 {
 					c.Room.MaxRounds = settings.MaxRounds
@@ -82,10 +85,24 @@ func (c *Client) ReadPump() {
 				}
 				c.Room.IsPrivate = settings.IsPrivate
 				c.Room.Password = settings.Password
-
-				// Notification générale aux clients du salon pour mettre à jour leur affichage
+				c.Room.FilterType = settings.FilterType
+				c.Room.MinYear = settings.MinYear
+				c.Room.MaxYear = settings.MaxYear
 				c.Room.Mu.Unlock()
-				//c.Room.broadcastSettingsUpdate()
+
+				// Diffuser les nouveaux settings à tous les joueurs
+				msg, _ := json.Marshal(map[string]interface{}{
+					"type": "SETTINGS_UPDATED",
+					"payload": map[string]interface{}{
+						"max_rounds":     c.Room.MaxRounds,
+						"round_duration": c.Room.RoundDuration,
+						"is_private":     c.Room.IsPrivate,
+						"filter_type":    c.Room.FilterType,
+						"min_year":       c.Room.MinYear,
+						"max_year":       c.Room.MaxYear,
+					},
+				})
+				c.Room.Broadcast <- msg
 			} else {
 				c.Room.Mu.Unlock()
 			}

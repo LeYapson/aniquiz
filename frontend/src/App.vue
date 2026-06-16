@@ -76,6 +76,11 @@
                 <button @click="startGame" class="btn-start">
                   Lancer la partie
                 </button>
+                <GameSettings
+                  v-if="isCreator"
+                  :socket="socket"
+                  :initialSettings="roomSettings"
+                />
               </div>
 
               <div v-if="state === 'GAME_OVER'" class="game-over-screen">
@@ -162,6 +167,7 @@ import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
+import GameSettings from "./components/GameSettings.vue";
 import { authStore } from "./authStore";
 
 const isConnected = ref(false);
@@ -179,10 +185,12 @@ const currentAnswerInfo = ref({
   artist: "",
   videoUrl: "",
 });
-const xpToast = ref(null); // { xpGained, newXP, newLevel, levelUp }
-const finalScores = ref([]); // classement final affiché après GAME_OVER
-const reconnectMsg = ref(""); // message affiché pendant les tentatives de reconnexion
+const xpToast = ref(null);
+const finalScores = ref([]);
+const reconnectMsg = ref("");
 const showProfile = ref(false);
+const isCreator = ref(false);
+const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -263,8 +271,9 @@ onMounted(() => {
   checkOAuthCallback();
 });
 
-const setupWebSocket = ({ room_id, password }) => {
+const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
   room.value = room_id;
+  isCreator.value = !!creator;
   intentionalClose = false;
   reconnectAttempts = 0;
   connectWebSocket(room_id, password);
@@ -309,6 +318,14 @@ const connectWebSocket = (room_id, password) => {
             videoUrl: currentAudioUrl.value,
           };
           currentAudioUrl.value = "";
+          break;
+        case "SETTINGS_UPDATED":
+          roomSettings.value = {
+            maxRounds: data.payload.max_rounds,
+            roundDuration: data.payload.round_duration,
+            filterType: data.payload.filter_type,
+            isPrivate: data.payload.is_private,
+          };
           break;
         case "GAME_OVER":
           finalScores.value = [...players.value].sort((a, b) => b.score - a.score);

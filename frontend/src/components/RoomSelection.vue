@@ -9,20 +9,10 @@
     <hr />
 
     <div v-if="isCreating" class="form-container">
-      <h3>Configuration du nouveau salon</h3>
+      <h3>Créer un salon</h3>
       <div class="form-group">
-        <label>Nom / ID du salon :</label>
+        <label>Nom du salon :</label>
         <input v-model="config.room_id" type="text" placeholder="Ex: Salon de Théau" />
-      </div>
-
-      <div class="form-group">
-        <label>Nombre de questions :</label>
-        <input v-model.number="config.max_rounds" type="number" min="1" max="50" />
-      </div>
-
-      <div class="form-group">
-        <label>Temps par question (secondes) :</label>
-        <input v-model.number="config.round_duration" type="number" min="5" max="60" />
       </div>
 
       <div class="form-group checkbox">
@@ -34,6 +24,8 @@
         <label>Mot de passe :</label>
         <input v-model="config.password" type="password" placeholder="Mot de passe requis" />
       </div>
+
+      <p class="settings-hint">⚙️ Les paramètres de jeu (rounds, durée, filtres) sont configurables dans le lobby.</p>
 
       <button @click="submitCreate" class="btn-submit" :disabled="!config.room_id">
         Créer et Rejoindre
@@ -86,8 +78,6 @@ const config = ref({
   room_id: "",
   is_private: false,
   password: "",
-  max_rounds: 5,
-  round_duration: 20
 });
 
 // Récupérer la liste des salons depuis l'API Back
@@ -117,7 +107,8 @@ const submitCreate = async () => {
       emit('room-created', {
         room_id: data.room_id,
         creator_id: data.creator_id,
-        password: config.value.password
+        password: config.value.password,
+        isCreator: true,
       });
     } else {
       const err = await response.json();
@@ -157,6 +148,7 @@ onMounted(() => {
 .room-info { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
 .badge-private { color: #ff5722; font-weight: bold; }
 .badge-public { color: #4caf50; font-weight: bold; }
+.settings-hint { color: #aaa; font-size: 0.82rem; margin: -8px 0 12px; font-style: italic; }
 .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
 .form-group.checkbox { flex-direction: row; gap: 10px; align-items: center; }
 input[type="text"], input[type="number"], input[type="password"] { padding: 8px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; }
