@@ -104,22 +104,33 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.Register:
+			// Joueur arrivant en cours de partie → spectateur
+			if r.State == StatePlaying {
+				client.IsSpectator = true
+			}
 			r.Clients[client] = true
 
-			// 1. Liste des joueurs pour tout le monde (incluant le nouveau)
+			// 1. Notifier le client de son statut
+			statusMsg, _ := json.Marshal(map[string]interface{}{
+				"type":    "SPECTATOR_STATUS",
+				"payload": client.IsSpectator,
+			})
+			client.Send <- statusMsg
+
+			// 2. Liste des joueurs pour tout le monde (incluant le nouveau)
 			go r.BroadcastPlayerList()
 
-			// 2. Envoyer l'état actuel (LOBBY ou PLAYING) au nouveau venu
+			// 3. Envoyer l'état actuel (LOBBY ou PLAYING) au nouveau venu
 			msgState, _ := json.Marshal(map[string]interface{}{
 				"type":    "GAME_STATE",
 				"payload": r.State,
 			})
 			client.Send <- msgState
 
-			// 3. Si une partie est en cours, on lui envoie la musique actuelle
+			// 4. Si une partie est en cours, envoyer la musique actuelle au spectateur
 			if r.State == StatePlaying && r.CurrentTrack != nil {
 				msgTrack, _ := json.Marshal(map[string]interface{}{
-					"type": "NewQuestion", // Assure-toi que c'est bien ce type que ton Front attend
+					"type": "NewQuestion",
 					"payload": map[string]interface{}{
 						"audio_url": r.CurrentTrack.AudioURL,
 						"room_id":   r.ID,
@@ -172,23 +183,29 @@ func (r *Room) broadcastGameState() {
 	}
 }
 
-// BroadcastPlayerList envoie la liste des joueurs à tous les clients du salon
+// BroadcastPlayerList envoie la liste des joueurs et spectateurs à tous les clients du salon.
 func (r *Room) BroadcastPlayerList() {
 	var players []models.PlayerInfo
+	spectatorCount := 0
 	for c := range r.Clients {
+		if c.IsSpectator {
+			spectatorCount++
+			continue
+		}
 		players = append(players, models.PlayerInfo{
 			ID:       c.ID,
 			Username: c.Username,
-			Score:    c.Score, // On peut ajouter la logique de score plus tard
+			Score:    c.Score,
 		})
 	}
 
-	msg := models.WSMessage{
-		Type:    "PLAYER_LIST",
-		Payload: players,
-	}
-
-	data, _ := json.Marshal(msg)
+	data, _ := json.Marshal(map[string]interface{}{
+		"type": "PLAYER_LIST",
+		"payload": map[string]interface{}{
+			"players":          players,
+			"spectator_count":  spectatorCount,
+		},
+	})
 	r.Broadcast <- data
 }
 
@@ -330,6 +347,21 @@ func (r *Room) finishGame() {
 	// 1. Distribuer l'XP avant de réinitialiser les scores
 	r.grantXP()
 
+	// Lever le statut spectateur pour tous : la prochaine partie est ouverte à tous
+	for c := range r.Clients {
+		if c.IsSpectator {
+			c.IsSpectator = false
+			msg, _ := json.Marshal(map[string]interface{}{
+				"type":    "SPECTATOR_STATUS",
+				"payload": false,
+			})
+			select {
+			case c.Send <- msg:
+			default:
+			}
+		}
+	}
+
 	// 2. On prévient le Front que c'est fini
 	msg := map[string]interface{}{
 		"type": "GAME_OVER",
@@ -374,7 +406,7 @@ func XPForScore(score int) int {
 // Envoie un message XP_GAINED personnel à chaque joueur authentifié.
 func (r *Room) grantXP() {
 	for c := range r.Clients {
-		if c.UserID == 0 {
+		if c.UserID == 0 || c.IsSpectator {
 			continue
 		}
 		xpGained := XPForScore(c.Score)
@@ -403,6 +435,8 @@ func (r *Room) grantXP() {
 
 func (r *Room) resetScores() {
 	for c := range r.Clients {
-		c.Score = 0
+		if !c.IsSpectator {
+			c.Score = 0
+		}
 	}
 }

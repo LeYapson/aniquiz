@@ -9,13 +9,14 @@ import (
 
 // Client représente un joueur connecté via WebSocket
 type Client struct {
-	ID       string
-	UserID   int
-	Username string
-	Conn     *websocket.Conn
-	Room     *Room
-	Send     chan []byte //canal pour envoyer les messages au joueur
-	Score    int
+	ID          string
+	UserID      int
+	Username    string
+	Conn        *websocket.Conn
+	Room        *Room
+	Send        chan []byte
+	Score       int
+	IsSpectator bool
 }
 
 // ReadPump lit les messages envoyés par le joueur (ex: ses réponses)
@@ -48,6 +49,9 @@ func (c *Client) ReadPump() {
 			// On demande à la Room de démarrer
 			c.Room.Start <- true
 		case "SUBMIT_ANSWER":
+			if c.IsSpectator {
+				continue
+			}
 			var answer string
 
 			if err := json.Unmarshal(msg.Payload, &answer); err != nil {

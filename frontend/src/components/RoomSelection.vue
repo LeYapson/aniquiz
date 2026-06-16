@@ -54,8 +54,8 @@
             <button @click="submitJoin(room)" class="btn-join-confirm">Valider</button>
           </div>
 
-          <button v-else @click="handleRoomClick(room)" class="btn-join" :disabled="room.state !== 'LOBBY'">
-            {{ room.state === 'LOBBY' ? 'Rejoindre' : 'En partie...' }}
+          <button v-else @click="handleRoomClick(room)" class="btn-join" :class="{ 'btn-spectate': room.state !== 'LOBBY' }">
+            {{ room.state === 'LOBBY' ? 'Rejoindre' : '👁 Regarder' }}
           </button>
         </div>
       </div>
@@ -156,4 +156,5 @@ input[type="text"], input[type="number"], input[type="password"] { padding: 8px;
 button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; background: #e91e63; color: white; font-weight: bold; }
 button:disabled { background: #555; cursor: not-allowed; }
 .btn-refresh { background: #2196f3; margin-bottom: 15px; }
+.btn-spectate { background: #6366f1; }
 </style>
