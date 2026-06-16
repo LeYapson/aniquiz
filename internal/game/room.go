@@ -202,8 +202,8 @@ func (r *Room) BroadcastPlayerList() {
 	data, _ := json.Marshal(map[string]interface{}{
 		"type": "PLAYER_LIST",
 		"payload": map[string]interface{}{
-			"players":          players,
-			"spectator_count":  spectatorCount,
+			"players":         players,
+			"spectator_count": spectatorCount,
 		},
 	})
 	r.Broadcast <- data
