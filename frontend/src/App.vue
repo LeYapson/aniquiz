@@ -13,7 +13,10 @@
         </span>
         <button v-else @click="connectMAL" class="btn-mal">Connecter MAL</button>
 
-        <button @click="showProfile = !showProfile" class="btn-profile">
+        <button @click="showLeaderboard = !showLeaderboard; showProfile = false" class="btn-leaderboard">
+          {{ showLeaderboard ? '🎮 Jeu' : '🏆 Classement' }}
+        </button>
+        <button @click="showProfile = !showProfile; showLeaderboard = false" class="btn-profile">
           {{ showProfile ? '🎮 Jeu' : '👤 Profil' }}
         </button>
         <button @click="authStore.logout" class="btn-logout">Déconnexion</button>
@@ -35,7 +38,9 @@
       <AuthForm v-if="!authStore.user" />
 
       <template v-else>
-        <ProfilePage v-if="showProfile" />
+        <LeaderboardPage v-if="showLeaderboard" :ownUsername="authStore.user?.username" />
+
+        <ProfilePage v-else-if="showProfile" />
 
         <div v-else>
         <h1>AniQuiz 🎵</h1>
@@ -177,6 +182,7 @@ import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
 import GameSettings from "./components/GameSettings.vue";
+import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
@@ -200,6 +206,7 @@ const xpToast = ref(null);
 const finalScores = ref([]);
 const reconnectMsg = ref("");
 const showProfile = ref(false);
+const showLeaderboard = ref(false);
 const isCreator = ref(false);
 const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
 const chatMessages = ref([]);
@@ -424,6 +431,15 @@ defineExpose({ state, isConnected });
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.btn-leaderboard {
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
 }
 .btn-profile {
   background: #444;

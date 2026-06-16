@@ -53,6 +53,18 @@ func NewRouter(store Store) *gin.Engine {
 
 	router.GET("/rooms", ListRoomsHandler)
 
+	router.GET("/api/leaderboard", func(c *gin.Context) {
+		entries, err := database.GetLeaderboard(50)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire le classement"})
+			return
+		}
+		if entries == nil {
+			entries = []models.LeaderboardEntry{}
+		}
+		c.JSON(http.StatusOK, entries)
+	})
+
 	router.GET("/animes", func(c *gin.Context) {
 		tracks, err := store.GetAllTracks()
 		if err != nil {

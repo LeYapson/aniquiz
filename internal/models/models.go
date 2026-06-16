@@ -50,3 +50,13 @@ type GameResult struct {
 	XPGained int       `json:"xp_gained"`
 	PlayedAt time.Time `json:"played_at"`
 }
+
+type LeaderboardEntry struct {
+	Rank       int    `json:"rank"`
+	UserID     int    `json:"user_id"`
+	Username   string `json:"username"`
+	Level      int    `json:"level"`
+	XP         int    `json:"xp"`
+	TotalGames int    `json:"total_games"`
+	BestScore  int    `json:"best_score"`
+}
