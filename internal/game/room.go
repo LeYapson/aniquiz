@@ -60,9 +60,9 @@ type Room struct {
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
-	RoundAnswers  []RoundAnswer    // joueurs ayant trouvé ce round
-	RoundStart    time.Time        // heure de début du round courant
-	SkipVotes     map[string]bool  // votes pour passer le round courant
+	RoundAnswers  []RoundAnswer      // joueurs ayant trouvé ce round
+	RoundStart    time.Time          // heure de début du round courant
+	SkipVotes     map[string]bool    // votes pour passer le round courant
 	RoundHistory  []RoundSummaryItem // récap de tous les rounds (envoyé dans GAME_OVER)
 	// Filtres de piste
 	FilterType  string // "OP", "ED", "" (tout)
