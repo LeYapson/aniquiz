@@ -12,6 +12,11 @@ const NEW_QUESTION = JSON.stringify({
   type: 'NewQuestion',
   payload: { audio_url: 'https://example.com/track.webm', duration: 30 },
 })
+const SPECTATOR_ON = JSON.stringify({ type: 'SPECTATOR_STATUS', payload: true })
+const PLAYER_LIST_PLAYING = JSON.stringify({
+  type: 'PLAYER_LIST',
+  payload: { players: [{ id: '2', username: 'Bob', score: 10 }], spectator_count: 1 },
+})
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +64,46 @@ async function loginAs(page, username = 'Alice') {
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page.getByText('Salons Disponibles')).toBeVisible()
+}
+
+async function joinRoomAsSpectator(page, username = 'Alice') {
+  await page.route('**/api/auth/login', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token: 'test-jwt-token',
+        user: { id: 1, username, level: 1, xp: 0, email: `${username.toLowerCase()}@test.com` },
+      }),
+    })
+  )
+  await page.route('**/rooms', (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { id: 'general', state: 'PLAYING', players_count: 2, max_rounds: 5, is_private: false },
+      ]),
+    })
+  })
+  await page.route('**/animes', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  )
+  await page.routeWebSocket(/\/ws/, (ws) => {
+    ws.send(PLAYING_STATE)
+    ws.send(SPECTATOR_ON)
+    ws.send(PLAYER_LIST_PLAYING)
+    ws.send(NEW_QUESTION)
+  })
+  await page.goto('/')
+  const playBtn = page.getByRole('button', { name: 'Jouer maintenant' })
+  if (await playBtn.isVisible()) await playBtn.click()
+  await page.getByPlaceholder('Votre pseudo').fill(username)
+  await page.locator('input[type="password"]').fill('password123')
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page.getByText('Salons Disponibles')).toBeVisible()
+  await page.getByRole('button', { name: /Regarder/ }).first().click()
 }
 
 async function joinRoom(page, username = 'Alice', roomId = 'general') {
@@ -190,5 +235,132 @@ test.describe('Partie', () => {
 
     await expect(page.getByPlaceholder("Nom de l'anime...")).toBeVisible()
     await expect(page.getByRole('button', { name: 'Envoyer ma réponse' })).toBeVisible()
+  })
+})
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
+test.describe('Chat', () => {
+  test('affiche le panneau de chat en jeu', async ({ page }) => {
+    await joinRoom(page)
+    await expect(page.locator('.chat-panel')).toBeVisible()
+  })
+
+  test('affiche un message reçu dans le chat', async ({ page }) => {
+    await mockAllApis(page)
+
+    let wsServer
+    await page.routeWebSocket(/\/ws/, (ws) => {
+      wsServer = ws
+      ws.send(LOBBY_STATE)
+      ws.send(PLAYER_LIST)
+    })
+
+    await page.goto('/')
+    await loginAs(page)
+    await page.getByRole('button', { name: 'Rejoindre' }).first().click()
+    await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
+
+    wsServer.send(JSON.stringify({
+      type: 'CHAT_MESSAGE',
+      payload: { username: 'Bob', message: 'Bonjour tout le monde !' },
+    }))
+
+    await expect(page.getByText('Bonjour tout le monde !')).toBeVisible()
+  })
+
+  test('affiche le nom de l\'expéditeur dans le chat', async ({ page }) => {
+    await mockAllApis(page)
+
+    let wsServer
+    await page.routeWebSocket(/\/ws/, (ws) => {
+      wsServer = ws
+      ws.send(LOBBY_STATE)
+      ws.send(PLAYER_LIST)
+    })
+
+    await page.goto('/')
+    await loginAs(page)
+    await page.getByRole('button', { name: 'Rejoindre' }).first().click()
+    await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
+
+    wsServer.send(JSON.stringify({
+      type: 'CHAT_MESSAGE',
+      payload: { username: 'Bob', message: 'Salut !' },
+    }))
+
+    await expect(page.locator('.chat-username').getByText('Bob')).toBeVisible()
+  })
+})
+
+// ─── Mode spectateur ─────────────────────────────────────────────────────────
+
+test.describe('Spectateur', () => {
+  test('affiche le badge spectateur en rejoignant une partie en cours', async ({ page }) => {
+    await joinRoomAsSpectator(page)
+    await expect(page.locator('.spectator-badge')).toBeVisible()
+  })
+
+  test('n\'affiche pas le champ de réponse en mode spectateur', async ({ page }) => {
+    await joinRoomAsSpectator(page)
+    await expect(page.getByPlaceholder("Nom de l'anime...")).not.toBeVisible()
+  })
+
+  test('affiche le message de spectateur pendant la partie', async ({ page }) => {
+    await joinRoomAsSpectator(page)
+    await expect(page.locator('.spectator-watching')).toBeVisible()
+  })
+})
+
+// ─── Classement ──────────────────────────────────────────────────────────────
+
+test.describe('Classement', () => {
+  test('affiche le classement depuis la landing page', async ({ page }) => {
+    await page.route('**/api/leaderboard', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { rank: 1, user_id: 2, username: 'TopPlayer', level: 10, xp: 5000, total_games: 50, best_score: 300 },
+          { rank: 2, user_id: 1, username: 'Alice', level: 5, xp: 1200, total_games: 20, best_score: 150 },
+        ]),
+      })
+    )
+
+    await page.goto('/')
+    await page.getByRole('button', { name: '🏆 Classement' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Classement Global' })).toBeVisible()
+    await expect(page.getByText('TopPlayer')).toBeVisible()
+  })
+
+  test('affiche le bouton retour depuis le classement public', async ({ page }) => {
+    await page.route('**/api/leaderboard', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    )
+
+    await page.goto('/')
+    await page.getByRole('button', { name: '🏆 Classement' }).click()
+    await page.getByRole('button', { name: /Retour/ }).click()
+
+    await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
+  })
+})
+
+// ─── Page 404 ────────────────────────────────────────────────────────────────
+
+test.describe('Page 404', () => {
+  test('affiche la page 404 pour une URL inconnue', async ({ page }) => {
+    await page.goto('/cette-page-nexiste-pas')
+
+    await expect(page.getByText('404')).toBeVisible()
+    await expect(page.getByRole('link', { name: "Retour à l'accueil" })).toBeVisible()
+  })
+
+  test("redirige vers l'accueil depuis la page 404", async ({ page }) => {
+    await page.goto('/cette-page-nexiste-pas')
+    await page.getByRole('link', { name: "Retour à l'accueil" }).click()
+
+    await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
   })
 })
