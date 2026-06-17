@@ -75,6 +75,13 @@
                 {{ p.username }}
                 <span v-if="p.username === authStore.user.username" aria-label="Vous">⭐</span>
                 <small aria-label="`${p.score} points`">({{ p.score }} pts)</small>
+                <button
+                  v-if="isCreator && p.username !== authStore.user.username"
+                  @click="kickPlayer(p.username)"
+                  class="btn-kick"
+                  :aria-label="`Expulser ${p.username}`"
+                  title="Expulser"
+                >✕</button>
               </li>
             </ul>
             <div v-if="spectatorCount > 0" class="spectator-count" aria-live="polite">
@@ -120,6 +127,27 @@
                     <span class="pts">{{ p.score }} pts</span>
                   </li>
                 </ol>
+                <!-- Résumé round par round -->
+                <div v-if="roundHistory.length > 0" class="round-history">
+                  <h3>Récapitulatif</h3>
+                  <div v-for="r in roundHistory" :key="r.round" class="round-item">
+                    <div class="round-item-header">
+                      <span class="round-num">Round {{ r.round }}</span>
+                      <span v-if="r.track_type" class="round-tag">{{ r.track_type }}</span>
+                      <span class="round-anime">{{ r.anime_name }}</span>
+                    </div>
+                    <div class="round-item-track">{{ r.title }}<span v-if="r.artist"> — {{ r.artist }}</span></div>
+                    <div v-if="r.found_by && r.found_by.length > 0" class="round-finders">
+                      <span v-for="(f, i) in r.found_by" :key="f.username" class="round-finder">
+                        {{ i === 0 ? '🥇' : `#${i + 1}` }} {{ f.username }}
+                        <em>{{ (f.time_ms / 1000).toFixed(1) }}s</em>
+                        <span v-if="f.bonus > 0" class="round-bonus">+{{ f.bonus }}</span>
+                      </span>
+                    </div>
+                    <div v-else class="round-nobody">😅 Personne n'a trouvé</div>
+                  </div>
+                </div>
+
                 <button @click="backToLobby" class="btn-start" style="margin-top:20px">
                   Retour au lobby
                 </button>
@@ -186,21 +214,33 @@
                   </div>
 
                   <div v-else class="answer-zone">
-                    <label for="anime-guess" class="sr-only">Nom de l'anime</label>
-                    <input
-                      id="anime-guess"
+                    <AnimeAutocomplete
                       v-model="userGuess"
-                      @keyup.enter="submitAnswer"
-                      placeholder="Nom de l'anime..."
-                      list="anime-suggestions"
-                      autocomplete="off"
+                      :dictionary="animeDictionary"
+                      input-id="anime-guess"
+                      @submit="submitAnswer"
                     />
+                  </div>
 
-                    <datalist id="anime-suggestions">
-                      <option v-for="anime in animeDictionary" :key="anime" :value="anime"></option>
-                    </datalist>
+                  <!-- Vote pour passer -->
+                  <div v-if="!isSpectator" class="skip-zone">
+                    <button
+                      @click="sendSkipVote"
+                      :disabled="hasVotedSkip"
+                      class="btn-skip"
+                      :title="hasVotedSkip ? 'Vous avez déjà voté' : 'Voter pour passer cette piste'"
+                    >
+                      ⏭ Passer
+                      <span v-if="skipVotes.votes > 0" class="skip-count">
+                        {{ skipVotes.votes }}/{{ skipVotes.needed }}
+                      </span>
+                    </button>
+                  </div>
 
-                    <button @click="submitAnswer" aria-label="Envoyer ma réponse">Envoyer</button>
+                  <!-- Contrôles hôte -->
+                  <div v-if="isCreator" class="host-controls">
+                    <span class="host-badge">🎮 Hôte</span>
+                    <button @click="forceSkip" class="btn-force-skip">⏭ Forcer la piste</button>
                   </div>
                 </div>
 
@@ -273,6 +313,7 @@ import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import LandingPage from "./components/LandingPage.vue";
 import ReactionOverlay from "./components/ReactionOverlay.vue";
+import AnimeAutocomplete from "./components/AnimeAutocomplete.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
 
@@ -298,6 +339,9 @@ const currentAnswerInfo = ref({
 });
 const xpToast = ref(null);
 const finalScores = ref([]);
+const roundHistory = ref([]);
+const skipVotes = ref({ votes: 0, needed: 1 });
+const hasVotedSkip = ref(false);
 const reconnectMsg = ref("");
 const showLanding = ref(true);
 const showProfile = ref(false);
@@ -328,7 +372,29 @@ const startGame = () => {
 
 const backToLobby = () => {
   finalScores.value = [];
+  roundHistory.value = [];
+  skipVotes.value = { votes: 0, needed: 1 };
+  hasVotedSkip.value = false;
   state.value = "LOBBY";
+};
+
+const sendSkipVote = () => {
+  if (socket && socket.readyState === WebSocket.OPEN && !hasVotedSkip.value) {
+    socket.send(JSON.stringify({ type: "VOTE_SKIP", payload: null }));
+    hasVotedSkip.value = true;
+  }
+};
+
+const forceSkip = () => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "FORCE_SKIP", payload: null }));
+  }
+};
+
+const kickPlayer = (username) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "KICK_PLAYER", payload: username }));
+  }
 };
 
 const submitAnswer = () => {
@@ -432,6 +498,8 @@ const connectWebSocket = (room_id, password) => {
           isRevealing.value = false;
           currentAudioUrl.value = data.payload.audio_url;
           roundDuration.value = data.payload.duration;
+          hasVotedSkip.value = false;
+          skipVotes.value = { votes: 0, needed: 1 };
           const audio = document.querySelector("audio");
           if (audio) {
             audio.load();
@@ -459,8 +527,16 @@ const connectWebSocket = (room_id, password) => {
             isPrivate: data.payload.is_private,
           };
           break;
+        case "SKIP_VOTE_UPDATE":
+          skipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
+          break;
+        case "KICKED":
+          disconnect();
+          alert(data.payload ?? "Vous avez été expulsé de la partie.");
+          break;
         case "GAME_OVER":
           finalScores.value = [...players.value].sort((a, b) => b.score - a.score);
+          roundHistory.value = data.payload.history ?? [];
           state.value = "GAME_OVER";
           break;
         case "CHAT_MESSAGE":
@@ -706,31 +782,102 @@ main { flex: 1; display: flex; flex-direction: column; }
 .btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(249,115,22,0.4); }
 
 /* ── Réponse ────────────────────────────────────────────── */
-.answer-zone { margin: 20px 0; display: flex; gap: 10px; }
-.answer-zone input {
-  flex: 1;
-  padding: 10px 14px;
-  background: #0f0f23;
-  border: 1px solid rgba(255,255,255,0.1);
+.answer-zone { margin: 20px 0; }
+
+/* ── Vote skip & Contrôles hôte ─────────────────────────── */
+.skip-zone { margin: 10px 0 4px; display: flex; align-items: center; gap: 8px; }
+.btn-skip {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #94a3b8;
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-skip:hover:not(:disabled) { border-color: #f97316; color: #f97316; }
+.btn-skip:disabled { opacity: 0.4; cursor: not-allowed; }
+.skip-count {
+  background: rgba(249,115,22,0.15);
+  color: #fb923c;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.host-controls {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 0 12px;
+  padding: 7px 12px;
+  background: rgba(249,115,22,0.06);
+  border: 1px solid rgba(249,115,22,0.2);
   border-radius: 8px;
-  color: #f1f5f9;
-  font-size: 0.95rem;
-  outline: none;
+}
+.host-badge { font-size: 0.78rem; font-weight: 700; color: #fb923c; }
+.btn-force-skip {
+  background: rgba(249,115,22,0.15);
+  border: 1px solid rgba(249,115,22,0.3);
+  color: #f97316;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-force-skip:hover { background: rgba(249,115,22,0.28); }
+
+/* ── Kick button (sidebar) ──────────────────────────────── */
+.btn-kick {
+  background: transparent;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: auto;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.btn-kick:hover { color: #ef4444; }
+
+/* ── Résumé de fin de partie ────────────────────────────── */
+.round-history {
+  margin-top: 24px;
+  text-align: left;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.round-history h3 { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.round-item {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border-left: 3px solid #1e2a45;
   transition: border-color 0.15s;
 }
-.answer-zone input:focus { border-color: #f97316; }
-.answer-zone input::placeholder { color: #475569; }
-.answer-zone button {
-  background: #f97316;
-  color: white;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: opacity 0.15s;
+.round-item:hover { border-left-color: #f97316; }
+.round-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.round-num { font-size: 0.72rem; color: #475569; font-weight: 700; text-transform: uppercase; }
+.round-tag { font-size: 0.7rem; background: rgba(249,115,22,0.15); color: #fb923c; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+.round-anime { font-weight: 700; color: #f1f5f9; font-size: 0.9rem; }
+.round-item-track { font-size: 0.78rem; color: #64748b; margin-bottom: 5px; }
+.round-finders { display: flex; flex-wrap: wrap; gap: 6px; }
+.round-finder {
+  font-size: 0.78rem; color: #94a3b8;
+  background: rgba(255,255,255,0.04);
+  padding: 2px 8px; border-radius: 5px;
+  display: flex; align-items: center; gap: 4px;
 }
-.answer-zone button:hover { opacity: 0.85; }
+.round-finder em { color: #475569; font-style: normal; }
+.round-bonus { color: #34d399; font-size: 0.72rem; font-weight: 700; }
+.round-nobody { font-size: 0.78rem; color: #475569; font-style: italic; }
+/* styles input/button déplacés dans AnimeAutocomplete.vue */
 
 /* Classe utilitaire accessibilité (label visually hidden) */
 .sr-only {
