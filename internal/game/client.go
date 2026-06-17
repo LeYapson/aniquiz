@@ -3,6 +3,8 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/gorilla/websocket"
 	"log"
 )
@@ -95,6 +97,80 @@ func (c *Client) ReadPump() {
 				},
 			})
 			c.Room.Broadcast <- reactionMsg
+
+		case "VOTE_SKIP":
+			if c.IsSpectator {
+				continue
+			}
+			c.Room.Mu.Lock()
+			if !c.Room.IsPlaying {
+				c.Room.Mu.Unlock()
+				continue
+			}
+			c.Room.SkipVotes[c.ID] = true
+			votes := len(c.Room.SkipVotes)
+			activeCount := 0
+			for cl := range c.Room.Clients {
+				if !cl.IsSpectator {
+					activeCount++
+				}
+			}
+			needed := (activeCount + 1) / 2
+			c.Room.Mu.Unlock()
+
+			voteMsg, _ := json.Marshal(map[string]interface{}{
+				"type": "SKIP_VOTE_UPDATE",
+				"payload": map[string]interface{}{
+					"votes":  votes,
+					"needed": needed,
+				},
+			})
+			c.Room.Broadcast <- voteMsg
+
+			if votes >= needed {
+				go c.Room.EndRound("Vote majoritaire !")
+			}
+
+		case "FORCE_SKIP":
+			c.Room.Mu.Lock()
+			isHost := c.Room.CreatorID == c.Username
+			isPlaying := c.Room.IsPlaying
+			c.Room.Mu.Unlock()
+			if isHost && isPlaying {
+				go c.Room.EndRound("Piste passée par l'hôte")
+			}
+
+		case "KICK_PLAYER":
+			if c.Room.CreatorID != c.Username {
+				continue
+			}
+			var targetUsername string
+			if err := json.Unmarshal(msg.Payload, &targetUsername); err != nil || targetUsername == c.Username {
+				continue
+			}
+			var target *Client
+			c.Room.Mu.Lock()
+			for cl := range c.Room.Clients {
+				if cl.Username == targetUsername {
+					target = cl
+					break
+				}
+			}
+			c.Room.Mu.Unlock()
+			if target != nil {
+				kickMsg, _ := json.Marshal(map[string]interface{}{
+					"type":    "KICKED",
+					"payload": "Vous avez été expulsé par l'hôte.",
+				})
+				select {
+				case target.Send <- kickMsg:
+				default:
+				}
+				go func(t *Client) {
+					time.Sleep(300 * time.Millisecond)
+					t.Conn.Close()
+				}(target)
+			}
 
 		case "UPDATE_SETTINGS":
 			type SettingsPayload struct {

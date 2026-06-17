@@ -33,6 +33,16 @@ type RoundAnswer struct {
 	Bonus    int    `json:"bonus"`
 }
 
+// RoundSummaryItem résume un round terminé pour le récapitulatif de fin de partie.
+type RoundSummaryItem struct {
+	Round     int           `json:"round"`
+	AnimeName string        `json:"anime_name"`
+	Title     string        `json:"title"`
+	Artist    string        `json:"artist"`
+	TrackType string        `json:"track_type"`
+	FoundBy   []RoundAnswer `json:"found_by"`
+}
+
 type Room struct {
 	ID            string
 	Clients       map[*Client]bool
@@ -50,8 +60,10 @@ type Room struct {
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
-	RoundAnswers  []RoundAnswer // joueurs ayant trouvé ce round
-	RoundStart    time.Time     // heure de début du round courant
+	RoundAnswers  []RoundAnswer    // joueurs ayant trouvé ce round
+	RoundStart    time.Time        // heure de début du round courant
+	SkipVotes     map[string]bool  // votes pour passer le round courant
+	RoundHistory  []RoundSummaryItem // récap de tous les rounds (envoyé dans GAME_OVER)
 	// Filtres de piste
 	FilterType  string // "OP", "ED", "" (tout)
 	MinYear     int    // 0 = pas de filtre
@@ -107,6 +119,8 @@ func CreateRoom(id string, creatorID string) *Room {
 		CreatorID:     creatorID,
 		HasAnswered:   make(map[string]bool),
 		RoundAnswers:  []RoundAnswer{},
+		SkipVotes:     make(map[string]bool),
+		RoundHistory:  []RoundSummaryItem{},
 	}
 }
 
@@ -228,9 +242,18 @@ func (r *Room) EndRound(reason string) {
 	}
 
 	track := r.CurrentTrack
+	currentRound := r.CurrentRound
 	answers := make([]RoundAnswer, len(r.RoundAnswers))
 	copy(answers, r.RoundAnswers)
 	r.IsPlaying = false
+	r.RoundHistory = append(r.RoundHistory, RoundSummaryItem{
+		Round:     currentRound,
+		AnimeName: track.AnimeName,
+		Title:     track.Title,
+		Artist:    track.Artist,
+		TrackType: track.TrackType,
+		FoundBy:   answers,
+	})
 	r.Mu.Unlock()
 
 	msg := map[string]interface{}{
@@ -317,6 +340,7 @@ func (r *Room) nextRound() {
 
 	r.HasAnswered = make(map[string]bool)
 	r.RoundAnswers = []RoundAnswer{}
+	r.SkipVotes = make(map[string]bool)
 	r.RoundStart = time.Now()
 	// On récupere la durée sous forme de variable locale pour le timer
 	duration := r.RoundDuration
@@ -372,6 +396,9 @@ func (r *Room) finishGame() {
 	r.IsPlaying = false
 	r.CurrentRound = 0
 	r.CurrentTrack = nil
+	history := make([]RoundSummaryItem, len(r.RoundHistory))
+	copy(history, r.RoundHistory)
+	r.RoundHistory = []RoundSummaryItem{}
 	r.Mu.Unlock()
 
 	// 1. Distribuer l'XP avant de réinitialiser les scores
@@ -397,6 +424,7 @@ func (r *Room) finishGame() {
 		"type": "GAME_OVER",
 		"payload": map[string]interface{}{
 			"message": "La partie est terminée !",
+			"history": history,
 		},
 	}
 	data, _ := json.Marshal(msg)
