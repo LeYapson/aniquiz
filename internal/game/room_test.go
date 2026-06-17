@@ -113,8 +113,9 @@ func TestCheckAnswer_PartialAnswer(t *testing.T) {
 
 	room.CheckAnswer(client, "Naruto")
 
-	if client.Score != 5 {
-		t.Errorf("score: got %d, want 5 pour réponse partielle", client.Score)
+	// 5 pts (partielle) + 10 bonus premier = 15
+	if client.Score != 15 {
+		t.Errorf("score: got %d, want 15 pour réponse partielle (avec bonus premier)", client.Score)
 	}
 }
 
@@ -127,8 +128,9 @@ func TestCheckAnswer_CorrectAnswer_UpdatesScoreAndBroadcasts(t *testing.T) {
 
 	room.CheckAnswer(client, "Naruto Shippuden")
 
-	if client.Score != 10 {
-		t.Errorf("score: got %d, want 10 pour bonne réponse", client.Score)
+	// 10 pts (exacte) + 10 bonus premier = 20
+	if client.Score != 20 {
+		t.Errorf("score: got %d, want 20 pour bonne réponse (avec bonus premier)", client.Score)
 	}
 
 	select {
@@ -152,18 +154,20 @@ func TestCheckAnswer_ScoreAccumulates(t *testing.T) {
 	room.CurrentTrack = &models.Track{AnimeName: "Naruto Shippuden"}
 
 	room.IsPlaying = true
-	room.CheckAnswer(client, "Naruto") // +5
+	room.CheckAnswer(client, "Naruto") // +5 + 10 bonus premier = 15
 	<-room.Broadcast                   // PLAYER_GUESS
 	<-room.Broadcast                   // PLAYER_LIST de BroadcastPlayerList — garantit que la goroutine a fini de lire client.Score
 
 	room.HasAnswered = make(map[string]bool) // simulate new round
+	room.RoundAnswers = []RoundAnswer{}      // reset pour que le bonus premier s'applique à nouveau
 	room.IsPlaying = true
-	room.CheckAnswer(client, "Naruto Shippuden") // +10
+	room.CheckAnswer(client, "Naruto Shippuden") // +10 + 10 bonus premier = 20
 	<-room.Broadcast                             // PLAYER_GUESS
 	<-room.Broadcast                             // PLAYER_LIST
 
-	if client.Score != 15 {
-		t.Errorf("score cumulé: got %d, want 15", client.Score)
+	// Round 1 : 15 (5 partielle + 10 bonus) + Round 2 : 20 (10 exacte + 10 bonus) = 35
+	if client.Score != 35 {
+		t.Errorf("score cumulé: got %d, want 35", client.Score)
 	}
 }
 
