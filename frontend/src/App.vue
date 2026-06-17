@@ -127,8 +127,35 @@
 
               <div v-if="state === 'PLAYING'">
                 <div v-if="isRevealing" class="reveal-zone" aria-live="assertive">
-                  <h2>🎉 Réponse : <span class="answer-name">{{ currentAnswerInfo.animeName }}</span></h2>
-                  <p><strong>{{ currentAnswerInfo.title }}</strong> &mdash; {{ currentAnswerInfo.artist }}</p>
+                  <div class="reveal-header">
+                    <span v-if="currentAnswerInfo.trackType" class="reveal-tag">{{ currentAnswerInfo.trackType }}</span>
+                    <span v-if="currentAnswerInfo.difficulty > 0" class="reveal-difficulty" :data-level="difficultyLabel(currentAnswerInfo.difficulty)">
+                      {{ difficultyLabel(currentAnswerInfo.difficulty) }}
+                    </span>
+                  </div>
+                  <h2>🎉 <span class="answer-name">{{ currentAnswerInfo.animeName }}</span></h2>
+                  <p class="reveal-track-info">
+                    <strong>{{ currentAnswerInfo.title }}</strong>
+                    <span v-if="currentAnswerInfo.artist"> &mdash; {{ currentAnswerInfo.artist }}</span>
+                  </p>
+
+                  <!-- Qui a trouvé ? -->
+                  <div v-if="currentAnswerInfo.foundBy.length > 0" class="found-by">
+                    <h4>Ont trouvé :</h4>
+                    <ul>
+                      <li
+                        v-for="(f, i) in currentAnswerInfo.foundBy"
+                        :key="f.username"
+                        :class="{ 'found-first': i === 0 }"
+                      >
+                        <span class="found-rank">{{ i === 0 ? '🥇' : `#${i + 1}` }}</span>
+                        <span class="found-name">{{ f.username }}</span>
+                        <span class="found-time">{{ (f.time_ms / 1000).toFixed(1) }}s</span>
+                        <span v-if="f.bonus > 0" class="found-bonus">+{{ f.bonus }} bonus</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <p v-else class="found-nobody">Personne n'a trouvé cette fois ! 😅</p>
 
                   <video
                     v-if="currentAnswerInfo.videoUrl"
@@ -136,7 +163,7 @@
                     autoplay
                     controls
                     :aria-label="`Générique de ${currentAnswerInfo.animeName}`"
-                    style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 10px;"
+                    style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 14px;"
                   ></video>
                   <p v-else class="no-video">Pas de vidéo disponible pour cette piste.</p>
                 </div>
@@ -176,6 +203,12 @@
                     <button @click="submitAnswer" aria-label="Envoyer ma réponse">Envoyer</button>
                   </div>
                 </div>
+
+                <ReactionOverlay
+                  ref="reactionOverlay"
+                  :connected="isConnected"
+                  @react="sendReaction"
+                />
 
                 <div class="leaderboard" style="margin-top: 20px;" aria-label="Scores en cours">
                   <h3>Classement</h3>
@@ -239,6 +272,7 @@ import GameSettings from "./components/GameSettings.vue";
 import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import LandingPage from "./components/LandingPage.vue";
+import ReactionOverlay from "./components/ReactionOverlay.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
 
@@ -258,6 +292,9 @@ const currentAnswerInfo = ref({
   title: "",
   artist: "",
   videoUrl: "",
+  trackType: "",
+  difficulty: 0,
+  foundBy: [],
 });
 const xpToast = ref(null);
 const finalScores = ref([]);
@@ -271,9 +308,17 @@ const chatMessages = ref([]);
 const isSpectator = ref(false);
 const spectatorCount = ref(0);
 const mobileTab = ref("game");
+const reactionOverlay = ref(null);
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
+
+const difficultyLabel = (d) => {
+  if (d >= 80) return "Facile";
+  if (d >= 50) return "Moyen";
+  if (d >= 20) return "Difficile";
+  return "Expert";
+};
 
 const startGame = () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -397,9 +442,12 @@ const connectWebSocket = (room_id, password) => {
           isRevealing.value = true;
           currentAnswerInfo.value = {
             animeName: data.payload.answer,
-            title: "Générique",
-            artist: "Inconnu",
-            videoUrl: currentAudioUrl.value,
+            title: data.payload.title || "",
+            artist: data.payload.artist || "",
+            videoUrl: data.payload.video_url || "",
+            trackType: data.payload.track_type || "",
+            difficulty: data.payload.difficulty || 0,
+            foundBy: data.payload.found_by || [],
           };
           currentAudioUrl.value = "";
           break;
@@ -421,6 +469,9 @@ const connectWebSocket = (room_id, password) => {
             message: data.payload.message,
           });
           if (chatMessages.value.length > 200) chatMessages.value.shift();
+          break;
+        case "REACTION_BROADCAST":
+          reactionOverlay.value?.addParticle(data.payload.emoji);
           break;
         case "XP_GAINED":
           const oldLevel = authStore.user?.level ?? 1;
@@ -461,6 +512,12 @@ const connectWebSocket = (room_id, password) => {
     reconnectMsg.value = `Connexion perdue. Reconnexion dans ${Math.round(delay / 1000)}s… (tentative ${reconnectAttempts})`;
     setTimeout(() => connectWebSocket(room.value, ""), delay);
   };
+};
+
+const sendReaction = (emoji) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "REACTION", payload: emoji }));
+  }
 };
 
 const sendChat = (text) => {
@@ -694,6 +751,44 @@ main { flex: 1; display: flex; flex-direction: column; }
 .reveal-zone h2 { font-size: 1.4rem; margin-bottom: 10px; }
 .answer-name { color: #f9a8d4; font-weight: 700; }
 .no-video { font-style: italic; margin-top: 20px; color: #94a3b8; }
+
+/* ── Reveal enrichi ─────────────────────────────────────── */
+.reveal-header { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+
+.reveal-tag {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 3px 10px; border-radius: 20px;
+  background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3);
+}
+.reveal-difficulty {
+  font-size: 0.72rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.reveal-difficulty[data-level="Facile"]   { background: rgba(34,197,94,0.15);  color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
+.reveal-difficulty[data-level="Moyen"]    { background: rgba(250,204,21,0.15); color: #fde68a; border: 1px solid rgba(250,204,21,0.3); }
+.reveal-difficulty[data-level="Difficile"]{ background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
+.reveal-difficulty[data-level="Expert"]   { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+
+.reveal-track-info { color: #94a3b8; font-size: 0.95rem; margin: 4px 0 16px; }
+
+.found-by { margin: 16px auto; max-width: 360px; text-align: left; }
+.found-by h4 {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #64748b; margin-bottom: 8px;
+}
+.found-by ul { display: flex; flex-direction: column; gap: 6px; }
+.found-by li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  font-size: 0.88rem; color: #cbd5e1;
+}
+.found-by li.found-first { border-color: rgba(255,215,0,0.35); background: rgba(255,215,0,0.07); }
+.found-rank { width: 28px; flex-shrink: 0; }
+.found-name { flex: 1; font-weight: 600; color: #f1f5f9; }
+.found-time { color: #64748b; font-size: 0.8rem; }
+.found-bonus { color: #fbbf24; font-size: 0.78rem; font-weight: 700; }
+.found-nobody { color: #64748b; font-style: italic; font-size: 0.9rem; margin: 14px 0; }
 .game-over-screen { text-align: center; padding: 20px; }
 .game-over-screen h2 { font-size: 1.8rem; margin-bottom: 20px; color: #f1f5f9; }
 .final-scores { padding: 0; max-width: 420px; margin: 0 auto; }

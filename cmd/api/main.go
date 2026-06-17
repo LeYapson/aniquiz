@@ -34,6 +34,11 @@ func main() {
 	}
 	defer conn.Close()
 
+	// 1b - Migrations de schéma (idempotentes, sûres à relancer)
+	if err := database.Migrate(); err != nil {
+		log.Fatalf("Erreur migration : %v", err)
+	}
+
 	// 2 - Router avec les routes testables (ping, rooms, quiz/next, quiz/answer)
 	store := &handlers.PgStore{}
 	router := handlers.NewRouter(store)

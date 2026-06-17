@@ -24,10 +24,10 @@ type Track struct {
 	Title      string `json:"title"`
 	AnimeName  string `json:"anime_name"`
 	Artist     string `json:"artist"`
-	AudioURL   string `json:"audio_url"`
+	AudioURL   string `json:"audio_url"` // WebM — sert aussi de vidéo au reveal
 	Difficulty int    `json:"difficulty"`
 	MalID      int    `json:"mal_id"`
-	TrackType  string `json:"track_type"` // "OP" ou "ED"
+	TrackType  string `json:"track_type"` // "OP", "ED", "OST"
 	AnimeYear  int    `json:"anime_year"`
 }
 
@@ -35,6 +35,7 @@ type TrackFilters struct {
 	TrackType string // "OP", "ED", ou "" pour tout
 	MinYear   int    // 0 = pas de filtre
 	MaxYear   int    // 0 = pas de filtre
+	MalIDs    []int  // liste blanche par MAL ID (liste perso) ; nil = pas de filtre
 }
 
 type Score struct {
