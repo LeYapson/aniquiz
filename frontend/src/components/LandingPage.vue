@@ -11,7 +11,7 @@
         </p>
         <div class="hero-actions">
           <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
-          <button @click="emit('leaderboard')" class="btn-lb">Classement</button>
+          <button @click="emit('leaderboard')" class="btn-lb">🏆 Classement</button>
         </div>
         <div class="hero-stats">
           <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
