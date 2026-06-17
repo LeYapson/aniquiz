@@ -18,7 +18,8 @@
       "Bash(git pull *)",
       "Bash(gofmt -w cmd/api/main.go internal/database/database.go internal/game/logic_test.go internal/game/room.go)",
       "Bash(go get *)",
-      "Bash(gofmt -w internal/database/database.go internal/game/room.go internal/handlers/router.go internal/models/models.go)"
+      "Bash(gofmt -w internal/database/database.go internal/game/room.go internal/handlers/router.go internal/models/models.go)",
+      "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch \"Loopback\" } | Select-Object InterfaceAlias, IPAddress)"
     ]
   }
 }

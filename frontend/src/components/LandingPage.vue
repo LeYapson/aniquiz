@@ -1,107 +1,269 @@
 <template>
   <div class="landing">
-    <div class="landing-content">
-      <img :src="logo" alt="AniQuiz" class="landing-logo" />
 
-      <p class="landing-tagline">
-        Reconnais les génériques d'anime avant tes adversaires.<br />
-        Prouve que tu es le vrai otaku.
-      </p>
-
-      <div class="landing-actions">
-        <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
-        <button @click="emit('leaderboard')" class="btn-lb">🏆 Classement</button>
-      </div>
-
-      <div class="landing-features">
-        <div class="feature-card">
-          <span class="feat-icon">🎵</span>
-          <strong>Blindtest</strong>
-          <small>Identifie l'anime rien qu'à l'écoute</small>
+    <!-- ═══════════════════════════════════════════ HERO ══ -->
+    <section class="hero">
+      <div class="hero-content">
+        <img src="/logo.png" alt="AniQuiz" class="hero-logo" />
+        <p class="hero-tagline">
+          Reconnais les génériques d'anime avant tes adversaires.<br />
+          Prouve que tu es le vrai otaku.
+        </p>
+        <div class="hero-actions">
+          <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
+          <button @click="emit('leaderboard')" class="btn-lb">🏆 Classement</button>
         </div>
-        <div class="feature-card">
-          <span class="feat-icon">⚔️</span>
-          <strong>Multijoueur</strong>
-          <small>Affronte tes amis en temps réel</small>
-        </div>
-        <div class="feature-card">
-          <span class="feat-icon">⭐</span>
-          <strong>Progression</strong>
-          <small>Gagne de l'XP et monte de niveau</small>
-        </div>
-        <div class="feature-card">
-          <span class="feat-icon">📥</span>
-          <strong>Communauté</strong>
-          <small>Enrichis la bibliothèque toi-même</small>
+        <div class="hero-stats">
+          <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
+          <div class="hero-stat-sep"></div>
+          <div class="hero-stat"><strong>Gratuit</strong><span>sans pub</span></div>
+          <div class="hero-stat-sep"></div>
+          <div class="hero-stat"><strong>Multi</strong><span>temps réel</span></div>
         </div>
       </div>
-    </div>
+      <img src="/mascot_kora.png" alt="Kora" class="hero-kora" />
+      <div class="hero-scroll-hint" aria-hidden="true">
+        <span class="scroll-arrow"></span>
+      </div>
+    </section>
 
-    <img :src="kora" alt="Kora" class="landing-kora" />
+    <!-- ═══════════════════════════════════ COMMENT ÇA MARCHE ══ -->
+    <section class="section howto-section">
+      <h2 class="section-title">Comment ça marche ?</h2>
+      <p class="section-sub">Trois étapes, zéro prise de tête</p>
+      <div class="howto-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Rejoins un salon</h3>
+          <p>Crée une partie ou rejoins un salon public. Tu peux aussi jouer seul pour t'entraîner.</p>
+        </div>
+        <div class="step-arrow" aria-hidden="true"></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Écoute et reconnais</h3>
+          <p>Une musique d'anime se lance. Opening, ending ou OST — à toi de trouver le titre avant les autres.</p>
+        </div>
+        <div class="step-arrow" aria-hidden="true"></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Marque des points</h3>
+          <p>Plus tu réponds vite, plus tu marques. Le premier à trouver reçoit un bonus. Grimpe au classement !</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════ MODES DE JEU ══ -->
+    <section class="section modes-section">
+      <h2 class="section-title">Modes de jeu</h2>
+      <p class="section-sub">Plusieurs façons de tester ta culture anime</p>
+
+      <div class="modes-grid">
+        <div class="mode-card">
+          <div class="mode-icon">⚔️</div>
+          <h3>Multijoueur</h3>
+          <p>Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime.</p>
+          <span class="mode-badge mode-available">Disponible</span>
+        </div>
+        <div class="mode-card">
+          <div class="mode-icon">🎯</div>
+          <h3>Solo / Entraînement</h3>
+          <p>Joue à ton rythme, sans pression. Parfait pour découvrir de nouveaux animes ou s'entraîner avant d'affronter des adversaires.</p>
+          <span class="mode-badge mode-available">Disponible</span>
+        </div>
+        <div class="mode-card mode-card--soon">
+          <div class="mode-icon">🏆</div>
+          <h3>Classé</h3>
+          <p>Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.</p>
+          <span class="mode-badge mode-soon">Bientôt</span>
+        </div>
+        <div class="mode-card mode-card--soon">
+          <div class="mode-icon">🤝</div>
+          <h3>Équipes</h3>
+          <p>Formez des équipes et affrontez d'autres groupes. La coordination et la complémentarité font la différence.</p>
+          <span class="mode-badge mode-soon">Bientôt</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════ RANKED / DIVISIONS ══ -->
+    <section class="section ranked-section">
+      <div class="ranked-inner">
+        <div class="ranked-text">
+          <h2 class="section-title left">Système de divisions</h2>
+          <p class="ranked-desc">
+            Chaque partie classée te rapporte des points de ranking. Monte les divisions,
+            débloques des récompenses exclusives et défends ta place en fin de saison.
+          </p>
+          <ul class="ranked-features">
+            <li><span class="rf-dot"></span>5 divisions : Bronze → Challenger</li>
+            <li><span class="rf-dot"></span>Saisons de 3 mois avec réinitialisation</li>
+            <li><span class="rf-dot"></span>Récompenses cosmétiques par division</li>
+            <li><span class="rf-dot"></span>Top 500 affiché en temps réel</li>
+          </ul>
+          <span class="coming-soon-pill">Bientôt disponible</span>
+        </div>
+
+        <div class="ranked-visual">
+          <img src="/kora_prof.png" alt="Kora explique le système ranked" class="kora-prof" />
+          <div class="badges-grid">
+            <div v-for="badge in badges" :key="badge.name" class="badge-item">
+              <img :src="badge.src" :alt="badge.name" class="badge-img" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════ SUPPORT ══ -->
+    <section class="section support-section">
+      <img src="/mascot_kora.png" alt="Kora" class="support-kora" />
+      <div class="support-content">
+        <h2 class="section-title">Soutiens le projet</h2>
+        <p class="support-desc">
+          AniQuiz est entièrement gratuit et sans publicité. Si tu aimes le projet et veux
+          aider à le faire grandir (nouveaux animes, nouvelles features, serveurs), un petit
+          café fait toute la différence.
+        </p>
+        <a href="https://ko-fi.com/yatokishi" target="_blank" rel="noopener" class="btn-kofi">
+          <svg class="kofi-cup" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 3h18l-2 13H4L2 3zm16 0c0 0 1 4-2 6s-6 1-6 1"/><path d="M6 21h12"/></svg>
+          Soutenir sur Ko-fi
+        </a>
+        <p class="support-note">Aucun contenu payant, juste de la bonne volonté ☕</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════ COMMUNAUTÉ ══ -->
+    <section class="section community-section">
+      <div class="community-inner">
+        <img src="/kora-fr.png" alt="Kora avec le drapeau français" class="kora-fr" />
+        <div class="community-text">
+          <h2 class="section-title left">Fait en France, pour la communauté</h2>
+          <p class="community-desc">
+            AniQuiz est un projet indépendant né d'une passion pour l'anime et le jeu en ligne.
+            Développé en France, il évolue grâce aux retours de ses joueurs.
+          </p>
+          <p class="community-desc">
+            Tu as une idée, tu as trouvé un bug, un anime manque dans la bibliothèque ?
+            Chaque retour compte et contribue directement à améliorer l'expérience pour tout le monde.
+          </p>
+          <div class="community-actions">
+            <a href="https://github.com/LeYapson/aniquiz/issues" target="_blank" rel="noopener" class="btn-feedback">
+              Donner mon avis
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════ FOOTER ══ -->
+    <footer class="landing-footer">
+      <span>© 2025 AniQuiz — Fait avec passion par des fans d'anime</span>
+      <div class="footer-links">
+        <button @click="emit('play')" class="footer-link">Jouer</button>
+        <button @click="emit('leaderboard')" class="footer-link">Classement</button>
+      </div>
+    </footer>
   </div>
 </template>
 
 <script setup>
 const emit = defineEmits(['play', 'leaderboard']);
-const logo = '/logo.png';
-const kora = '/mascot_kora.png';
+
+const badges = [
+  { name: 'Bronze',     src: '/badge_bronze.png' },
+  { name: 'Silver',     src: '/badge_silver.png' },
+  { name: 'Gold',       src: '/badge_gold.png' },
+  { name: 'Platinum',   src: '/badge_platinum.png' },
+  { name: 'Challenger', src: '/badge_challenger.png' },
+];
 </script>
 
 <style scoped>
+/* ─── Base ─────────────────────────────────────────────────── */
 .landing {
+  background: #0f0f23;
+  color: #f1f5f9;
+  font-family: inherit;
+}
+
+.section {
+  padding: 96px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.section-title.left { text-align: left; }
+
+.section-sub {
+  text-align: center;
+  color: #64748b;
+  margin-bottom: 52px;
+  font-size: 1rem;
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+.hero {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 60px 24px;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
 }
 
-/* Cercles décoratifs en arrière-plan */
-.landing::before,
-.landing::after {
+.hero::before,
+.hero::after {
   content: '';
   position: absolute;
   border-radius: 50%;
-  opacity: 0.06;
+  pointer-events: none;
 }
-.landing::before {
+.hero::before {
   width: 600px; height: 600px;
-  background: #f97316;
+  background: radial-gradient(circle, rgba(249,115,22,0.12), transparent 70%);
   top: -200px; right: -100px;
 }
-.landing::after {
+.hero::after {
   width: 400px; height: 400px;
-  background: #3b82f6;
+  background: radial-gradient(circle, rgba(59,130,246,0.08), transparent 70%);
   bottom: -150px; left: -100px;
 }
 
-.landing-content {
+.hero-content {
   max-width: 600px;
   text-align: center;
   z-index: 1;
 }
 
-.landing-logo {
+.hero-logo {
   width: 220px;
-  margin-bottom: 24px;
-  filter: drop-shadow(0 4px 24px rgba(249,115,22,0.3));
+  margin-bottom: 28px;
+  filter: drop-shadow(0 4px 24px rgba(249,115,22,0.35));
 }
 
-.landing-tagline {
+.hero-tagline {
   color: #cbd5e1;
-  font-size: 1.1rem;
-  line-height: 1.7;
-  margin-bottom: 36px;
+  font-size: 1.15rem;
+  line-height: 1.75;
+  margin-bottom: 40px;
 }
 
-.landing-actions {
+.hero-actions {
   display: flex;
   gap: 14px;
   justify-content: center;
-  margin-bottom: 48px;
   flex-wrap: wrap;
 }
 
@@ -109,79 +271,442 @@ const kora = '/mascot_kora.png';
   background: linear-gradient(135deg, #f97316, #ea580c);
   color: white;
   border: none;
-  padding: 14px 36px;
+  padding: 15px 40px;
   border-radius: 50px;
   font-size: 1.05rem;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(249,115,22,0.4);
+  box-shadow: 0 4px 24px rgba(249,115,22,0.4);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .btn-play:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 28px rgba(249,115,22,0.5);
+  box-shadow: 0 8px 32px rgba(249,115,22,0.55);
 }
 
 .btn-lb {
   background: transparent;
   color: #94a3b8;
   border: 1px solid #334155;
-  padding: 14px 28px;
+  padding: 15px 30px;
   border-radius: 50px;
   font-size: 1rem;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.btn-lb:hover {
-  color: #f97316;
-  border-color: #f97316;
-}
+.btn-lb:hover { color: #f97316; border-color: #f97316; }
 
-.landing-features {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-}
-
-.feature-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 18px 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.15s;
-}
-.feature-card:hover {
-  background: rgba(249,115,22,0.08);
-  border-color: rgba(249,115,22,0.2);
-}
-
-.feat-icon { font-size: 1.6rem; }
-.feature-card strong { color: #f1f5f9; font-size: 0.95rem; }
-.feature-card small  { color: #64748b; font-size: 0.8rem; text-align: center; }
-
-/* Kora — positionnée à droite, partiellement hors-écran sur desktop */
-.landing-kora {
+.hero-kora {
   position: absolute;
-  right: -10px;
+  right: 0;
   bottom: 0;
-  height: 420px;
+  height: 430px;
   z-index: 1;
-  filter: drop-shadow(-8px 0 32px rgba(0,0,0,0.5));
+  filter: drop-shadow(-8px 0 32px rgba(0,0,0,0.6));
   pointer-events: none;
 }
 
+/* ─── Hero stats + scroll hint ─────────────────────────────── */
+.hero-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 40px;
+  padding: 16px 28px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 50px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.hero-stat strong { color: #f97316; font-size: 1rem; font-weight: 700; }
+.hero-stat span   { color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.hero-stat-sep    { width: 1px; height: 28px; background: rgba(255,255,255,0.1); }
+
+.hero-scroll-hint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+.scroll-arrow {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid rgba(249,115,22,0.5);
+  border-bottom: 2px solid rgba(249,115,22,0.5);
+  transform: rotate(45deg);
+  animation: scrollBounce 1.6s ease-in-out infinite;
+}
+@keyframes scrollBounce {
+  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.5; }
+  50%       { transform: rotate(45deg) translateY(5px); opacity: 1; }
+}
+
+/* ─── Comment ça marche ─────────────────────────────────────── */
+.howto-section { border-top: 1px solid rgba(255,255,255,0.06); }
+
+.howto-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  justify-content: center;
+}
+
+.step {
+  flex: 1;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.step-num {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(249,115,22,0.35);
+}
+
+.step h3 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin: 0 0 10px; }
+.step p   { font-size: 0.85rem; color: #64748b; line-height: 1.6; margin: 0; }
+
+.step-arrow {
+  flex-shrink: 0;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(249,115,22,0.5), rgba(249,115,22,0.15));
+  margin-top: 26px;
+  position: relative;
+}
+.step-arrow::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -4px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid rgba(249,115,22,0.5);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+/* ─── Modes ─────────────────────────────────────────────────── */
+.modes-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.modes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.mode-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.mode-card:hover {
+  background: rgba(249,115,22,0.06);
+  border-color: rgba(249,115,22,0.25);
+}
+.mode-card--soon {
+  opacity: 0.65;
+}
+.mode-card--soon:hover {
+  background: rgba(100,116,139,0.06);
+  border-color: rgba(100,116,139,0.2);
+}
+
+.mode-icon { font-size: 2rem; }
+.mode-card h3 { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.mode-card p  { font-size: 0.88rem; color: #64748b; line-height: 1.6; margin: 0; flex: 1; }
+
+.mode-badge {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.mode-available { background: rgba(34,197,94,0.15); color: #4ade80; }
+.mode-soon      { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+/* ─── Ranked ────────────────────────────────────────────────── */
+.ranked-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, transparent, rgba(249,115,22,0.03), transparent);
+  max-width: 100%;
+  padding: 96px 0;
+}
+
+.ranked-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.ranked-desc {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.ranked-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ranked-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+.rf-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #f97316;
+  flex-shrink: 0;
+}
+
+.coming-soon-pill {
+  display: inline-block;
+  background: rgba(249,115,22,0.12);
+  color: #f97316;
+  border: 1px solid rgba(249,115,22,0.25);
+  padding: 6px 18px;
+  border-radius: 50px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.ranked-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.kora-prof {
+  width: 200px;
+  filter: drop-shadow(0 4px 20px rgba(249,115,22,0.2));
+}
+
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.badge-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 10px 6px;
+  transition: transform 0.15s, background 0.15s;
+}
+.badge-item:hover {
+  transform: translateY(-3px);
+  background: rgba(249,115,22,0.08);
+}
+
+.badge-img {
+  width: 80px;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Challenger occupe toute la largeur sur la 2e ligne */
+.badge-item:last-child {
+  grid-column: 2 / 3;
+}
+
+/* ─── Support ───────────────────────────────────────────────── */
+.support-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  max-width: 900px;
+}
+
+.support-kora {
+  width: 160px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));
+}
+
+.support-desc {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+
+.btn-kofi {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #ff5e5b;
+  color: white;
+  text-decoration: none;
+  padding: 13px 28px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 4px 20px rgba(255,94,91,0.35);
+}
+.btn-kofi:hover { opacity: 0.88; transform: translateY(-2px); }
+
+.kofi-cup {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.support-note {
+  margin-top: 14px;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+/* ─── Communauté ────────────────────────────────────────────── */
+.community-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  max-width: 960px;
+}
+
+.community-inner {
+  display: flex;
+  align-items: center;
+  gap: 56px;
+}
+
+.kora-fr {
+  width: 180px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.4));
+}
+
+.community-desc {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.community-desc:last-of-type { margin-bottom: 28px; }
+
+.community-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-feedback {
+  display: inline-block;
+  background: transparent;
+  color: #f97316;
+  border: 1px solid rgba(249,115,22,0.5);
+  text-decoration: none;
+  padding: 11px 26px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-feedback:hover {
+  background: rgba(249,115,22,0.1);
+  border-color: #f97316;
+}
+
+/* ─── Footer ────────────────────────────────────────────────── */
+.landing-footer {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 28px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #334155;
+  font-size: 0.82rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.footer-links { display: flex; gap: 20px; }
+.footer-link {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+}
+.footer-link:hover { color: #f97316; }
+
+/* ─── Responsive ────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .landing-kora { display: none; }
-  .landing-features { grid-template-columns: 1fr 1fr; }
+  .hero-kora { display: none; }
+  .hero-stats { gap: 14px; padding: 12px 20px; }
+  .howto-steps { flex-direction: column; align-items: center; gap: 24px; }
+  .step-arrow { width: 2px; height: 32px; background: linear-gradient(180deg, rgba(249,115,22,0.5), rgba(249,115,22,0.15)); }
+  .step-arrow::after { right: -4px; top: auto; bottom: -1px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid rgba(249,115,22,0.5); }
+  .modes-grid { grid-template-columns: 1fr; }
+  .ranked-inner { grid-template-columns: 1fr; gap: 40px; }
+  .section-title.left { text-align: center; }
+  .support-section { flex-direction: column; text-align: center; gap: 32px; }
+  .support-kora { width: 120px; }
+  .community-inner { flex-direction: column; text-align: center; gap: 28px; }
+  .kora-fr { width: 130px; }
+  .community-actions { justify-content: center; }
+  .landing-footer { flex-direction: column; gap: 12px; text-align: center; }
 }
 
 @media (max-width: 500px) {
-  .landing-logo { width: 160px; }
-  .landing-tagline { font-size: 0.95rem; }
-  .landing-features { grid-template-columns: 1fr; }
+  .hero-logo { width: 160px; }
+  .hero-tagline { font-size: 0.95rem; }
+  .section { padding: 64px 16px; }
+  .badges-grid { grid-template-columns: repeat(2, 1fr); }
+  .badge-item:last-child { grid-column: 1 / -1; }
 }
 </style>
