@@ -2,7 +2,7 @@ name: CI/CD AniQuiz
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "working/**"]
   pull_request:
     branches: [main]
 
