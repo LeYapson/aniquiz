@@ -189,6 +189,6 @@ test.describe('Partie', () => {
     await page.getByRole('button', { name: 'Lancer la partie' }).click()
 
     await expect(page.getByPlaceholder("Nom de l'anime...")).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Envoyer' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Envoyer ma réponse' })).toBeVisible()
   })
 })
