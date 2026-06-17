@@ -124,7 +124,7 @@
           aider à le faire grandir (nouveaux animes, nouvelles features, serveurs), un petit
           café fait toute la différence.
         </p>
-        <a href="https://ko-fi.com" target="_blank" rel="noopener" class="btn-kofi">
+        <a href="https://ko-fi.com/yatokishi" target="_blank" rel="noopener" class="btn-kofi">
           <svg class="kofi-cup" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 3h18l-2 13H4L2 3zm16 0c0 0 1 4-2 6s-6 1-6 1"/><path d="M6 21h12"/></svg>
           Soutenir sur Ko-fi
         </a>
