@@ -70,6 +70,64 @@ func ExchangeCode(code string) (string, error) {
 	return result.AccessToken, nil
 }
 
+// GetAnilistAnimeList retourne les MAL IDs de la liste COMPLETED + WATCHING de l'utilisateur.
+func GetAnilistAnimeList(token string, anilistUserID int) ([]int, error) {
+	query := `
+	query ($userId: Int) {
+	  MediaListCollection(userId: $userId, type: ANIME, status_in: [COMPLETED, CURRENT]) {
+	    lists {
+	      entries {
+	        media { idMal }
+	      }
+	    }
+	  }
+	}`
+	payload := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"userId": anilistUserID},
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost, anilistGraphQL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("appel GraphQL AniList anime list échoué : %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data struct {
+			MediaListCollection struct {
+				Lists []struct {
+					Entries []struct {
+						Media struct {
+							IDMal *int `json:"idMal"`
+						} `json:"media"`
+					} `json:"entries"`
+				} `json:"lists"`
+			} `json:"MediaListCollection"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("décodage liste AniList échoué : %w", err)
+	}
+
+	seen := make(map[int]bool)
+	var ids []int
+	for _, list := range result.Data.MediaListCollection.Lists {
+		for _, entry := range list.Entries {
+			if entry.Media.IDMal != nil && !seen[*entry.Media.IDMal] {
+				seen[*entry.Media.IDMal] = true
+				ids = append(ids, *entry.Media.IDMal)
+			}
+		}
+	}
+	return ids, nil
+}
+
 type AnilistProfile struct {
 	ID       int
 	Username string

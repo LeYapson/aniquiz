@@ -2,9 +2,12 @@
   <div class="room-selection-container">
     <h2>🎯 Salons Disponibles</h2>
 
-    <button @click="isCreating = !isCreating" class="btn-toggle">
-      {{ isCreating ? "Voir les salons" : "🛠️ Créer un salon personnalisé" }}
-    </button>
+    <div class="room-actions">
+      <button @click="startSolo" class="btn-solo">🎯 Entraînement solo</button>
+      <button @click="isCreating = !isCreating" class="btn-toggle">
+        {{ isCreating ? "← Voir les salons" : "🛠️ Créer un salon" }}
+      </button>
+    </div>
 
     <hr />
 
@@ -136,6 +139,23 @@ const submitJoin = (room) => {
   });
 };
 
+const startSolo = async () => {
+  const soloId = `solo-${authStore.user?.username ?? 'player'}-${Date.now()}`;
+  try {
+    const res = await fetch(`${API_URL}/rooms`, {
+      method: 'POST',
+      headers: authStore.authHeaders(),
+      body: JSON.stringify({ room_id: soloId, is_private: true, password: '' }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      emit('room-created', { room_id: data.room_id, creator_id: data.creator_id, password: '', isCreator: true });
+    }
+  } catch (err) {
+    console.error('Erreur création solo:', err);
+  }
+};
+
 onMounted(() => {
   fetchRooms();
 });
@@ -225,7 +245,10 @@ button {
 }
 button:hover { opacity: 0.85; }
 button:disabled { background: #334155; color: #64748b; cursor: not-allowed; opacity: 1; }
-.btn-toggle { background: #1e2a45; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px; }
+.room-actions { display: flex; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.btn-solo   { background: #16213e; color: #f97316; border: 1px solid rgba(249,115,22,0.35); flex: 1; }
+.btn-solo:hover { background: rgba(249,115,22,0.1); }
+.btn-toggle { background: #1e2a45; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); flex: 1; }
 .btn-refresh { background: #3b82f6; margin-bottom: 14px; }
 .btn-spectate { background: #6366f1; }
 .btn-join-confirm { background: #f97316; }

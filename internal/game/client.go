@@ -78,15 +78,34 @@ func (c *Client) ReadPump() {
 			})
 			c.Room.Broadcast <- chatMsg
 
+		case "REACTION":
+			var emoji string
+			if err := json.Unmarshal(msg.Payload, &emoji); err != nil || len([]rune(emoji)) == 0 {
+				continue
+			}
+			allowed := map[string]bool{"🔥": true, "🤔": true, "😱": true, "✅": true, "😭": true, "👏": true}
+			if !allowed[emoji] {
+				continue
+			}
+			reactionMsg, _ := json.Marshal(map[string]interface{}{
+				"type": "REACTION_BROADCAST",
+				"payload": map[string]interface{}{
+					"username": c.Username,
+					"emoji":    emoji,
+				},
+			})
+			c.Room.Broadcast <- reactionMsg
+
 		case "UPDATE_SETTINGS":
 			type SettingsPayload struct {
-				MaxRounds     int    `json:"max_rounds"`
-				RoundDuration int    `json:"round_duration"`
-				IsPrivate     bool   `json:"is_private"`
-				Password      string `json:"password"`
-				FilterType    string `json:"filter_type"`
-				MinYear       int    `json:"min_year"`
-				MaxYear       int    `json:"max_year"`
+				MaxRounds      int    `json:"max_rounds"`
+				RoundDuration  int    `json:"round_duration"`
+				IsPrivate      bool   `json:"is_private"`
+				Password       string `json:"password"`
+				FilterType     string `json:"filter_type"`
+				MinYear        int    `json:"min_year"`
+				MaxYear        int    `json:"max_year"`
+				FilterMalIDs   []int  `json:"filter_mal_ids"`
 			}
 
 			var settings SettingsPayload
@@ -97,7 +116,7 @@ func (c *Client) ReadPump() {
 
 			c.Room.Mu.Lock()
 			// Sécurité : seul le créateur peut modifier les paramètres en lobby
-			if c.Room.CreatorID == c.ID && c.Room.State == StateLobby {
+			if c.Room.CreatorID == c.Username && c.Room.State == StateLobby {
 				if settings.MaxRounds > 0 {
 					c.Room.MaxRounds = settings.MaxRounds
 				}
@@ -109,18 +128,20 @@ func (c *Client) ReadPump() {
 				c.Room.FilterType = settings.FilterType
 				c.Room.MinYear = settings.MinYear
 				c.Room.MaxYear = settings.MaxYear
+				c.Room.FilterMalID = settings.FilterMalIDs
 				c.Room.Mu.Unlock()
 
 				// Diffuser les nouveaux settings à tous les joueurs
 				msg, _ := json.Marshal(map[string]interface{}{
 					"type": "SETTINGS_UPDATED",
 					"payload": map[string]interface{}{
-						"max_rounds":     c.Room.MaxRounds,
-						"round_duration": c.Room.RoundDuration,
-						"is_private":     c.Room.IsPrivate,
-						"filter_type":    c.Room.FilterType,
-						"min_year":       c.Room.MinYear,
-						"max_year":       c.Room.MaxYear,
+						"max_rounds":       c.Room.MaxRounds,
+						"round_duration":   c.Room.RoundDuration,
+						"is_private":       c.Room.IsPrivate,
+						"filter_type":      c.Room.FilterType,
+						"min_year":         c.Room.MinYear,
+						"max_year":         c.Room.MaxYear,
+						"filter_mal_ids":   c.Room.FilterMalID,
 					},
 				})
 				c.Room.Broadcast <- msg

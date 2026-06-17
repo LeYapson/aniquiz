@@ -7,6 +7,7 @@ import (
 	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/models"
+	"github.com/LeYapson/aniquiz/internal/sourcing"
 	"github.com/gin-gonic/gin"
 )
 
@@ -159,6 +160,48 @@ func NewRouter(store Store) *gin.Engine {
 
 		protected.POST("/api/admin/import", BatchImportHandler)
 		protected.GET("/api/anime/search", AnimeSearchHandler)
+
+		// Retourne les MAL IDs depuis la liste AniList et/ou MAL de l'utilisateur
+		protected.GET("/api/me/anime-ids", func(c *gin.Context) {
+			userID, _ := c.Get("userID")
+			user, err := database.GetUserByID(userID.(int))
+			if err != nil || user == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "utilisateur introuvable"})
+				return
+			}
+
+			seen := make(map[int]bool)
+			var ids []int
+
+			if user.AnilistToken != "" && user.AnilistUserID > 0 {
+				anilistIDs, err := sourcing.GetAnilistAnimeList(user.AnilistToken, user.AnilistUserID)
+				if err == nil {
+					for _, id := range anilistIDs {
+						if !seen[id] {
+							seen[id] = true
+							ids = append(ids, id)
+						}
+					}
+				}
+			}
+
+			if user.MalToken != "" {
+				malIDs, err := sourcing.GetMALAnimeList(user.MalToken)
+				if err == nil {
+					for _, id := range malIDs {
+						if !seen[id] {
+							seen[id] = true
+							ids = append(ids, id)
+						}
+					}
+				}
+			}
+
+			if ids == nil {
+				ids = []int{}
+			}
+			c.JSON(http.StatusOK, ids)
+		})
 
 		protected.GET("/api/profile", func(c *gin.Context) {
 			userID, _ := c.Get("userID")

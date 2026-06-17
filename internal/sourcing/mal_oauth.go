@@ -112,6 +112,42 @@ func ExchangeMALCode(code, verifier string) (string, error) {
 	return result.AccessToken, nil
 }
 
+// GetMALAnimeList retourne les MAL IDs de la liste de l'utilisateur (completed + watching).
+func GetMALAnimeList(token string) ([]int, error) {
+	seen := make(map[int]bool)
+	var ids []int
+
+	for _, status := range []string{"completed", "watching"} {
+		apiURL := malAPIBase + "/users/@me/animelist?fields=list_status&status=" + status + "&limit=1000"
+		req, _ := http.NewRequest(http.MethodGet, apiURL, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		var result struct {
+			Data []struct {
+				Node struct {
+					ID int `json:"id"`
+				} `json:"node"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			continue
+		}
+		for _, item := range result.Data {
+			if !seen[item.Node.ID] {
+				seen[item.Node.ID] = true
+				ids = append(ids, item.Node.ID)
+			}
+		}
+	}
+	return ids, nil
+}
+
 type MALProfile struct {
 	ID       int
 	Username string

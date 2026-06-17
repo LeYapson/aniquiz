@@ -27,6 +27,23 @@ func Connect() (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// Migrate applique les évolutions de schéma manquantes de façon idempotente.
+// À appeler une fois au démarrage, après Connect().
+func Migrate() error {
+	migrations := []string{
+		// Index pour les filtres de jeu fréquents
+		`CREATE INDEX IF NOT EXISTS idx_tracks_mal_id    ON tracks(mal_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_tracks_track_type ON tracks(track_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_tracks_anime_year ON tracks(anime_year)`,
+	}
+	for _, q := range migrations {
+		if _, err := Pool.Exec(context.Background(), q); err != nil {
+			return fmt.Errorf("migration échouée (%q) : %w", q, err)
+		}
+	}
+	return nil
+}
+
 // CreateUser insère un nouvel utilisateur dans la base de données.
 func CreateUser(username, email, passwordHash string) error {
 	query := `

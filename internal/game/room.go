@@ -26,6 +26,13 @@ const (
 	StatePlaying RoomState = "PLAYING"
 )
 
+// RoundAnswer enregistre une bonne réponse pendant un round.
+type RoundAnswer struct {
+	Username string `json:"username"`
+	TimeMs   int64  `json:"time_ms"`
+	Bonus    int    `json:"bonus"`
+}
+
 type Room struct {
 	ID            string
 	Clients       map[*Client]bool
@@ -43,10 +50,13 @@ type Room struct {
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
+	RoundAnswers  []RoundAnswer // joueurs ayant trouvé ce round
+	RoundStart    time.Time     // heure de début du round courant
 	// Filtres de piste
-	FilterType string // "OP", "ED", "" (tout)
-	MinYear    int    // 0 = pas de filtre
-	MaxYear    int    // 0 = pas de filtre
+	FilterType  string // "OP", "ED", "" (tout)
+	MinYear     int    // 0 = pas de filtre
+	MaxYear     int    // 0 = pas de filtre
+	FilterMalID []int  // liste MAL IDs (filtre liste perso)
 
 	Mu sync.Mutex
 }
@@ -95,7 +105,8 @@ func CreateRoom(id string, creatorID string) *Room {
 		Password:      "",
 		IsPrivate:     false,
 		CreatorID:     creatorID,
-		HasAnswered:   make(map[string]bool),
+		HasAnswered:  make(map[string]bool),
+		RoundAnswers: []RoundAnswer{},
 	}
 }
 
@@ -216,27 +227,34 @@ func (r *Room) EndRound(reason string) {
 		return
 	}
 
-	// On récupere la réponse correcte pour l'anime
-	reveal := r.CurrentTrack.AnimeName
+	track := r.CurrentTrack
+	answers := make([]RoundAnswer, len(r.RoundAnswers))
+	copy(answers, r.RoundAnswers)
 	r.IsPlaying = false
 	r.Mu.Unlock()
 
-	msg := models.WSMessage{
-		Type: "ROUND_ENDED",
-		Payload: map[string]interface{}{
-			"reason": reason,
-			"answer": reveal,
+	msg := map[string]interface{}{
+		"type": "ROUND_ENDED",
+		"payload": map[string]interface{}{
+			"reason":     reason,
+			"answer":     track.AnimeName,
+			"title":      track.Title,
+			"artist":     track.Artist,
+			"track_type": track.TrackType,
+			"difficulty": track.Difficulty,
+			"video_url":  track.AudioURL,
+			"found_by":   answers,
 		},
 	}
 
 	data, _ := json.Marshal(msg)
 	r.Broadcast <- data
 
-	// Après un délai, on peut lancer la prochaine question
 	time.Sleep(10 * time.Second)
 	go r.nextRound()
-
 }
+
+const bonusPremier = 10 // points bonus pour la 1ère bonne réponse du round
 
 func (r *Room) CheckAnswer(client *Client, answer string) {
 	r.Mu.Lock()
@@ -244,38 +262,47 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		r.Mu.Unlock()
 		return
 	}
-
 	if r.HasAnswered[client.ID] {
 		r.Mu.Unlock()
-		return // Le joueur a déjà validé ce round, on ignore son message
+		return
 	}
-
 	track := r.CurrentTrack
+	isFirst := len(r.RoundAnswers) == 0
+	elapsed := time.Since(r.RoundStart).Milliseconds()
 	r.Mu.Unlock()
 
 	result := VerifyAnswer(answer, track)
-
-	if result.Points > 0 {
-		r.Mu.Lock()
-		r.HasAnswered[client.ID] = true // Marquer que ce client a répondu pour ce round
-		r.Mu.Unlock()
-		// 1- mise a jour du score du client
-		client.Score += result.Points
-
-		//2- annonce du gain de points
-		msg := map[string]interface{}{
-			"type": "PLAYER_GUESS",
-			"payload": map[string]interface{}{
-				"username": client.Username,
-				"message":  "a trouvé l'anime !", // On reste discret sur le nom
-			},
-		}
-		data, _ := json.Marshal(msg)
-		r.Broadcast <- data
-
-		//3- Renvoyer la liste des joueurs mise à jour avec les scores
-		go r.BroadcastPlayerList()
+	if result.Points == 0 {
+		return
 	}
+
+	bonus := 0
+	if isFirst {
+		bonus = bonusPremier
+	}
+
+	r.Mu.Lock()
+	r.HasAnswered[client.ID] = true
+	r.RoundAnswers = append(r.RoundAnswers, RoundAnswer{
+		Username: client.Username,
+		TimeMs:   elapsed,
+		Bonus:    bonus,
+	})
+	r.Mu.Unlock()
+
+	client.Score += result.Points + bonus
+
+	msg := map[string]interface{}{
+		"type": "PLAYER_GUESS",
+		"payload": map[string]interface{}{
+			"username": client.Username,
+			"is_first": isFirst,
+		},
+	}
+	data, _ := json.Marshal(msg)
+	r.Broadcast <- data
+
+	go r.BroadcastPlayerList()
 }
 
 func (r *Room) nextRound() {
@@ -288,7 +315,9 @@ func (r *Room) nextRound() {
 	}
 	r.CurrentRound++
 
-	r.HasAnswered = make(map[string]bool) // Réinitialiser les réponses pour le nouveau round
+	r.HasAnswered = make(map[string]bool)
+	r.RoundAnswers = []RoundAnswer{}
+	r.RoundStart = time.Now()
 	// On récupere la durée sous forme de variable locale pour le timer
 	duration := r.RoundDuration
 	r.Mu.Unlock()
@@ -298,6 +327,7 @@ func (r *Room) nextRound() {
 		TrackType: r.FilterType,
 		MinYear:   r.MinYear,
 		MaxYear:   r.MaxYear,
+		MalIDs:    r.FilterMalID,
 	}
 	r.Mu.Unlock()
 

@@ -48,21 +48,34 @@ func GetRandomTrack() (*models.Track, error) {
 }
 
 // GetRandomTrackFiltered retourne une piste aléatoire selon les filtres de la salle.
-// Les filtres à zéro/vide sont ignorés (pas de restriction).
+// Les filtres à zéro/vide/nil sont ignorés (pas de restriction).
 func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	var t models.Track
+	// Convertir []int en []int32 pour pgx
+	var malIDs []int32
+	for _, id := range f.MalIDs {
+		malIDs = append(malIDs, int32(id))
+	}
+
 	query := `
-		SELECT id, title, artist, anime_name, audio_url
+		SELECT id, title, artist, anime_name, audio_url,
+		       difficulty, track_type, anime_year, mal_id
 		FROM tracks
 		WHERE audio_url != 'not_found'
 		  AND ($1 = '' OR track_type = $1)
 		  AND ($2 = 0  OR anime_year >= $2)
 		  AND ($3 = 0  OR anime_year <= $3)
+		  AND ($4::int[] IS NULL OR mal_id = ANY($4::int[]))
 		ORDER BY RANDOM()
 		LIMIT 1
 	`
-	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear).
-		Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL)
+	var malIDsParam interface{} = nil
+	if len(malIDs) > 0 {
+		malIDsParam = malIDs
+	}
+	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear, malIDsParam).
+		Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL,
+			&t.Difficulty, &t.TrackType, &t.AnimeYear, &t.MalID)
 	if err != nil {
 		return nil, err
 	}
