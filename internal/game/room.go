@@ -105,8 +105,8 @@ func CreateRoom(id string, creatorID string) *Room {
 		Password:      "",
 		IsPrivate:     false,
 		CreatorID:     creatorID,
-		HasAnswered:  make(map[string]bool),
-		RoundAnswers: []RoundAnswer{},
+		HasAnswered:   make(map[string]bool),
+		RoundAnswers:  []RoundAnswer{},
 	}
 }
 

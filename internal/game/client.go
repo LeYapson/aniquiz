@@ -98,14 +98,14 @@ func (c *Client) ReadPump() {
 
 		case "UPDATE_SETTINGS":
 			type SettingsPayload struct {
-				MaxRounds      int    `json:"max_rounds"`
-				RoundDuration  int    `json:"round_duration"`
-				IsPrivate      bool   `json:"is_private"`
-				Password       string `json:"password"`
-				FilterType     string `json:"filter_type"`
-				MinYear        int    `json:"min_year"`
-				MaxYear        int    `json:"max_year"`
-				FilterMalIDs   []int  `json:"filter_mal_ids"`
+				MaxRounds     int    `json:"max_rounds"`
+				RoundDuration int    `json:"round_duration"`
+				IsPrivate     bool   `json:"is_private"`
+				Password      string `json:"password"`
+				FilterType    string `json:"filter_type"`
+				MinYear       int    `json:"min_year"`
+				MaxYear       int    `json:"max_year"`
+				FilterMalIDs  []int  `json:"filter_mal_ids"`
 			}
 
 			var settings SettingsPayload
@@ -135,13 +135,13 @@ func (c *Client) ReadPump() {
 				msg, _ := json.Marshal(map[string]interface{}{
 					"type": "SETTINGS_UPDATED",
 					"payload": map[string]interface{}{
-						"max_rounds":       c.Room.MaxRounds,
-						"round_duration":   c.Room.RoundDuration,
-						"is_private":       c.Room.IsPrivate,
-						"filter_type":      c.Room.FilterType,
-						"min_year":         c.Room.MinYear,
-						"max_year":         c.Room.MaxYear,
-						"filter_mal_ids":   c.Room.FilterMalID,
+						"max_rounds":     c.Room.MaxRounds,
+						"round_duration": c.Room.RoundDuration,
+						"is_private":     c.Room.IsPrivate,
+						"filter_type":    c.Room.FilterType,
+						"min_year":       c.Room.MinYear,
+						"max_year":       c.Room.MaxYear,
+						"filter_mal_ids": c.Room.FilterMalID,
 					},
 				})
 				c.Room.Broadcast <- msg
