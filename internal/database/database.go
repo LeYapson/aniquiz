@@ -35,6 +35,15 @@ func Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_tracks_mal_id    ON tracks(mal_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tracks_track_type ON tracks(track_type)`,
 		`CREATE INDEX IF NOT EXISTS idx_tracks_anime_year ON tracks(anime_year)`,
+		// Table speed run
+		`CREATE TABLE IF NOT EXISTS speedrun_results (
+			id         SERIAL PRIMARY KEY,
+			user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			score      INT NOT NULL DEFAULT 0,
+			played_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_speedrun_user   ON speedrun_results(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_speedrun_score  ON speedrun_results(score DESC)`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
@@ -175,6 +184,48 @@ func GetLeaderboard(limit int) ([]models.LeaderboardEntry, error) {
 	for rows.Next() {
 		var e models.LeaderboardEntry
 		if err := rows.Scan(&e.Rank, &e.UserID, &e.Username, &e.Level, &e.XP, &e.TotalGames, &e.BestScore); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// SaveSpeedrunResult enregistre le score d'une partie speed run.
+func SaveSpeedrunResult(userID, score int) error {
+	_, err := Pool.Exec(context.Background(),
+		`INSERT INTO speedrun_results (user_id, score, played_at) VALUES ($1, $2, NOW())`,
+		userID, score,
+	)
+	return err
+}
+
+// GetSpeedrunLeaderboard retourne le meilleur score par joueur, trié par score décroissant.
+func GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error) {
+	query := `
+		SELECT
+			ROW_NUMBER() OVER (ORDER BY best.score DESC) AS rank,
+			u.id, u.username, best.score, best.played_at
+		FROM (
+			SELECT DISTINCT ON (user_id)
+				user_id, score, played_at
+			FROM speedrun_results
+			ORDER BY user_id, score DESC
+		) best
+		JOIN users u ON u.id = best.user_id
+		ORDER BY best.score DESC
+		LIMIT $1
+	`
+	rows, err := Pool.Query(context.Background(), query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.SpeedrunLeaderboardEntry
+	for rows.Next() {
+		var e models.SpeedrunLeaderboardEntry
+		if err := rows.Scan(&e.Rank, &e.UserID, &e.Username, &e.BestScore, &e.PlayedAt); err != nil {
 			return nil, err
 		}
 		entries = append(entries, e)

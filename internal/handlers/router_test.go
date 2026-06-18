@@ -36,6 +36,10 @@ func (m *mockStore) CreateUser(_, _, _ string) error { return m.err }
 func (m *mockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
 	return nil, errors.New("not found")
 }
+func (m *mockStore) SaveSpeedrunResult(_, _ int) error { return m.err }
+func (m *mockStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
+	return nil, m.err
+}
 
 // helpers
 

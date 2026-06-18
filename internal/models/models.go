@@ -61,3 +61,18 @@ type LeaderboardEntry struct {
 	TotalGames int    `json:"total_games"`
 	BestScore  int    `json:"best_score"`
 }
+
+type SpeedrunResult struct {
+	ID       int       `json:"id"`
+	UserID   int       `json:"user_id"`
+	Score    int       `json:"score"`
+	PlayedAt time.Time `json:"played_at"`
+}
+
+type SpeedrunLeaderboardEntry struct {
+	Rank      int       `json:"rank"`
+	UserID    int       `json:"user_id"`
+	Username  string    `json:"username"`
+	BestScore int       `json:"best_score"`
+	PlayedAt  time.Time `json:"played_at"`
+}
