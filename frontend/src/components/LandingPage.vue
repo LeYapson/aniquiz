@@ -11,7 +11,7 @@
         </p>
         <div class="hero-actions">
           <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
-          <button @click="emit('leaderboard')" class="btn-lb">🏆 Classement</button>
+          <button @click="emit('leaderboard')" class="btn-lb"><span aria-hidden="true">🏆</span> Classement</button>
         </div>
         <div class="hero-stats">
           <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
@@ -32,23 +32,14 @@
       <h2 class="section-title">Comment ça marche ?</h2>
       <p class="section-sub">Trois étapes, zéro prise de tête</p>
       <div class="howto-steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <h3>Rejoins un salon</h3>
-          <p>Crée une partie ou rejoins un salon public. Tu peux aussi jouer seul pour t'entraîner.</p>
-        </div>
-        <div class="step-arrow" aria-hidden="true"></div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <h3>Écoute et reconnais</h3>
-          <p>Une musique d'anime se lance. Opening, ending ou OST — à toi de trouver le titre avant les autres.</p>
-        </div>
-        <div class="step-arrow" aria-hidden="true"></div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <h3>Marque des points</h3>
-          <p>Plus tu réponds vite, plus tu marques. Le premier à trouver reçoit un bonus. Grimpe au classement !</p>
-        </div>
+        <template v-for="(step, i) in steps" :key="step.num">
+          <div class="step">
+            <div class="step-num">{{ step.num }}</div>
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.body }}</p>
+          </div>
+          <div v-if="i < steps.length - 1" class="step-arrow" aria-hidden="true"></div>
+        </template>
       </div>
     </section>
 
@@ -58,29 +49,16 @@
       <p class="section-sub">Plusieurs façons de tester ta culture anime</p>
 
       <div class="modes-grid">
-        <div class="mode-card">
-          <div class="mode-icon">⚔️</div>
-          <h3>Multijoueur</h3>
-          <p>Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime.</p>
-          <span class="mode-badge mode-available">Disponible</span>
-        </div>
-        <div class="mode-card">
-          <div class="mode-icon">🎯</div>
-          <h3>Solo / Entraînement</h3>
-          <p>Joue à ton rythme, sans pression. Parfait pour découvrir de nouveaux animes ou s'entraîner avant d'affronter des adversaires.</p>
-          <span class="mode-badge mode-available">Disponible</span>
-        </div>
-        <div class="mode-card mode-card--soon">
-          <div class="mode-icon">🏆</div>
-          <h3>Classé</h3>
-          <p>Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.</p>
-          <span class="mode-badge mode-soon">Bientôt</span>
-        </div>
-        <div class="mode-card mode-card--soon">
-          <div class="mode-icon">🤝</div>
-          <h3>Équipes</h3>
-          <p>Formez des équipes et affrontez d'autres groupes. La coordination et la complémentarité font la différence.</p>
-          <span class="mode-badge mode-soon">Bientôt</span>
+        <div
+          v-for="mode in modes"
+          :key="mode.title"
+          class="mode-card"
+          :class="{ 'mode-card--soon': mode.soon }"
+        >
+          <div class="mode-icon" aria-hidden="true">{{ mode.icon }}</div>
+          <h3>{{ mode.title }}</h3>
+          <p>{{ mode.body }}</p>
+          <span class="mode-badge" :class="mode.soon ? 'mode-soon' : 'mode-available'">{{ mode.soon ? 'Bientôt' : 'Disponible' }}</span>
         </div>
       </div>
     </section>
@@ -95,10 +73,7 @@
             débloques des récompenses exclusives et défends ta place en fin de saison.
           </p>
           <ul class="ranked-features">
-            <li><span class="rf-dot"></span>5 divisions : Bronze → Challenger</li>
-            <li><span class="rf-dot"></span>Saisons de 3 mois avec réinitialisation</li>
-            <li><span class="rf-dot"></span>Récompenses cosmétiques par division</li>
-            <li><span class="rf-dot"></span>Top 500 affiché en temps réel</li>
+            <li v-for="feat in rankedFeatures" :key="feat"><span class="rf-dot"></span>{{ feat }}</li>
           </ul>
           <span class="coming-soon-pill">Bientôt disponible</span>
         </div>
@@ -157,7 +132,7 @@
 
     <!-- ══════════════════════════════════════════ FOOTER ══ -->
     <footer class="landing-footer">
-      <span>© 2025 AniQuiz — Fait avec passion par des fans d'anime</span>
+      <span>© {{ currentYear }} AniQuiz — Fait avec passion par des fans d'anime</span>
       <div class="footer-links">
         <button @click="emit('play')" class="footer-link">Jouer</button>
         <button @click="emit('leaderboard')" class="footer-link">Classement</button>
@@ -169,12 +144,34 @@
 <script setup>
 const emit = defineEmits(['play', 'leaderboard']);
 
+const currentYear = new Date().getFullYear();
+
 const img = {
   logo: '/logo.png',
   mascot: '/mascot_kora.png',
   koraProf: '/kora_prof.png',
   koraFr: '/kora-fr.png',
 };
+
+const steps = [
+  { num: 1, title: 'Rejoins un salon', body: "Crée une partie ou rejoins un salon public. Tu peux aussi jouer seul pour t'entraîner." },
+  { num: 2, title: 'Écoute et reconnais', body: "Une musique d'anime se lance. Opening, ending ou OST — à toi de trouver le titre avant les autres." },
+  { num: 3, title: 'Marque des points', body: 'Plus tu réponds vite, plus tu marques. Le premier à trouver reçoit un bonus. Grimpe au classement !' },
+];
+
+const modes = [
+  { icon: '⚔️', title: 'Multijoueur', soon: false, body: "Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime." },
+  { icon: '🎯', title: 'Solo / Entraînement', soon: false, body: "Joue à ton rythme, sans pression. Parfait pour découvrir de nouveaux animes ou s'entraîner avant d'affronter des adversaires." },
+  { icon: '🏆', title: 'Classé', soon: true, body: 'Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.' },
+  { icon: '🤝', title: 'Équipes', soon: true, body: "Formez des équipes et affrontez d'autres groupes. La coordination et la complémentarité font la différence." },
+];
+
+const rankedFeatures = [
+  '5 divisions : Bronze → Challenger',
+  'Saisons de 3 mois avec réinitialisation',
+  'Récompenses cosmétiques par division',
+  'Top 500 affiché en temps réel',
+];
 
 const badges = [
   { name: 'Bronze',     src: '/badge_bronze.png' },
