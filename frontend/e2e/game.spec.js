@@ -63,7 +63,14 @@ async function loginAs(page, username = 'Alice') {
   await page.getByPlaceholder('Votre pseudo').fill(username)
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.getByText('Salons Disponibles')).toBeVisible()
+  await expect(page.locator('.btn-play-main')).toBeVisible()
+}
+
+// Ouvre la modale de modes et choisit Multi pour atteindre la liste des salons.
+async function openRoomList(page) {
+  await page.locator('.btn-play-main').click()
+  await page.locator('.mode-card-btn', { hasText: 'Multi' }).click()
+  await expect(page.getByText('Salons disponibles')).toBeVisible()
 }
 
 async function joinRoomAsSpectator(page, username = 'Alice') {
@@ -102,7 +109,8 @@ async function joinRoomAsSpectator(page, username = 'Alice') {
   await page.getByPlaceholder('Votre pseudo').fill(username)
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.getByText('Salons Disponibles')).toBeVisible()
+  await expect(page.locator('.btn-play-main')).toBeVisible()
+  await openRoomList(page)
   await page.getByRole('button', { name: /Regarder/ }).first().click()
 }
 
@@ -123,6 +131,7 @@ async function joinRoom(page, username = 'Alice', roomId = 'general') {
 
   await page.goto('/')
   await loginAs(page, username)
+  await openRoomList(page)
   await page.getByRole('button', { name: 'Rejoindre' }).first().click()
 }
 
@@ -133,7 +142,7 @@ test.describe('Formulaire de connexion', () => {
     await page.goto('/')
 
     await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '🏆 Classement' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classement' }).first()).toBeVisible()
   })
 
   test('affiche le formulaire après "Jouer maintenant"', async ({ page }) => {
@@ -168,8 +177,9 @@ test.describe('Formulaire de connexion', () => {
     await mockAllApis(page)
     await page.goto('/')
     await loginAs(page)
+    await openRoomList(page)
 
-    await expect(page.getByText('Salons Disponibles')).toBeVisible()
+    await expect(page.getByText('Salons disponibles')).toBeVisible()
   })
 })
 
@@ -207,7 +217,7 @@ test.describe('Lobby', () => {
 
     await page.getByRole('button', { name: 'Quitter' }).click()
 
-    await expect(page.getByText('Salons Disponibles')).toBeVisible()
+    await expect(page.locator('.btn-play-main')).toBeVisible()
   })
 })
 
@@ -258,6 +268,7 @@ test.describe('Chat', () => {
 
     await page.goto('/')
     await loginAs(page)
+    await openRoomList(page)
     await page.getByRole('button', { name: 'Rejoindre' }).first().click()
     await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
 
@@ -281,6 +292,7 @@ test.describe('Chat', () => {
 
     await page.goto('/')
     await loginAs(page)
+    await openRoomList(page)
     await page.getByRole('button', { name: 'Rejoindre' }).first().click()
     await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
 
@@ -328,7 +340,7 @@ test.describe('Classement', () => {
     )
 
     await page.goto('/')
-    await page.getByRole('button', { name: '🏆 Classement' }).click()
+    await page.getByRole('button', { name: 'Classement' }).first().click()
 
     await expect(page.getByRole('heading', { name: 'Classement Global' })).toBeVisible()
     await expect(page.getByText('TopPlayer')).toBeVisible()
@@ -340,7 +352,7 @@ test.describe('Classement', () => {
     )
 
     await page.goto('/')
-    await page.getByRole('button', { name: '🏆 Classement' }).click()
+    await page.getByRole('button', { name: 'Classement' }).first().click()
     await page.getByRole('button', { name: /Retour/ }).click()
 
     await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
