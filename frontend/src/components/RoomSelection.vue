@@ -406,7 +406,7 @@ hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 16px 0;
 }
 .mode-card-btn--soon {
   cursor: not-allowed;
-  filter: grayscale(0.7) brightness(0.55);
+  filter: grayscale(1) brightness(0.75) contrast(0.9);
 }
 .mode-card-soon {
   position: absolute;
@@ -498,7 +498,7 @@ button {
   transition: opacity 0.15s;
 }
 button:hover { opacity: 0.85; }
-button:disabled { background: #334155; color: #64748b; cursor: not-allowed; opacity: 1; }
+button:disabled { background-color: #334155; color: #64748b; cursor: not-allowed; opacity: 1; }
 .room-actions { display: flex; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
 .btn-toggle { background: #1e2a45; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); flex: 1; }
 .btn-refresh { background: #3b82f6; margin-bottom: 14px; }

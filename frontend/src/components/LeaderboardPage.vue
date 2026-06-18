@@ -1,11 +1,12 @@
 <template>
   <div class="leaderboard-page">
+    <h2>Classement Global</h2>
     <div class="lb-tabs">
       <button
         class="lb-tab"
         :class="{ active: activeTab === 'global' }"
         @click="activeTab = 'global'"
-      >🏆 Classement Global</button>
+      >🏆 Global</button>
       <button
         class="lb-tab"
         :class="{ active: activeTab === 'speedrun' }"
