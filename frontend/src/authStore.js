@@ -6,15 +6,17 @@ export const authStore = reactive({
   user: stored.user || null,
   token: stored.token || null,
 
-  setUser(userData, token) {
-    this.user = userData;
-    this.token = token;
+  // Méthodes en arrow + référence par nom (authStore) plutôt que `this` :
+  // elles restent fiables même passées par référence à un @event (ex. @logout="authStore.logout").
+  setUser: (userData, token) => {
+    authStore.user = userData;
+    authStore.token = token;
     localStorage.setItem('auth', JSON.stringify({ user: userData, token }));
   },
 
-  logout() {
-    this.user = null;
-    this.token = null;
+  logout: () => {
+    authStore.user = null;
+    authStore.token = null;
     localStorage.removeItem('auth');
     localStorage.removeItem('user');
   },
@@ -23,10 +25,8 @@ export const authStore = reactive({
     return this.user !== null && this.token !== null;
   },
 
-  authHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`,
-    };
-  },
+  authHeaders: () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authStore.token}`,
+  }),
 });
