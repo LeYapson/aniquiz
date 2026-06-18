@@ -4,7 +4,7 @@
     <!-- ═══════════════════════════════════════════ HERO ══ -->
     <section class="hero">
       <div class="hero-content">
-        <img src="/logo.png" alt="AniQuiz" class="hero-logo" />
+        <img :src="img.logo" alt="AniQuiz" class="hero-logo" />
         <p class="hero-tagline">
           Reconnais les génériques d'anime avant tes adversaires.<br />
           Prouve que tu es le vrai otaku.
@@ -21,7 +21,7 @@
           <div class="hero-stat"><strong>Multi</strong><span>temps réel</span></div>
         </div>
       </div>
-      <img src="/mascot_kora.png" alt="Kora" class="hero-kora" />
+      <img :src="img.mascot" alt="Kora" class="hero-kora" />
       <div class="hero-scroll-hint" aria-hidden="true">
         <span class="scroll-arrow"></span>
       </div>
@@ -104,7 +104,7 @@
         </div>
 
         <div class="ranked-visual">
-          <img src="/kora_prof.png" alt="Kora explique le système ranked" class="kora-prof" />
+          <img :src="img.koraProf" alt="Kora explique le système ranked" class="kora-prof" />
           <div class="badges-grid">
             <div v-for="badge in badges" :key="badge.name" class="badge-item">
               <img :src="badge.src" :alt="badge.name" class="badge-img" />
@@ -116,7 +116,7 @@
 
     <!-- ══════════════════════════════════════════ SUPPORT ══ -->
     <section class="section support-section">
-      <img src="/mascot_kora.png" alt="Kora" class="support-kora" />
+      <img :src="img.mascot" alt="Kora" class="support-kora" />
       <div class="support-content">
         <h2 class="section-title">Soutiens le projet</h2>
         <p class="support-desc">
@@ -135,7 +135,7 @@
     <!-- ═══════════════════════════════════════ COMMUNAUTÉ ══ -->
     <section class="section community-section">
       <div class="community-inner">
-        <img src="/kora-fr.png" alt="Kora avec le drapeau français" class="kora-fr" />
+        <img :src="img.koraFr" alt="Kora avec le drapeau français" class="kora-fr" />
         <div class="community-text">
           <h2 class="section-title left">Fait en France, pour la communauté</h2>
           <p class="community-desc">
@@ -168,6 +168,13 @@
 
 <script setup>
 const emit = defineEmits(['play', 'leaderboard']);
+
+const img = {
+  logo: '/logo.png',
+  mascot: '/mascot_kora.png',
+  koraProf: '/kora_prof.png',
+  koraFr: '/kora-fr.png',
+};
 
 const badges = [
   { name: 'Bronze',     src: '/badge_bronze.png' },

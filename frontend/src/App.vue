@@ -1,30 +1,13 @@
 <template>
   <div id="app">
-    <header v-if="authStore.user" class="app-header">
-      <div class="header-brand">
-        <img :src="headerLogo" alt="AniQuiz" class="header-logo" />
-        <span class="header-level">Niv. <strong>{{ authStore.user.level }}</strong> · {{ authStore.user.username }}</span>
-      </div>
-      <div class="header-actions">
-        <span v-if="authStore.user.anilist_username" class="badge-linked badge-anilist">
-          AniList ✓
-        </span>
-        <button v-else @click="connectAnilist" class="hbtn hbtn-anilist">Connecter AniList</button>
-
-        <span v-if="authStore.user.mal_username" class="badge-linked badge-mal">
-          MAL ✓
-        </span>
-        <button v-else @click="connectMAL" class="hbtn hbtn-mal">Connecter MAL</button>
-
-        <button @click="showLeaderboard = !showLeaderboard; showProfile = false" class="hbtn hbtn-orange">
-          {{ showLeaderboard ? '🎮 Jeu' : '🏆 Classement' }}
-        </button>
-        <button @click="showProfile = !showProfile; showLeaderboard = false" class="hbtn hbtn-navy">
-          {{ showProfile ? '🎮 Jeu' : '👤 Profil' }}
-        </button>
-        <button @click="authStore.logout" class="hbtn hbtn-red">Déconnexion</button>
-      </div>
-    </header>
+    <AppHeader
+      v-if="authStore.user"
+      :currentView="currentView"
+      @navigate="navigateTo"
+      @logout="authStore.logout"
+      @connect-anilist="connectAnilist"
+      @connect-mal="connectMAL"
+    />
 
     <Transition name="toast">
       <div v-if="xpToast" class="xp-toast" role="status" aria-live="polite" aria-atomic="true">
@@ -41,10 +24,10 @@
       <LandingPage
         v-if="!authStore.user && showLanding"
         @play="showLanding = false"
-        @leaderboard="showLanding = false; showLeaderboard = true"
+        @leaderboard="showLanding = false; showPublicLeaderboard = true"
       />
-      <div v-else-if="!authStore.user && showLeaderboard" class="public-leaderboard">
-        <button class="btn-back-landing" @click="showLanding = true; showLeaderboard = false">
+      <div v-else-if="!authStore.user && showPublicLeaderboard" class="public-leaderboard">
+        <button class="btn-back-landing" @click="showLanding = true; showPublicLeaderboard = false">
           ← Retour
         </button>
         <LeaderboardPage :ownUsername="''" />
@@ -52,14 +35,18 @@
       <AuthForm v-else-if="!authStore.user" />
 
       <template v-else>
-        <LeaderboardPage v-if="showLeaderboard" :ownUsername="authStore.user?.username" />
+        <LeaderboardPage v-if="!isConnected && currentView === 'leaderboard'" :ownUsername="authStore.user?.username" />
 
-        <ProfilePage v-else-if="showProfile" />
+        <ProfilePage v-else-if="!isConnected && currentView === 'profile'" />
+
+        <div v-else-if="!isConnected && currentView === 'news'" class="news-view">
+          <p>📰 Section News — bientôt disponible</p>
+        </div>
 
         <div v-else class="app-main">
 
         <div v-if="!isConnected" class="lobby-wrapper">
-          <RoomSelection @room-created="setupWebSocket" @room-joined="setupWebSocket" />
+          <HomeDashboard @room-created="setupWebSocket" @room-joined="setupWebSocket" />
         </div>
 
         <div v-else class="game-layout" :data-mobile-tab="mobileTab">
@@ -314,10 +301,10 @@ import ChatPanel from "./components/ChatPanel.vue";
 import LandingPage from "./components/LandingPage.vue";
 import ReactionOverlay from "./components/ReactionOverlay.vue";
 import AnimeAutocomplete from "./components/AnimeAutocomplete.vue";
+import AppHeader from "./components/AppHeader.vue";
+import HomeDashboard from "./components/HomeDashboard.vue";
 import { authStore } from "./authStore";
 import { API_URL, WS_URL } from "./config";
-
-const headerLogo = '/logo.png';
 
 const isConnected = ref(false);
 const room = ref("");
@@ -344,9 +331,13 @@ const skipVotes = ref({ votes: 0, needed: 1 });
 const hasVotedSkip = ref(false);
 const reconnectMsg = ref("");
 const showLanding = ref(true);
-const showProfile = ref(false);
-const showLeaderboard = ref(false);
+const showPublicLeaderboard = ref(false);
+const currentView = ref("home");
 const isCreator = ref(false);
+
+const navigateTo = (view) => {
+  currentView.value = view;
+};
 const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
 const chatMessages = ref([]);
 const isSpectator = ref(false);
@@ -615,56 +606,6 @@ defineExpose({ state, isConnected });
 </script>
 
 <style>
-/* ── Header ─────────────────────────────────────────────── */
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24px;
-  height: 56px;
-  background: #0f0f23;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
-}
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.header-logo { height: 32px; }
-.header-level {
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-.header-level strong { color: #f97316; }
-.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-.hbtn {
-  border: none;
-  border-radius: 6px;
-  padding: 6px 13px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.hbtn:hover { opacity: 0.85; }
-.hbtn-orange  { background: #f97316; color: #fff; }
-.hbtn-blue    { background: #3b82f6; color: #fff; }
-.hbtn-navy    { background: #1e2a45; color: #cbd5e1; }
-.hbtn-red     { background: #ef4444; color: #fff; }
-.hbtn-mal     { background: #2e51a2; color: #fff; }
-.hbtn-anilist { background: #02a9ff; color: #fff; }
-
-.badge-linked {
-  font-size: 0.8rem;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 600;
-}
-.badge-anilist { color: #02a9ff; background: rgba(2,169,255,0.12); }
-.badge-mal     { color: #7db4de; background: rgba(46,81,162,0.2); }
-
 /* ── Layout principal ───────────────────────────────────── */
 main { flex: 1; display: flex; flex-direction: column; }
 .app-main { flex: 1; display: flex; flex-direction: column; }
@@ -681,8 +622,20 @@ main { flex: 1; display: flex; flex-direction: column; }
   display: flex;
   gap: 0;
   flex: 1;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 64px);
   overflow: hidden;
+}
+
+/* ── Vue News (placeholder) ─────────────────────────────── */
+.news-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0f23;
+  color: #94a3b8;
+  font-size: 1rem;
+  min-height: calc(100vh - 64px);
 }
 
 .sidebar {
@@ -1057,17 +1010,6 @@ main { flex: 1; display: flex; flex-direction: column; }
 
 /* ── Responsive ≤ 768px ─────────────────────────────────── */
 @media (max-width: 768px) {
-  .app-header {
-    padding: 0 14px;
-    height: auto;
-    flex-wrap: wrap;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    gap: 8px;
-  }
-  .header-actions { gap: 6px; }
-  .hbtn { padding: 5px 10px; font-size: 0.76rem; }
-
   .game-layout {
     flex-direction: column;
     min-height: unset;
@@ -1080,9 +1022,9 @@ main { flex: 1; display: flex; flex-direction: column; }
   .game-layout .game-area,
   .game-layout .chat-aside { display: none; }
 
-  .game-layout[data-mobile-tab="players"] .sidebar  { display: flex; flex-direction: column; width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 16px; min-height: calc(100vh - 56px - 56px); }
+  .game-layout[data-mobile-tab="players"] .sidebar  { display: flex; flex-direction: column; width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 16px; min-height: calc(100vh - 64px - 56px); }
   .game-layout[data-mobile-tab="game"]    .game-area { display: flex; }
-  .game-layout[data-mobile-tab="chat"]    .chat-aside { display: flex; flex-direction: column; width: 100%; border-left: none; height: calc(100vh - 56px - 56px); }
+  .game-layout[data-mobile-tab="chat"]    .chat-aside { display: flex; flex-direction: column; width: 100%; border-left: none; height: calc(100vh - 64px - 56px); }
 
   .game-area { padding: 14px 16px; }
   .answer-zone { flex-direction: column; }
