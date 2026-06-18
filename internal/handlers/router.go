@@ -118,6 +118,7 @@ func NewRouter(store Store) *gin.Engine {
 			var body struct {
 				RoomID        string `json:"room_id"`
 				IsPrivate     bool   `json:"is_private"`
+				IsSolo        bool   `json:"is_solo"`
 				Password      string `json:"password"`
 				MaxRounds     int    `json:"max_rounds"`
 				RoundDuration int    `json:"round_duration"`
@@ -136,7 +137,7 @@ func NewRouter(store Store) *gin.Engine {
 			}
 
 			creatorID, _ := c.Get("username")
-			room := game.CreateRoom(body.RoomID, creatorID.(string))
+			room := game.CreateRoom(body.RoomID, creatorID.(string), body.IsSolo)
 			room.IsPrivate = body.IsPrivate
 			room.Password = body.Password
 			if body.MaxRounds > 0 {

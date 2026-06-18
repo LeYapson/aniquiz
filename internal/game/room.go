@@ -57,6 +57,7 @@ type Room struct {
 	MaxRounds     int
 	RoundDuration int
 	IsPrivate     bool
+	IsSolo        bool
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
@@ -88,7 +89,10 @@ func GetPublicRooms() []RoomSummary {
 	var list []RoomSummary
 	for id, room := range ActiveRooms {
 		room.Mu.Lock()
-		// On liste toutes les rooms, ou uniquement les publiques selon ton choix
+		if room.IsSolo {
+			room.Mu.Unlock()
+			continue
+		}
 		list = append(list, RoomSummary{
 			ID:           id,
 			State:        room.State,
@@ -101,7 +105,7 @@ func GetPublicRooms() []RoomSummary {
 	return list
 }
 
-func CreateRoom(id string, creatorID string) *Room {
+func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 	return &Room{
 		ID:            id,
 		Clients:       make(map[*Client]bool),
@@ -109,13 +113,14 @@ func CreateRoom(id string, creatorID string) *Room {
 		Register:      make(chan *Client),
 		Unregister:    make(chan *Client),
 		Start:         make(chan bool),
-		IsPlaying:     false, // On initialise à false à la place
+		IsPlaying:     false,
 		State:         StateLobby,
 		CurrentRound:  0,
-		MaxRounds:     5,  // Par exemple, on peut faire 5 rounds par partie
-		RoundDuration: 20, // Durée de chaque round en secondes
+		MaxRounds:     5,
+		RoundDuration: 20,
 		Password:      "",
 		IsPrivate:     false,
+		IsSolo:        isSolo,
 		CreatorID:     creatorID,
 		HasAnswered:   make(map[string]bool),
 		RoundAnswers:  []RoundAnswer{},
@@ -167,10 +172,9 @@ func (r *Room) Run() {
 		case <-r.Start:
 			if r.State != StatePlaying {
 				r.State = StatePlaying
-				r.broadcastGameState() // On prévient le Front
+				r.broadcastGameState()
 				go r.nextRound()
 
-				// Ici, on lancera plus tard la fonction qui choisit une musique
 				log.Println("La partie commence dans le salon:", r.ID)
 			}
 
@@ -178,16 +182,49 @@ func (r *Room) Run() {
 			if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
 				close(client.Send)
-				// Si le salon est vide, on arrête le quiz
+
 				if len(r.Clients) == 0 {
+					// Salon vide : arrêter la partie et supprimer le salon
 					r.Mu.Lock()
 					r.IsPlaying = false
 					r.Mu.Unlock()
-					fmt.Printf("Salon %s vide, mise en pause.\n", r.ID)
-				} else {
-					go r.BroadcastPlayerList() // On met à jour la liste des joueurs
+					RoomsMu.Lock()
+					delete(ActiveRooms, r.ID)
+					RoomsMu.Unlock()
+					fmt.Printf("Salon %s vide, supprimé.\n", r.ID)
+					return
 				}
+
+				// Si le joueur qui part était l'hôte, transférer l'hôte
+				r.Mu.Lock()
+				wasHost := r.CreatorID == client.Username
+				if wasHost {
+					for c := range r.Clients {
+						if !c.IsSpectator {
+							r.CreatorID = c.Username
+							break
+						}
+					}
+				}
+				newHost := r.CreatorID
+				r.Mu.Unlock()
+
+				if wasHost {
+					hostMsg, _ := json.Marshal(map[string]interface{}{
+						"type":    "HOST_CHANGED",
+						"payload": newHost,
+					})
+					for c := range r.Clients {
+						select {
+						case c.Send <- hostMsg:
+						default:
+						}
+					}
+				}
+
+				go r.BroadcastPlayerList()
 			}
+
 		case message := <-r.Broadcast:
 			for client := range r.Clients {
 				client.Send <- message
@@ -329,7 +366,6 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 }
 
 func (r *Room) nextRound() {
-	// 1. Chercher une musique aléatoire via ton package database
 	r.Mu.Lock()
 	if r.CurrentRound >= r.MaxRounds {
 		r.Mu.Unlock()
@@ -342,7 +378,6 @@ func (r *Room) nextRound() {
 	r.RoundAnswers = []RoundAnswer{}
 	r.SkipVotes = make(map[string]bool)
 	r.RoundStart = time.Now()
-	// On récupere la durée sous forme de variable locale pour le timer
 	duration := r.RoundDuration
 	r.Mu.Unlock()
 
@@ -367,23 +402,19 @@ func (r *Room) nextRound() {
 
 	log.Printf("Nouveau round dans %s : %s", r.ID, track.AnimeName)
 
-	// 2. Préparer le message pour le Front
-	// On n'envoie QUE l'URL, pas la réponse !
 	msg := map[string]interface{}{
 		"type": "NewQuestion",
 		"payload": map[string]interface{}{
 			"audio_url": track.AudioURL,
 			"room_id":   r.ID,
-			"duration":  duration, // On peut aussi envoyer la durée du round
+			"duration":  duration,
 		},
 	}
 
-	// 3. Envoyer à tout le monde
 	data, _ := json.Marshal(msg)
 
 	r.Broadcast <- data
 
-	// 4. Lancer un timer pour la fin du round
 	go func() {
 		time.Sleep(time.Duration(duration) * time.Second)
 		r.EndRound("Temps écoulé !")

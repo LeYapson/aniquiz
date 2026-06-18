@@ -26,15 +26,16 @@
       </div>
 
       <!-- Contenu : salons + devlog -->
-      <div class="content-grid">
+      <div class="content-grid" :class="{ 'content-grid--fullwidth': multiPanelOpen }">
         <section class="rooms-col">
           <RoomSelection
             @room-created="(d) => emit('room-created', d)"
             @room-joined="(d) => emit('room-joined', d)"
+            @panel-changed="(v) => multiPanelOpen = v"
           />
         </section>
 
-        <aside class="devlog-col" aria-label="Actualités du projet">
+        <aside v-show="!multiPanelOpen" class="devlog-col" aria-label="Actualités du projet">
           <div class="devlog-header">
             <h2><span aria-hidden="true">📰</span> Dernières nouvelles</h2>
           </div>
@@ -55,12 +56,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import RoomSelection from './RoomSelection.vue';
 import AppFooter from './AppFooter.vue';
 import { authStore } from '../authStore';
 
 const emit = defineEmits(['room-created', 'room-joined']);
+
+const multiPanelOpen = ref(false);
 
 const user = computed(() => authStore.user);
 
@@ -185,6 +188,9 @@ const devlogs = [
   grid-template-columns: 3fr 2fr;
   gap: 28px;
   align-items: start;
+}
+.content-grid--fullwidth {
+  grid-template-columns: 1fr;
 }
 
 .rooms-col {

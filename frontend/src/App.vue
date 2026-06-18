@@ -521,6 +521,9 @@ const connectWebSocket = (room_id, password) => {
         case "SKIP_VOTE_UPDATE":
           skipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
           break;
+        case "HOST_CHANGED":
+          isCreator.value = data.payload === authStore.user?.username;
+          break;
         case "KICKED":
           disconnect();
           alert(data.payload ?? "Vous avez été expulsé de la partie.");

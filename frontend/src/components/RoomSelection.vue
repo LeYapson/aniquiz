@@ -120,7 +120,7 @@ import { API_URL } from '../config';
 
 const router = useRouter();
 
-const emit = defineEmits(['room-created', 'room-joined']);
+const emit = defineEmits(['room-created', 'room-joined', 'panel-changed']);
 
 const rooms = ref([]);
 const isCreating = ref(false);
@@ -156,6 +156,7 @@ const selectMode = (mode) => {
     router.push('/speedrun');
   } else if (mode.key === 'multi') {
     showMultiPanel.value = true;
+    emit('panel-changed', true);
     fetchRooms();
   }
 };
@@ -163,6 +164,7 @@ const selectMode = (mode) => {
 const closeMulti = () => {
   showMultiPanel.value = false;
   isCreating.value = false;
+  emit('panel-changed', false);
 };
 
 // Récupérer la liste des salons depuis l'API Back
@@ -226,7 +228,7 @@ const startSolo = async () => {
     const res = await fetch(`${API_URL}/rooms`, {
       method: 'POST',
       headers: authStore.authHeaders(),
-      body: JSON.stringify({ room_id: soloId, is_private: true, password: '' }),
+      body: JSON.stringify({ room_id: soloId, is_private: true, is_solo: true, password: '' }),
     });
     if (res.ok) {
       const data = await res.json();
