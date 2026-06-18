@@ -18,6 +18,8 @@ type Store interface {
 	GetAllTracks() ([]models.Track, error)
 	CreateUser(username, email, passwordHash string) error
 	GetUserByUsernameOrEmail(identifier string) (*models.User, error)
+	SaveSpeedrunResult(userID, score int) error
+	GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error)
 }
 
 // AnswerRequest is the expected body for POST /quiz/answer.
@@ -79,6 +81,8 @@ func NewRouter(store Store) *gin.Engine {
 		}
 		c.JSON(http.StatusOK, entries)
 	})
+
+	router.GET("/api/leaderboard/speedrun", SpeedrunLeaderboardHandler(store))
 
 	router.GET("/animes", func(c *gin.Context) {
 		tracks, err := store.GetAllTracks()
@@ -225,6 +229,12 @@ func NewRouter(store Store) *gin.Engine {
 			}
 			c.JSON(http.StatusOK, results)
 		})
+
+		// --- SPEED RUN ---
+		protected.POST("/api/speedrun/start", StartSpeedrunHandler(store))
+		protected.POST("/api/speedrun/answer", AnswerSpeedrunHandler(store))
+		protected.POST("/api/speedrun/skip", SkipSpeedrunHandler(store))
+		protected.POST("/api/speedrun/finish", FinishSpeedrunHandler(store))
 
 		protected.POST("/quiz/answer", func(c *gin.Context) {
 			var req AnswerRequest

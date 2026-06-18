@@ -16,3 +16,11 @@ func (s *PgStore) CreateUser(username, email, passwordHash string) error {
 func (s *PgStore) GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
 	return database.GetUserByUsernameOrEmail(identifier)
 }
+
+func (s *PgStore) SaveSpeedrunResult(userID, score int) error {
+	return database.SaveSpeedrunResult(userID, score)
+}
+
+func (s *PgStore) GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error) {
+	return database.GetSpeedrunLeaderboard(limit)
+}

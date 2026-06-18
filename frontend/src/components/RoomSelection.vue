@@ -114,8 +114,11 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { authStore } from '../authStore';
 import { API_URL } from '../config';
+
+const router = useRouter();
 
 const emit = defineEmits(['room-created', 'room-joined']);
 
@@ -136,10 +139,10 @@ const config = ref({
 // Modes de jeu. `img` : asset optionnel dans /public ; `gradient` sert de
 // secours visuel si l'image est absente (background-image multi-couches).
 const modes = [
-  { key: 'solo',   title: 'Solo',   desc: "Entraîne-toi à ton rythme",      img: '/mode_solo.png',   gradient: 'linear-gradient(160deg, #f97316, #b45309)', available: true },
-  { key: 'rush',   title: 'Rush',   desc: 'Contre la montre, score max',    img: '/mode_rush.png',   gradient: 'linear-gradient(160deg, #ef4444, #7f1d1d)', available: false },
-  { key: 'multi',  title: 'Multi',  desc: "Affronte d'autres joueurs",      img: '/mode_multi.png',  gradient: 'linear-gradient(160deg, #3b82f6, #1e3a8a)', available: true },
-  { key: 'classe', title: 'Classé', desc: 'Grimpe les divisions',           img: '/mode_classe.png', gradient: 'linear-gradient(160deg, #a855f7, #581c87)', available: false },
+  { key: 'solo',     title: 'Solo',       desc: "Entraîne-toi à ton rythme",      img: '/kora-solo.png',     gradient: 'linear-gradient(160deg, #f97316, #b45309)', available: true },
+  { key: 'speedrun', title: 'Speed Run',  desc: '5 min · Enchaîne les animes',    img: '/kora-speedrun.png', gradient: 'linear-gradient(160deg, #ef4444, #7f1d1d)', available: true },
+  { key: 'multi',    title: 'Multi',      desc: "Affronte d'autres joueurs",      img: '/kora-multi.png',    gradient: 'linear-gradient(160deg, #3b82f6, #1e3a8a)', available: true },
+  { key: 'classe',   title: 'Classé',     desc: 'Grimpe les divisions',           img: '/kora-ranked.png',   gradient: 'linear-gradient(160deg, #a855f7, #581c87)', available: false },
 ];
 
 const openModal = () => { showModeModal.value = true; };
@@ -149,6 +152,8 @@ const selectMode = (mode) => {
   showModeModal.value = false;
   if (mode.key === 'solo') {
     startSolo();
+  } else if (mode.key === 'speedrun') {
+    router.push('/speedrun');
   } else if (mode.key === 'multi') {
     showMultiPanel.value = true;
     fetchRooms();

@@ -19,7 +19,13 @@
       "Bash(gofmt -w cmd/api/main.go internal/database/database.go internal/game/logic_test.go internal/game/room.go)",
       "Bash(go get *)",
       "Bash(gofmt -w internal/database/database.go internal/game/room.go internal/handlers/router.go internal/models/models.go)",
-      "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch \"Loopback\" } | Select-Object InterfaceAlias, IPAddress)"
+      "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch \"Loopback\" } | Select-Object InterfaceAlias, IPAddress)",
+      "Bash(gofmt -l ./...)",
+      "Bash(gofmt -l ./internal/... ./cmd/...)",
+      "Bash(gofmt -l internal/handlers/speedrun.go internal/handlers/speedrun_test.go internal/handlers/pg_store.go internal/handlers/router.go internal/handlers/auth_test.go internal/handlers/router_test.go)",
+      "Bash(gofmt -w internal/handlers/router.go)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)"
     ]
   }
 }

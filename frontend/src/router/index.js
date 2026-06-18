@@ -4,11 +4,13 @@ import NotFound from '../components/NotFound.vue'
 import LegalPage from '../views/LegalPage.vue'
 import TermsPage from '../views/TermsPage.vue'
 import PrivacyPage from '../views/PrivacyPage.vue'
+import SpeedrunGame from '../views/SpeedrunGame.vue'
 
 export default createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: App },
+    { path: '/speedrun', component: SpeedrunGame },
     { path: '/legal', component: LegalPage },
     { path: '/terms', component: TermsPage },
     { path: '/privacy', component: PrivacyPage },

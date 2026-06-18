@@ -30,6 +30,10 @@ func (m *authMockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error)
 	}
 	return m.existingUser, nil
 }
+func (m *authMockStore) SaveSpeedrunResult(_, _ int) error { return nil }
+func (m *authMockStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
+	return nil, nil
+}
 
 // --- RegisterHandler ---
 
