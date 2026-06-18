@@ -39,9 +39,7 @@
 
         <ProfilePage v-else-if="!isConnected && currentView === 'profile'" />
 
-        <div v-else-if="!isConnected && currentView === 'news'" class="news-view">
-          <p>📰 Section News — bientôt disponible</p>
-        </div>
+        <NewsPage v-else-if="!isConnected && currentView === 'news'" />
 
         <div v-else class="app-main">
 
@@ -295,6 +293,7 @@ import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
+import NewsPage from "./components/NewsPage.vue";
 import GameSettings from "./components/GameSettings.vue";
 import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";

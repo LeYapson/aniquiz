@@ -45,7 +45,7 @@
               <time class="devlog-date" :datetime="log.datetime">{{ log.date }}</time>
             </div>
             <h3 class="devlog-title">{{ log.title }}</h3>
-            <p class="devlog-body">{{ log.body }}</p>
+            <p class="devlog-body" v-html="log.bodyHtml"></p>
           </article>
         </aside>
       </div>
@@ -60,6 +60,7 @@ import { computed, ref } from 'vue';
 import RoomSelection from './RoomSelection.vue';
 import AppFooter from './AppFooter.vue';
 import { authStore } from '../authStore';
+import { useNews } from '../composables/useNews';
 
 const emit = defineEmits(['room-created', 'room-joined']);
 
@@ -74,7 +75,6 @@ const greeting = computed(() => {
   return 'Bonsoir';
 });
 
-// Couleur dérivée du type d'entrée : une seule source de vérité (mappée vers les classes .tag-*).
 const TAG_COLORS = {
   Feature: 'green',
   Annonce: 'blue',
@@ -82,32 +82,7 @@ const TAG_COLORS = {
 };
 const tagColor = (tag) => TAG_COLORS[tag] ?? 'orange';
 
-const devlogs = [
-  {
-    id: 1,
-    date: '18 juin 2026',
-    datetime: '2026-06-18',
-    tag: 'Feature',
-    title: 'Sprint 1 : Autocomplete, vote skip & contrôles hôte',
-    body: "L'autocomplétion des animes est disponible. Vote pour passer une piste, et l'hôte peut forcer le skip ou expulser un joueur.",
-  },
-  {
-    id: 2,
-    date: '5 juin 2026',
-    datetime: '2026-06-05',
-    tag: 'Feature',
-    title: 'Filtrage par liste AniList & MAL',
-    body: 'Joue uniquement sur les animes de ta liste personnelle AniList ou MyAnimeList.',
-  },
-  {
-    id: 3,
-    date: '1 juin 2026',
-    datetime: '2026-06-01',
-    tag: 'Annonce',
-    title: 'AniQuiz entre en alpha ouverte',
-    body: 'Le site est désormais accessible à tous. Inscris-toi, rejoins un salon et teste ta culture anime !',
-  },
-];
+const { news: devlogs } = useNews();
 </script>
 
 <style scoped>
