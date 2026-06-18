@@ -4,7 +4,7 @@
       <!-- Bandeau d'accueil -->
       <div class="greeting-bar">
         <div class="greeting-text">
-          <h1>{{ greeting }}, <span class="username">{{ user?.username }}</span> !</h1>
+          <h1>{{ greeting }}, <span class="username">{{ user?.username ?? 'joueur' }}</span> !</h1>
           <p>Prêt à reconnaître quelques openings ?</p>
         </div>
         <div class="greeting-stats">
@@ -36,12 +36,12 @@
 
         <aside class="devlog-col" aria-label="Actualités du projet">
           <div class="devlog-header">
-            <h2>📰 Dernières nouvelles</h2>
+            <h2><span aria-hidden="true">📰</span> Dernières nouvelles</h2>
           </div>
           <article v-for="log in devlogs" :key="log.id" class="devlog-card">
             <div class="devlog-meta">
-              <span class="devlog-tag" :class="`tag-${log.tagColor}`">{{ log.tag }}</span>
-              <span class="devlog-date">{{ log.date }}</span>
+              <span class="devlog-tag" :class="`tag-${tagColor(log.tag)}`">{{ log.tag }}</span>
+              <time class="devlog-date" :datetime="log.datetime">{{ log.date }}</time>
             </div>
             <h3 class="devlog-title">{{ log.title }}</h3>
             <p class="devlog-body">{{ log.body }}</p>
@@ -65,34 +65,42 @@ const emit = defineEmits(['room-created', 'room-joined']);
 const user = computed(() => authStore.user);
 
 const greeting = computed(() => {
-  const h = new Date().getHours();
-  if (h >= 6 && h < 12) return 'Bonjour';
-  if (h >= 12 && h < 18) return 'Bon après-midi';
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) return 'Bonjour';
+  if (hour >= 12 && hour < 18) return 'Bon après-midi';
   return 'Bonsoir';
 });
+
+// Couleur dérivée du type d'entrée : une seule source de vérité (mappée vers les classes .tag-*).
+const TAG_COLORS = {
+  Feature: 'green',
+  Annonce: 'blue',
+  Fix: 'orange',
+};
+const tagColor = (tag) => TAG_COLORS[tag] ?? 'orange';
 
 const devlogs = [
   {
     id: 1,
     date: '18 juin 2026',
+    datetime: '2026-06-18',
     tag: 'Feature',
-    tagColor: 'green',
     title: 'Sprint 1 : Autocomplete, vote skip & contrôles hôte',
     body: "L'autocomplétion des animes est disponible. Vote pour passer une piste, et l'hôte peut forcer le skip ou expulser un joueur.",
   },
   {
     id: 2,
     date: '5 juin 2026',
+    datetime: '2026-06-05',
     tag: 'Feature',
-    tagColor: 'green',
     title: 'Filtrage par liste AniList & MAL',
     body: 'Joue uniquement sur les animes de ta liste personnelle AniList ou MyAnimeList.',
   },
   {
     id: 3,
     date: '1 juin 2026',
+    datetime: '2026-06-01',
     tag: 'Annonce',
-    tagColor: 'blue',
     title: 'AniQuiz entre en alpha ouverte',
     body: 'Le site est désormais accessible à tous. Inscris-toi, rejoins un salon et teste ta culture anime !',
   },
