@@ -170,6 +170,8 @@ func NewRouter(store Store) *gin.Engine {
 		})
 
 		protected.POST("/api/admin/import", BatchImportHandler)
+		protected.POST("/api/admin/seed", SeedHandler)
+		protected.GET("/api/admin/seed/status", SeedStatusHandler)
 		protected.POST("/api/admin/audio/healthcheck", AudioHealthcheckHandler)
 		protected.GET("/api/admin/audio/healthcheck/status", AudioHealthStatusHandler)
 		protected.GET("/api/anime/search", AnimeSearchHandler)
