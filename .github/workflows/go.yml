@@ -11,6 +11,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# OCI/Docker image refs MUST be lowercase, but github.repository preserves the
+# owner's casing (LeYapson/aniquiz) and GHA expressions have no toLowerCase().
+# Pin the lowercase image name once and reuse it everywhere.
+env:
+  IMAGE_NAME: ghcr.io/leyapson/aniquiz
+
 # ─── SECURITY ────────────────────────────────────────────────────────────────
 jobs:
   security:
@@ -184,7 +190,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
@@ -213,9 +219,8 @@ jobs:
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          # Scan by digest — metadata-action pushes a SHORT sha tag, so a full-sha
-          # tag ref would not resolve. The digest is exact and unambiguous.
-          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          # Scan by digest (exact + unambiguous) using the lowercase image name.
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
@@ -244,6 +249,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # metadata-action pushes the SHORT sha tag (sha-<7>), so deploy must pull that.
+      - name: Resolve image tag
+        id: tag
+        run: echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to staging via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -255,14 +265,14 @@ jobs:
             cd ${{ vars.DEPLOY_PATH || '/opt/aniquiz' }}
 
             # Pull the new image
-            docker pull ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+            docker pull ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
 
             # Tag as staging-current for rollback reference
             PREV=$(docker inspect --format='{{.Image}}' aniquiz-app 2>/dev/null || echo "")
             echo "Previous image: $PREV"
 
             # Update the compose file to pin the new SHA
-            export IMAGE_TAG=sha-${{ github.sha }}
+            export IMAGE_TAG=${{ steps.tag.outputs.value }}
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans
 
@@ -305,6 +315,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # metadata-action's semver tag strips the leading "v" (v1.2.3 -> 1.2.3).
+      - name: Resolve image tag
+        id: tag
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to production via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -319,8 +334,8 @@ jobs:
             ./scripts/backup-db.sh || echo "Warning: backup failed, proceeding"
 
             # Pull the versioned image
-            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            export IMAGE_TAG=${{ github.ref_name }}
+            docker pull ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
+            export IMAGE_TAG=${{ steps.tag.outputs.value }}
 
             docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans
 
