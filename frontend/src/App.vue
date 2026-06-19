@@ -526,6 +526,9 @@ const connectWebSocket = (room_id, password) => {
             isPrivate: data.payload.is_private,
           };
           break;
+        case "NOTICE":
+          toast.info(data.payload, { title: "Info partie" });
+          break;
         case "SKIP_VOTE_UPDATE":
           skipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
           break;
