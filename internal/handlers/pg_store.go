@@ -9,6 +9,7 @@ type PgStore struct{}
 func (s *PgStore) GetRandomTrack() (*models.Track, error)     { return database.GetRandomTrack() }
 func (s *PgStore) GetTrackByID(id int) (*models.Track, error) { return database.GetTrackByID(id) }
 func (s *PgStore) GetAllTracks() ([]models.Track, error)      { return database.GetAllTracks() }
+func (s *PgStore) GetDistinctAnimeNames() ([]string, error)   { return database.GetDistinctAnimeNames() }
 func (s *PgStore) CreateUser(username, email, passwordHash string) error {
 	return database.CreateUser(username, email, passwordHash)
 }

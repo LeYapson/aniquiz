@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	//"database/sql"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -50,8 +50,7 @@ func RegisterHandler(store Store) gin.HandlerFunc {
 		// 3. Sauvegarde en Base de données
 		err = store.CreateUser(req.Username, req.Email, string(hashedPassword))
 		if err != nil {
-			// AJOUT TEMPORAIRE POUR LE DEBUGGING :
-			println("ERREUR BRUTE DU SERVEUR POSTGRESQL :", err.Error())
+			log.Printf("CreateUser error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Impossible de créer le compte"})
 			return
 		}

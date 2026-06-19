@@ -26,6 +26,7 @@ type mockStore struct {
 
 func (m *mockStore) GetRandomTrack() (*models.Track, error)    { return m.track, m.err }
 func (m *mockStore) GetTrackByID(_ int) (*models.Track, error) { return m.track, m.err }
+func (m *mockStore) GetDistinctAnimeNames() ([]string, error)  { return nil, nil }
 func (m *mockStore) GetAllTracks() ([]models.Track, error) {
 	if m.track != nil {
 		return []models.Track{*m.track}, m.err

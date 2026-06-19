@@ -3,13 +3,19 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"log"
 )
 
-// Client représente un joueur connecté via WebSocket
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = 54 * time.Second // must be less than pongWait
+)
+
+// Client represents a player connected via WebSocket.
 type Client struct {
 	ID          string
 	UserID      int
@@ -21,12 +27,20 @@ type Client struct {
 	IsSpectator bool
 }
 
-// ReadPump lit les messages envoyés par le joueur (ex: ses réponses)
+// ReadPump reads messages from the WebSocket connection and dispatches them to the room.
+// A ping/pong deadline ensures dead connections are detected within pongWait.
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Room.Unregister <- c
 		c.Conn.Close()
 	}()
+
+	c.Conn.SetReadLimit(4096)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 
 	for {
 		_, message, err := c.Conn.ReadMessage()
@@ -34,7 +48,6 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		// On décode le message JSON reçu du Front
 		var msg struct {
 			Type    string          `json:"type"`
 			Payload json.RawMessage `json:"payload"`
@@ -45,24 +58,22 @@ func (c *Client) ReadPump() {
 			continue
 		}
 
-		// On réagit selon le type
 		switch msg.Type {
 		case "START_GAME":
-			// On demande à la Room de démarrer
 			c.Room.Start <- true
+
 		case "SUBMIT_ANSWER":
 			if c.IsSpectator {
 				continue
 			}
 			var answer string
-
 			if err := json.Unmarshal(msg.Payload, &answer); err != nil {
 				log.Printf("Erreur décodage payload string: %v", err)
 				continue
 			}
-
 			fmt.Printf("Réponse reçue : %s\n", answer)
 			c.Room.CheckAnswer(c, answer)
+
 		case "CHAT":
 			var text string
 			if err := json.Unmarshal(msg.Payload, &text); err != nil || len([]rune(text)) == 0 {
@@ -191,7 +202,6 @@ func (c *Client) ReadPump() {
 			}
 
 			c.Room.Mu.Lock()
-			// Sécurité : seul le créateur peut modifier les paramètres en lobby
 			if c.Room.CreatorID == c.Username && c.Room.State == StateLobby {
 				if settings.MaxRounds > 0 {
 					c.Room.MaxRounds = settings.MaxRounds
@@ -207,8 +217,7 @@ func (c *Client) ReadPump() {
 				c.Room.FilterMalID = settings.FilterMalIDs
 				c.Room.Mu.Unlock()
 
-				// Diffuser les nouveaux settings à tous les joueurs
-				msg, _ := json.Marshal(map[string]interface{}{
+				settingsMsg, _ := json.Marshal(map[string]interface{}{
 					"type": "SETTINGS_UPDATED",
 					"payload": map[string]interface{}{
 						"max_rounds":     c.Room.MaxRounds,
@@ -220,7 +229,7 @@ func (c *Client) ReadPump() {
 						"filter_mal_ids": c.Room.FilterMalID,
 					},
 				})
-				c.Room.Broadcast <- msg
+				c.Room.Broadcast <- settingsMsg
 			} else {
 				c.Room.Mu.Unlock()
 			}
@@ -228,23 +237,30 @@ func (c *Client) ReadPump() {
 	}
 }
 
-// WritePump envoie les messages du serveur vers le client
+// WritePump delivers messages from the room to the WebSocket connection.
+// A ticker sends WebSocket pings to detect dead connections.
 func (c *Client) WritePump() {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		ticker.Stop()
 		c.Conn.Close()
 	}()
+
 	for {
 		select {
 		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// Le canal a été fermé par le salon
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
+			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				return
+			}
 
-			// On envoie le message au format Texte
-			err := c.Conn.WriteMessage(websocket.TextMessage, message)
-			if err != nil {
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}

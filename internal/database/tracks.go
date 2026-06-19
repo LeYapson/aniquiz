@@ -43,6 +43,27 @@ func GetAllTracks() ([]models.Track, error) {
 	return tracks, nil
 }
 
+// GetDistinctAnimeNames returns a sorted list of unique anime names from the tracks table.
+// Use this instead of GetAllTracks() + deduplication in Go for large libraries.
+func GetDistinctAnimeNames() ([]string, error) {
+	rows, err := Pool.Query(context.Background(),
+		`SELECT DISTINCT anime_name FROM tracks WHERE anime_name != '' ORDER BY anime_name`)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la récupération des animes : %v", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 func GetRandomTrack() (*models.Track, error) {
 	return GetRandomTrackFiltered(models.TrackFilters{})
 }
