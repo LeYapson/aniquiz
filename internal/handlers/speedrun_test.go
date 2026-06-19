@@ -23,8 +23,8 @@ type speedrunMockStore struct {
 
 func (m *speedrunMockStore) GetRandomTrack() (*models.Track, error)    { return m.track, m.trackErr }
 func (m *speedrunMockStore) GetTrackByID(_ int) (*models.Track, error) { return nil, nil }
-func (m *speedrunMockStore) GetAllTracks() ([]models.Track, error)          { return nil, nil }
-func (m *speedrunMockStore) GetDistinctAnimeNames() ([]string, error)        { return nil, nil }
+func (m *speedrunMockStore) GetAllTracks() ([]models.Track, error)     { return nil, nil }
+func (m *speedrunMockStore) GetDistinctAnimeNames() ([]string, error)  { return nil, nil }
 func (m *speedrunMockStore) CreateUser(_, _, _ string) error           { return nil }
 func (m *speedrunMockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
 	return nil, nil
@@ -235,8 +235,8 @@ func (f *flexSpeedrunStore) GetRandomTrack() (*models.Track, error) {
 	return f.tracks[i], nil
 }
 func (f *flexSpeedrunStore) GetTrackByID(_ int) (*models.Track, error) { return nil, nil }
-func (f *flexSpeedrunStore) GetAllTracks() ([]models.Track, error)          { return nil, nil }
-func (f *flexSpeedrunStore) GetDistinctAnimeNames() ([]string, error)        { return nil, nil }
+func (f *flexSpeedrunStore) GetAllTracks() ([]models.Track, error)     { return nil, nil }
+func (f *flexSpeedrunStore) GetDistinctAnimeNames() ([]string, error)  { return nil, nil }
 func (f *flexSpeedrunStore) CreateUser(_, _, _ string) error           { return nil }
 func (f *flexSpeedrunStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
 	return nil, nil
