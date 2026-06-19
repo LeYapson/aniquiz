@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    env: production
+    app: aniquiz
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # ─── App uptime via /health endpoint ──────────────────────────────────────────
+  - job_name: aniquiz-health
+    metrics_path: /health
+    scheme: http
+    static_configs:
+      - targets: [app:8080]
+        labels:
+          service: aniquiz-backend
+    # /health returns JSON, not Prometheus format — use relabeling to get an up/down metric
+    metric_relabel_configs: []
+
+  # ─── Container metrics (cAdvisor) ─────────────────────────────────────────────
+  - job_name: cadvisor
+    static_configs:
+      - targets: [cadvisor:8080]
+        labels:
+          service: docker-containers
+    relabel_configs:
+      - source_labels: [__name__]
+        regex: "container_.*"
+        action: keep
+
+  # ─── Host metrics (node-exporter) ─────────────────────────────────────────────
+  - job_name: node-exporter
+    static_configs:
+      - targets: [host.docker.internal:9100]
+        labels:
+          service: host-system
+
+  # ─── PostgreSQL metrics ────────────────────────────────────────────────────────
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+        labels:
+          service: postgresql
+
+  # ─── Prometheus self-monitoring ───────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]

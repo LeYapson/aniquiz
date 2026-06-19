@@ -1,37 +1,127 @@
 services:
+  # ─── Database ─────────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aniquiz}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-aniquiz}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aniquiz}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.50"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ─── Application ──────────────────────────────────────────────────────────────
   app:
-    image: ghcr.io/leyapson/aniquiz:latest
-    restart: always
+    image: ghcr.io/leyapson/aniquiz:${IMAGE_TAG:-latest}
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-aniquiz}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aniquiz}?sslmode=disable
-      JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: ${FRONTEND_URL}
-      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID}
-      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET}
-      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI}
-      MAL_CLIENT_ID: ${MAL_CLIENT_ID}
-      MAL_CLIENT_SECRET: ${MAL_CLIENT_SECRET}
-      MAL_REDIRECT_URI: ${MAL_REDIRECT_URI}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      ANILIST_CLIENT_ID: ${ANILIST_CLIENT_ID:-}
+      ANILIST_CLIENT_SECRET: ${ANILIST_CLIENT_SECRET:-}
+      ANILIST_REDIRECT_URI: ${ANILIST_REDIRECT_URI:-}
+      MAL_CLIENT_ID: ${MAL_CLIENT_ID:-}
+      MAL_CLIENT_SECRET: ${MAL_CLIENT_SECRET:-}
+      MAL_REDIRECT_URI: ${MAL_REDIRECT_URI:-}
+      GIN_MODE: release
+      PORT: "8080"
+    # Port not exposed directly — Nginx is the only ingress
+    networks:
+      - app_net
+      - proxy_net
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.50"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ─── Nginx reverse proxy ──────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - letsencrypt_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - proxy_net
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Certbot (Let's Encrypt renewal) ──────────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - letsencrypt_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do
+               certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
+               sleep 12h & wait $${!};
+             done"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  app_net:
+    driver: bridge
+    internal: true
+  proxy_net:
+    driver: bridge
 
 volumes:
   postgres_data:
+  letsencrypt_certs:
+  certbot_webroot:
+  nginx_logs:

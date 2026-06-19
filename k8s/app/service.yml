@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aniquiz
+  namespace: aniquiz
+  labels:
+    app: aniquiz
+spec:
+  selector:
+    app: aniquiz
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

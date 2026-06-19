@@ -1,0 +1,18 @@
+# Normalize line endings — Go tooling (gofmt) requires LF.
+# Prevents Windows CRLF checkouts from showing phantom gofmt/format diffs.
+* text=auto eol=lf
+
+*.go text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary assets — never normalize
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.mp3 binary
+*.webm binary

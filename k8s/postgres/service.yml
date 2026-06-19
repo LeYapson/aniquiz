@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aniquiz
+spec:
+  selector:
+    app: postgres
+  # ClusterIP only — database is never exposed outside the cluster
+  clusterIP: None
+  ports:
+    - port: 5432
+      targetPort: 5432

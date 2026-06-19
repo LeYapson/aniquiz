@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/LeYapson/aniquiz/internal/database"
@@ -17,10 +20,26 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Build metadata injected by the linker at build time.
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildDate = "unknown"
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	// Only accept connections from the configured frontend origin.
+	// Falls back to permissive in dev (when FRONTEND_URL is unset).
+	CheckOrigin: func(r *http.Request) bool {
+		allowed := os.Getenv("FRONTEND_URL")
+		if allowed == "" {
+			return true
+		}
+		origin := r.Header.Get("Origin")
+		return origin == allowed
+	},
 }
 
 func main() {
@@ -101,6 +120,11 @@ func main() {
 	})
 
 	router.GET("/anime/:id", func(c *gin.Context) {
+		// Admin/debug sourcing trigger — disabled in production (unauthenticated DB writes).
+		if gin.Mode() == gin.ReleaseMode {
+			c.JSON(http.StatusNotFound, gin.H{"error": "route introuvable"})
+			return
+		}
 		animeId, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid anime ID"})
@@ -118,6 +142,11 @@ func main() {
 	})
 
 	router.GET("/test-audio", func(c *gin.Context) {
+		// Debug page that dumps the full track table — disabled in production.
+		if gin.Mode() == gin.ReleaseMode {
+			c.JSON(http.StatusNotFound, gin.H{"error": "route introuvable"})
+			return
+		}
 		tracks, err := database.GetAllTracks()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire la DB"})
@@ -295,11 +324,37 @@ func main() {
 		})
 	}
 
-	// 7 - Démarrage du serveur
+	// 7 - Démarrage du serveur avec graceful shutdown
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	fmt.Printf("Serveur lancé sur http://localhost:%s\n", port)
-	router.Run(":" + port)
+
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second, // higher for WebSocket upgrade responses
+		IdleTimeout:  120 * time.Second,
+	}
+
+	fmt.Printf("AniQuiz %s (%s) — listening on :%s\n", Version, Commit, port)
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down — draining connections (max 30s)...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("forced shutdown: %v", err)
+	}
+	log.Println("Server stopped cleanly")
 }

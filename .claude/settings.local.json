@@ -25,7 +25,10 @@
       "Bash(gofmt -l internal/handlers/speedrun.go internal/handlers/speedrun_test.go internal/handlers/pg_store.go internal/handlers/router.go internal/handlers/auth_test.go internal/handlers/router_test.go)",
       "Bash(gofmt -w internal/handlers/router.go)",
       "Bash(git fetch *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(cd \"/c/Users/theau/Documents/YNOV/ynov_M1/ci-cd/projet perso/aniquiz\" && find . -name \"*test*\" -type f ! -path \"*/node_modules/*\" | head -20)",
+      "Read(//c/c/Users/theau/Documents/YNOV/ynov_M1/ci-cd/projet perso/**)",
+      "Bash(xargs wc -l)"
     ]
   }
 }
