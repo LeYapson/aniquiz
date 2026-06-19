@@ -52,8 +52,11 @@
           <span class="switch-thumb" />
         </button>
       </div>
-      <p v-if="local.useAnilistFilter && local.filterMalIds.length > 0" class="info-ids">
-        ✓ {{ local.filterMalIds.length }} animés chargés depuis ta liste
+      <p v-if="local.useAnilistFilter && playableTracks > 0" class="info-ids">
+        ✓ {{ playableAnime }} animés de ta liste disponibles ({{ playableTracks }} titres)
+      </p>
+      <p v-if="local.useAnilistFilter && local.filterMalIds.length > 0 && playableTracks === 0" class="info-warn">
+        ⚠️ Aucun animé de ta liste n'est encore dans notre librairie. Le filtre sera ignoré au lancement.
       </p>
       <p v-if="!anyLinked" class="info-unlinked">
         Connecte ton compte AniList ou MAL dans ton profil pour activer ce filtre.
@@ -99,6 +102,8 @@ const linkedLabel   = computed(() => {
 });
 
 const loadingIds = ref(false);
+const playableAnime = ref(0);
+const playableTracks = ref(0);
 
 const local = reactive({
   maxRounds: props.initialSettings?.maxRounds ?? 5,
@@ -129,7 +134,11 @@ const toggleAnilistFilter = async () => {
         });
         if (res.ok) {
           const data = await res.json();
-          local.filterMalIds = Array.isArray(data) ? data : [];
+          // Réponse : { ids, playable_anime, playable_tracks } (compat ancien tableau brut)
+          const ids = Array.isArray(data) ? data : (data.ids ?? []);
+          local.filterMalIds = ids;
+          playableAnime.value = data.playable_anime ?? ids.length;
+          playableTracks.value = data.playable_tracks ?? 0;
         }
       } catch (e) {
         console.error("Erreur récupération liste perso :", e);
@@ -140,6 +149,8 @@ const toggleAnilistFilter = async () => {
     }
   } else {
     local.filterMalIds = [];
+    playableAnime.value = 0;
+    playableTracks.value = 0;
   }
 
   // Auto-appliquer immédiatement sans avoir à cliquer "Appliquer"
@@ -259,6 +270,7 @@ const apply = () => {
 
 .info-ids     { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #34d399; }
 .info-unlinked { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #64748b; font-style: italic; }
+.info-warn     { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #fbbf24; }
 
 .password-input {
   flex: 1;

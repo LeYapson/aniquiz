@@ -2,10 +2,17 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/LeYapson/aniquiz/internal/models"
+	"github.com/jackc/pgx/v5"
 )
+
+// ErrNoTrack signale qu'aucune piste jouable ne correspond aux filtres demandés.
+// Permet au moteur de jeu de réagir proprement (repli / abandon) plutôt que de
+// rester bloqué sur une erreur brute pgx.ErrNoRows.
+var ErrNoTrack = errors.New("aucune piste ne correspond aux filtres")
 
 func SaveTrack(track models.Track) error {
 	// ON CONFLICT sur (mal_id, title, track_type) nécessite la contrainte :
@@ -97,10 +104,37 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear, malIDsParam).
 		Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL,
 			&t.Difficulty, &t.TrackType, &t.AnimeYear, &t.MalID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNoTrack
+	}
 	if err != nil {
 		return nil, err
 	}
 	return &t, nil
+}
+
+// CountPlayableForMalIDs retourne, pour une liste de MAL IDs (la liste perso de
+// l'utilisateur), le nombre d'animés et de pistes réellement jouables présents
+// dans la librairie. Sert à prévenir l'utilisateur avant qu'il ne lance une
+// partie filtrée qui n'aurait (presque) aucune piste disponible.
+func CountPlayableForMalIDs(ids []int) (animeCount int, trackCount int, err error) {
+	if len(ids) == 0 {
+		return 0, 0, nil
+	}
+	malIDs := make([]int32, 0, len(ids))
+	for _, id := range ids {
+		malIDs = append(malIDs, int32(id))
+	}
+	query := `
+		SELECT COUNT(DISTINCT mal_id), COUNT(*)
+		FROM tracks
+		WHERE audio_url != 'not_found'
+		  AND mal_id = ANY($1::int[])`
+	err = Pool.QueryRow(context.Background(), query, malIDs).Scan(&animeCount, &trackCount)
+	if err != nil {
+		return 0, 0, fmt.Errorf("comptage des pistes jouables échoué : %w", err)
+	}
+	return animeCount, trackCount, nil
 }
 
 // IsAnimeImported retourne true si des pistes existent déjà pour cet anime.

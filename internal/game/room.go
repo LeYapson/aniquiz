@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -230,6 +231,20 @@ func (r *Room) Run() {
 	}
 }
 
+// broadcastNotice sends an informational banner to every client in the room.
+// Safe to call from background goroutines (e.g. nextRound): it never blocks and
+// bails out if the room is being torn down.
+func (r *Room) broadcastNotice(text string) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"type":    "NOTICE",
+		"payload": text,
+	})
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+	}
+}
+
 // safeSend delivers a message to a client without blocking the caller.
 func (r *Room) safeSend(c *Client, msg []byte) {
 	select {
@@ -413,8 +428,27 @@ func (r *Room) nextRound() {
 	r.Mu.Unlock()
 
 	track, err := database.GetRandomTrackFiltered(filters)
+
+	// La librairie est petite : filtrer sur la liste perso de l'utilisateur peut
+	// ne renvoyer aucune piste. Plutôt que de laisser la partie bloquée sans
+	// musique, on retire le filtre « liste perso » et on prévient les joueurs.
+	if errors.Is(err, database.ErrNoTrack) && len(filters.MalIDs) > 0 {
+		r.broadcastNotice("Aucune musique de votre liste perso n'est disponible pour le moment — filtre ignoré pour cette partie.")
+		filters.MalIDs = nil
+		r.Mu.Lock()
+		r.FilterMalID = nil
+		r.Mu.Unlock()
+		track, err = database.GetRandomTrackFiltered(filters)
+	}
+
 	if err != nil {
-		log.Printf("Erreur récup musique: %v", err)
+		// Même sans filtre liste perso, aucune piste : librairie vide ou filtres
+		// type/année trop restrictifs. On termine proprement au lieu de figer.
+		log.Printf("Erreur récup musique (salon %s): %v", r.ID, err)
+		if errors.Is(err, database.ErrNoTrack) {
+			r.broadcastNotice("Aucune musique ne correspond aux paramètres de la partie.")
+		}
+		r.finishGame()
 		return
 	}
 

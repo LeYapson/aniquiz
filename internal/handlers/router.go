@@ -211,7 +211,20 @@ func NewRouter(store Store) *gin.Engine {
 			if ids == nil {
 				ids = []int{}
 			}
-			c.JSON(http.StatusOK, ids)
+
+			// Combien de ces animés ont réellement des pistes jouables ?
+			// Permet à l'UI de prévenir si la librairie ne couvre presque rien
+			// de la liste perso de l'utilisateur.
+			playableAnime, playableTracks, err := database.CountPlayableForMalIDs(ids)
+			if err != nil {
+				playableAnime, playableTracks = 0, 0
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"ids":             ids,
+				"playable_anime":  playableAnime,
+				"playable_tracks": playableTracks,
+			})
 		})
 
 		protected.GET("/api/profile", func(c *gin.Context) {
