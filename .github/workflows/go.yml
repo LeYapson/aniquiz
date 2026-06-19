@@ -167,6 +167,7 @@ jobs:
       contents: read
       packages: write
       security-events: write
+      actions: read # upload-sarif reads the workflow run for analysis metadata
 
     outputs:
       image: ${{ steps.meta.outputs.tags }}
@@ -225,8 +226,13 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
 
+      # Uploading to the Security tab requires code scanning, which is free on
+      # PUBLIC repos but needs GitHub Advanced Security on PRIVATE repos. If it's
+      # unavailable, don't fail the whole pipeline — the scan results are still in
+      # the job log. Remove continue-on-error once code scanning is confirmed enabled.
       - name: Upload Trivy SARIF report
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
