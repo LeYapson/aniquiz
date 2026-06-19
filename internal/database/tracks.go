@@ -137,6 +137,41 @@ func CountPlayableForMalIDs(ids []int) (animeCount int, trackCount int, err erro
 	return animeCount, trackCount, nil
 }
 
+// AudioRef identifie l'URL audio d'une piste, pour la vérification de validité.
+type AudioRef struct {
+	ID       int
+	AudioURL string
+}
+
+// GetTracksWithAudio retourne les pistes ayant une URL audio renseignée
+// (autre que 'not_found'), afin d'en vérifier la disponibilité.
+func GetTracksWithAudio() ([]AudioRef, error) {
+	rows, err := Pool.Query(context.Background(),
+		`SELECT id, audio_url FROM tracks WHERE audio_url != 'not_found' AND audio_url != ''`)
+	if err != nil {
+		return nil, fmt.Errorf("récupération des pistes audio échouée : %w", err)
+	}
+	defer rows.Close()
+
+	var refs []AudioRef
+	for rows.Next() {
+		var r AudioRef
+		if err := rows.Scan(&r.ID, &r.AudioURL); err != nil {
+			return nil, err
+		}
+		refs = append(refs, r)
+	}
+	return refs, nil
+}
+
+// MarkAudioNotFound marque une piste comme sans audio jouable (lien mort).
+// Elle est alors automatiquement exclue de GetRandomTrackFiltered.
+func MarkAudioNotFound(id int) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE tracks SET audio_url = 'not_found' WHERE id = $1`, id)
+	return err
+}
+
 // IsAnimeImported retourne true si des pistes existent déjà pour cet anime.
 func IsAnimeImported(malID int) (bool, error) {
 	var count int
