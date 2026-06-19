@@ -15,7 +15,7 @@ var Pool *pgxpool.Pool
 func Connect() (*pgxpool.Pool, error) {
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		connStr = "postgres://postgres@192.168.27.74:5432/postgres?sslmode=disable"
+		connStr = "postgres://postgres:postgres@192.168.27.74:5432/aniquiz?sslmode=disable"
 	}
 
 	pool, err := pgxpool.New(context.Background(), connStr)

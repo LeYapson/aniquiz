@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"os"
+	"unicode"
 
 	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/game"
@@ -16,6 +17,7 @@ type Store interface {
 	GetRandomTrack() (*models.Track, error)
 	GetTrackByID(id int) (*models.Track, error)
 	GetAllTracks() ([]models.Track, error)
+	GetDistinctAnimeNames() ([]string, error)
 	CreateUser(username, email, passwordHash string) error
 	GetUserByUsernameOrEmail(identifier string) (*models.User, error)
 	SaveSpeedrunResult(userID, score int) error
@@ -85,22 +87,15 @@ func NewRouter(store Store) *gin.Engine {
 	router.GET("/api/leaderboard/speedrun", SpeedrunLeaderboardHandler(store))
 
 	router.GET("/animes", func(c *gin.Context) {
-		tracks, err := store.GetAllTracks()
+		names, err := store.GetDistinctAnimeNames()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de lire la DB"})
 			return
 		}
-		animeSet := make(map[string]struct{})
-		for _, track := range tracks {
-			if track.AnimeName != "" {
-				animeSet[track.AnimeName] = struct{}{}
-			}
+		if names == nil {
+			names = []string{}
 		}
-		animeNames := make([]string, 0, len(animeSet))
-		for name := range animeSet {
-			animeNames = append(animeNames, name)
-		}
-		c.JSON(http.StatusOK, animeNames)
+		c.JSON(http.StatusOK, names)
 	})
 
 	authLimited := router.Group("/")
@@ -126,6 +121,17 @@ func NewRouter(store Store) *gin.Engine {
 			if err := c.ShouldBindJSON(&body); err != nil || body.RoomID == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "room_id requis"})
 				return
+			}
+			// Restrict room IDs to safe characters to prevent log injection or path traversal.
+			if len(body.RoomID) > 64 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "room_id trop long (max 64 caractères)"})
+				return
+			}
+			for _, r := range body.RoomID {
+				if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "room_id invalide (lettres, chiffres, - et _ uniquement)"})
+					return
+				}
 			}
 
 			game.RoomsMu.Lock()

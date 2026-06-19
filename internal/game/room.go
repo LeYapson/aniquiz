@@ -13,10 +13,8 @@ import (
 )
 
 var (
-	// ActiveRooms stocke tous les salons en cours avec leur ID comme clé
 	ActiveRooms = make(map[string]*Room)
-	// RoomsMu protège l'accès à la map ActiveRooms pour éviter les crashs multijoueurs
-	RoomsMu sync.Mutex
+	RoomsMu     sync.Mutex
 )
 
 type RoomState string
@@ -26,14 +24,12 @@ const (
 	StatePlaying RoomState = "PLAYING"
 )
 
-// RoundAnswer enregistre une bonne réponse pendant un round.
 type RoundAnswer struct {
 	Username string `json:"username"`
 	TimeMs   int64  `json:"time_ms"`
 	Bonus    int    `json:"bonus"`
 }
 
-// RoundSummaryItem résume un round terminé pour le récapitulatif de fin de partie.
 type RoundSummaryItem struct {
 	Round     int           `json:"round"`
 	AnimeName string        `json:"anime_name"`
@@ -61,17 +57,17 @@ type Room struct {
 	Password      string
 	CreatorID     string
 	HasAnswered   map[string]bool
-	RoundAnswers  []RoundAnswer      // joueurs ayant trouvé ce round
-	RoundStart    time.Time          // heure de début du round courant
-	SkipVotes     map[string]bool    // votes pour passer le round courant
-	RoundHistory  []RoundSummaryItem // récap de tous les rounds (envoyé dans GAME_OVER)
-	// Filtres de piste
-	FilterType  string // "OP", "ED", "" (tout)
-	MinYear     int    // 0 = pas de filtre
-	MaxYear     int    // 0 = pas de filtre
-	FilterMalID []int  // liste MAL IDs (filtre liste perso)
+	RoundAnswers  []RoundAnswer
+	RoundStart    time.Time
+	SkipVotes     map[string]bool
+	RoundHistory  []RoundSummaryItem
+	FilterType    string
+	MinYear       int
+	MaxYear       int
+	FilterMalID   []int
 
-	Mu sync.Mutex
+	Mu   sync.Mutex
+	done chan struct{} // closed when Run() exits; signals background goroutines to stop
 }
 
 type RoomSummary struct {
@@ -109,7 +105,7 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 	return &Room{
 		ID:            id,
 		Clients:       make(map[*Client]bool),
-		Broadcast:     make(chan []byte),
+		Broadcast:     make(chan []byte, 64),
 		Register:      make(chan *Client),
 		Unregister:    make(chan *Client),
 		Start:         make(chan bool),
@@ -126,38 +122,38 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 		RoundAnswers:  []RoundAnswer{},
 		SkipVotes:     make(map[string]bool),
 		RoundHistory:  []RoundSummaryItem{},
+		done:          make(chan struct{}),
 	}
 }
 
-// Run est le moteur du salon : il tourne en boucle pour gérer les événements
+// Run is the room's event loop. All state mutations go through this goroutine,
+// eliminating the need for locks on Clients map access.
+// Closes r.done when it exits so background goroutines can detect shutdown.
 func (r *Room) Run() {
+	defer close(r.done)
+
 	for {
 		select {
 		case client := <-r.Register:
-			// Joueur arrivant en cours de partie → spectateur
 			if r.State == StatePlaying {
 				client.IsSpectator = true
 			}
 			r.Clients[client] = true
 
-			// 1. Notifier le client de son statut
 			statusMsg, _ := json.Marshal(map[string]interface{}{
 				"type":    "SPECTATOR_STATUS",
 				"payload": client.IsSpectator,
 			})
-			client.Send <- statusMsg
+			r.safeSend(client, statusMsg)
 
-			// 2. Liste des joueurs pour tout le monde (incluant le nouveau)
 			go r.BroadcastPlayerList()
 
-			// 3. Envoyer l'état actuel (LOBBY ou PLAYING) au nouveau venu
 			msgState, _ := json.Marshal(map[string]interface{}{
 				"type":    "GAME_STATE",
 				"payload": r.State,
 			})
-			client.Send <- msgState
+			r.safeSend(client, msgState)
 
-			// 4. Si une partie est en cours, envoyer la musique actuelle au spectateur
 			if r.State == StatePlaying && r.CurrentTrack != nil {
 				msgTrack, _ := json.Marshal(map[string]interface{}{
 					"type": "NewQuestion",
@@ -166,7 +162,7 @@ func (r *Room) Run() {
 						"room_id":   r.ID,
 					},
 				})
-				client.Send <- msgTrack
+				r.safeSend(client, msgTrack)
 			}
 
 		case <-r.Start:
@@ -174,7 +170,6 @@ func (r *Room) Run() {
 				r.State = StatePlaying
 				r.broadcastGameState()
 				go r.nextRound()
-
 				log.Println("La partie commence dans le salon:", r.ID)
 			}
 
@@ -184,7 +179,6 @@ func (r *Room) Run() {
 				close(client.Send)
 
 				if len(r.Clients) == 0 {
-					// Salon vide : arrêter la partie et supprimer le salon
 					r.Mu.Lock()
 					r.IsPlaying = false
 					r.Mu.Unlock()
@@ -195,7 +189,6 @@ func (r *Room) Run() {
 					return
 				}
 
-				// Si le joueur qui part était l'hôte, transférer l'hôte
 				r.Mu.Lock()
 				wasHost := r.CreatorID == client.Username
 				if wasHost {
@@ -215,10 +208,7 @@ func (r *Room) Run() {
 						"payload": newHost,
 					})
 					for c := range r.Clients {
-						select {
-						case c.Send <- hostMsg:
-						default:
-						}
+						r.safeSend(c, hostMsg)
 					}
 				}
 
@@ -227,25 +217,43 @@ func (r *Room) Run() {
 
 		case message := <-r.Broadcast:
 			for client := range r.Clients {
-				client.Send <- message
+				// Non-blocking send: drop message to a client whose buffer is full
+				// and disconnect them rather than stalling the entire room.
+				select {
+				case client.Send <- message:
+				default:
+					delete(r.Clients, client)
+					close(client.Send)
+				}
 			}
 		}
 	}
 }
 
-// Fonction pour envoyer l'état au Front
+// safeSend delivers a message to a client without blocking the caller.
+func (r *Room) safeSend(c *Client, msg []byte) {
+	select {
+	case c.Send <- msg:
+	default:
+	}
+}
+
 func (r *Room) broadcastGameState() {
 	msg := map[string]interface{}{
 		"type":    "GAME_STATE",
 		"payload": r.State,
 	}
 	data, _ := json.Marshal(msg)
+	// broadcastGameState is called from Run() where r.Broadcast is consumed;
+	// send directly to each client to avoid a deadlock on the Broadcast channel.
 	for c := range r.Clients {
-		c.Send <- data
+		r.safeSend(c, data)
 	}
 }
 
-// BroadcastPlayerList envoie la liste des joueurs et spectateurs à tous les clients du salon.
+// BroadcastPlayerList sends an updated player list to all clients.
+// Must be called in a goroutine when originating from Run() to avoid deadlock
+// on the Broadcast channel.
 func (r *Room) BroadcastPlayerList() {
 	var players []models.PlayerInfo
 	spectatorCount := 0
@@ -268,7 +276,10 @@ func (r *Room) BroadcastPlayerList() {
 			"spectator_count": spectatorCount,
 		},
 	})
-	r.Broadcast <- data
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+	}
 }
 
 func (r *Room) EndRound(reason string) {
@@ -308,26 +319,31 @@ func (r *Room) EndRound(reason string) {
 	}
 
 	data, _ := json.Marshal(msg)
-	r.Broadcast <- data
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+		return
+	}
 
-	time.Sleep(10 * time.Second)
+	// Wait before starting next round; abort if room is destroyed.
+	select {
+	case <-time.After(10 * time.Second):
+	case <-r.done:
+		return
+	}
+
 	go r.nextRound()
 }
 
-const bonusPremier = 10 // points bonus pour la 1ère bonne réponse du round
+const bonusPremier = 10
 
 func (r *Room) CheckAnswer(client *Client, answer string) {
 	r.Mu.Lock()
-	if !r.IsPlaying || r.CurrentTrack == nil {
-		r.Mu.Unlock()
-		return
-	}
-	if r.HasAnswered[client.ID] {
+	if !r.IsPlaying || r.CurrentTrack == nil || r.HasAnswered[client.ID] {
 		r.Mu.Unlock()
 		return
 	}
 	track := r.CurrentTrack
-	isFirst := len(r.RoundAnswers) == 0
 	elapsed := time.Since(r.RoundStart).Milliseconds()
 	r.Mu.Unlock()
 
@@ -336,12 +352,18 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		return
 	}
 
+	// Re-acquire lock to atomically check + record the answer, preventing two
+	// simultaneous correct submissions both seeing isFirst=true (TOCTOU).
+	r.Mu.Lock()
+	if r.HasAnswered[client.ID] {
+		r.Mu.Unlock()
+		return
+	}
+	isFirst := len(r.RoundAnswers) == 0
 	bonus := 0
 	if isFirst {
 		bonus = bonusPremier
 	}
-
-	r.Mu.Lock()
 	r.HasAnswered[client.ID] = true
 	r.RoundAnswers = append(r.RoundAnswers, RoundAnswer{
 		Username: client.Username,
@@ -360,7 +382,11 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		},
 	}
 	data, _ := json.Marshal(msg)
-	r.Broadcast <- data
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+		return
+	}
 
 	go r.BroadcastPlayerList()
 }
@@ -373,15 +399,11 @@ func (r *Room) nextRound() {
 		return
 	}
 	r.CurrentRound++
-
 	r.HasAnswered = make(map[string]bool)
 	r.RoundAnswers = []RoundAnswer{}
 	r.SkipVotes = make(map[string]bool)
 	r.RoundStart = time.Now()
 	duration := r.RoundDuration
-	r.Mu.Unlock()
-
-	r.Mu.Lock()
 	filters := models.TrackFilters{
 		TrackType: r.FilterType,
 		MinYear:   r.MinYear,
@@ -395,6 +417,7 @@ func (r *Room) nextRound() {
 		log.Printf("Erreur récup musique: %v", err)
 		return
 	}
+
 	r.Mu.Lock()
 	r.CurrentTrack = track
 	r.IsPlaying = true
@@ -410,14 +433,21 @@ func (r *Room) nextRound() {
 			"duration":  duration,
 		},
 	}
-
 	data, _ := json.Marshal(msg)
 
-	r.Broadcast <- data
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+		return
+	}
 
+	// Round timer: abort cleanly when the room is destroyed mid-round.
 	go func() {
-		time.Sleep(time.Duration(duration) * time.Second)
-		r.EndRound("Temps écoulé !")
+		select {
+		case <-time.After(time.Duration(duration) * time.Second):
+			r.EndRound("Temps écoulé !")
+		case <-r.done:
+		}
 	}()
 }
 
@@ -432,10 +462,8 @@ func (r *Room) finishGame() {
 	r.RoundHistory = []RoundSummaryItem{}
 	r.Mu.Unlock()
 
-	// 1. Distribuer l'XP avant de réinitialiser les scores
 	r.grantXP()
 
-	// Lever le statut spectateur pour tous : la prochaine partie est ouverte à tous
 	for c := range r.Clients {
 		if c.IsSpectator {
 			c.IsSpectator = false
@@ -443,14 +471,10 @@ func (r *Room) finishGame() {
 				"type":    "SPECTATOR_STATUS",
 				"payload": false,
 			})
-			select {
-			case c.Send <- msg:
-			default:
-			}
+			r.safeSend(c, msg)
 		}
 	}
 
-	// 2. On prévient le Front que c'est fini
 	msg := map[string]interface{}{
 		"type": "GAME_OVER",
 		"payload": map[string]interface{}{
@@ -459,17 +483,18 @@ func (r *Room) finishGame() {
 		},
 	}
 	data, _ := json.Marshal(msg)
-	r.Broadcast <- data
+	select {
+	case r.Broadcast <- data:
+	case <-r.done:
+		return
+	}
 
-	// 3. On remet les scores de tout le monde à 0
 	r.resetScores()
-
-	// 4. On renvoie les états mis à jour au Front (Lobby + Scores à 0)
 	r.broadcastGameState()
 	go r.BroadcastPlayerList()
 }
 
-// XPToLevel convertit un total d'XP en niveau selon la formule floor(sqrt(xp/100)) + 1.
+// XPToLevel converts a total XP amount to a level using floor(sqrt(xp/100)) + 1.
 func XPToLevel(xp int) int {
 	if xp <= 0 {
 		return 1
@@ -481,7 +506,7 @@ func XPToLevel(xp int) int {
 	return level
 }
 
-// XPForScore calcule l'XP gagné pour un score de partie (minimum 5 pour la participation).
+// XPForScore computes XP earned for a given game score (minimum 5 for participation).
 func XPForScore(score int) int {
 	xp := score * 10
 	if xp < 5 {
@@ -490,9 +515,6 @@ func XPForScore(score int) int {
 	return xp
 }
 
-// grantXP attribue de l'XP à chaque joueur connecté selon son score de la partie.
-// XP gagné = score * 10 (minimum 5 pour la participation).
-// Envoie un message XP_GAINED personnel à chaque joueur authentifié.
 func (r *Room) grantXP() {
 	for c := range r.Clients {
 		if c.UserID == 0 || c.IsSpectator {
@@ -515,10 +537,7 @@ func (r *Room) grantXP() {
 				"new_level": newLevel,
 			},
 		})
-		select {
-		case c.Send <- msg:
-		default:
-		}
+		r.safeSend(c, msg)
 	}
 }
 

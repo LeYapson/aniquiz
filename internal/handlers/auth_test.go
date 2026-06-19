@@ -22,7 +22,8 @@ type authMockStore struct {
 
 func (m *authMockStore) GetRandomTrack() (*models.Track, error)    { return nil, nil }
 func (m *authMockStore) GetTrackByID(_ int) (*models.Track, error) { return nil, nil }
-func (m *authMockStore) GetAllTracks() ([]models.Track, error)     { return nil, nil }
+func (m *authMockStore) GetAllTracks() ([]models.Track, error)          { return nil, nil }
+func (m *authMockStore) GetDistinctAnimeNames() ([]string, error)        { return nil, nil }
 func (m *authMockStore) CreateUser(_, _, _ string) error           { return m.createErr }
 func (m *authMockStore) GetUserByUsernameOrEmail(_ string) (*models.User, error) {
 	if m.getUserErr != nil {

@@ -114,6 +114,9 @@ func AnswerSpeedrunHandler(store Store) gin.HandlerFunc {
 
 		timeRemaining := time.Until(session.ExpiresAt)
 		if timeRemaining <= 0 {
+			speedrunSessionsMu.Lock()
+			delete(speedrunSessions, req.SessionID)
+			speedrunSessionsMu.Unlock()
 			_ = store.SaveSpeedrunResult(session.UserID, session.Score)
 			c.JSON(http.StatusOK, gin.H{
 				"finished":       true,
@@ -177,6 +180,9 @@ func SkipSpeedrunHandler(store Store) gin.HandlerFunc {
 
 		timeRemaining := time.Until(session.ExpiresAt)
 		if timeRemaining <= 0 {
+			speedrunSessionsMu.Lock()
+			delete(speedrunSessions, req.SessionID)
+			speedrunSessionsMu.Unlock()
 			_ = store.SaveSpeedrunResult(session.UserID, session.Score)
 			c.JSON(http.StatusOK, gin.H{
 				"finished":       true,
