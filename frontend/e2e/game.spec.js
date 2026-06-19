@@ -12,6 +12,18 @@ const NEW_QUESTION = JSON.stringify({
   type: 'NewQuestion',
   payload: { audio_url: 'https://example.com/track.webm', duration: 30 },
 })
+const ROUND_ENDED = JSON.stringify({
+  type: 'ROUND_ENDED',
+  payload: {
+    answer: 'Naruto',
+    title: 'Rocks',
+    artist: 'Hound Dog',
+    video_url: 'https://example.com/video.webm',
+    track_type: 'OP',
+    difficulty: 75,
+    found_by: [],
+  },
+})
 const SPECTATOR_ON = JSON.stringify({ type: 'SPECTATOR_STATUS', payload: true })
 const PLAYER_LIST_PLAYING = JSON.stringify({
   type: 'PLAYER_LIST',
@@ -20,7 +32,24 @@ const PLAYER_LIST_PLAYING = JSON.stringify({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Remplace les méthodes media du navigateur par des no-ops.
+ * Doit être appelé AVANT page.goto() pour s'exécuter avant le JS de la page.
+ * Sans ça, load() + play() déclenchent de vraies requêtes réseau vers des URL
+ * fictives (https://example.com/...) et peuvent faire échouer les tests en CI.
+ */
+async function mockMedia(page) {
+  await page.addInitScript(() => {
+    HTMLMediaElement.prototype.load  = function () {}
+    HTMLMediaElement.prototype.play  = function () { return Promise.resolve() }
+    HTMLMediaElement.prototype.pause = function () {}
+  })
+}
+
 async function mockAllApis(page, username = 'Alice', roomId = 'general') {
+  // Empêche les vraies requêtes réseau pour les médias
+  await mockMedia(page)
+
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({
       status: 200,
@@ -63,17 +92,20 @@ async function loginAs(page, username = 'Alice') {
   await page.getByPlaceholder('Votre pseudo').fill(username)
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('.btn-play-main')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Jouer' })).toBeVisible()
 }
 
 // Ouvre la modale de modes et choisit Multi pour atteindre la liste des salons.
 async function openRoomList(page) {
-  await page.locator('.btn-play-main').click()
+  await page.getByRole('button', { name: 'Jouer' }).click()
   await page.locator('.mode-card-btn', { hasText: 'Multi' }).click()
   await expect(page.getByText('Salons disponibles')).toBeVisible()
 }
 
 async function joinRoomAsSpectator(page, username = 'Alice') {
+  // Empêche les vraies requêtes réseau pour les médias
+  await mockMedia(page)
+
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({
       status: 200,
@@ -109,7 +141,7 @@ async function joinRoomAsSpectator(page, username = 'Alice') {
   await page.getByPlaceholder('Votre pseudo').fill(username)
   await page.locator('input[type="password"]').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
-  await expect(page.locator('.btn-play-main')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Jouer' })).toBeVisible()
   await openRoomList(page)
   await page.getByRole('button', { name: /Regarder/ }).first().click()
 }
@@ -217,7 +249,7 @@ test.describe('Lobby', () => {
 
     await page.getByRole('button', { name: 'Quitter' }).click()
 
-    await expect(page.locator('.btn-play-main')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Jouer' })).toBeVisible()
   })
 })
 
@@ -239,12 +271,79 @@ test.describe('Partie', () => {
     await expect(page.locator('audio')).toBeAttached()
   })
 
+  test('lance automatiquement la lecture audio à la réception d\'une question', async ({ page }) => {
+    // Espionne play() pour vérifier qu'il est bien appelé par le watcher
+    await mockAllApis(page)
+    await page.addInitScript(() => {
+      window.__playCallCount = 0
+      HTMLMediaElement.prototype.load  = function () {}
+      HTMLMediaElement.prototype.play  = function () {
+        window.__playCallCount++
+        return Promise.resolve()
+      }
+      HTMLMediaElement.prototype.pause = function () {}
+    })
+
+    let wsServer
+    await page.routeWebSocket(/\/ws/, (ws) => {
+      wsServer = ws
+      ws.send(LOBBY_STATE)
+      ws.send(PLAYER_LIST)
+    })
+
+    await page.goto('/')
+    await loginAs(page)
+    await openRoomList(page)
+    await page.getByRole('button', { name: 'Rejoindre' }).first().click()
+    await expect(page.locator('.sidebar').getByText('Alice')).toBeVisible()
+
+    wsServer.send(PLAYING_STATE)
+    wsServer.send(NEW_QUESTION)
+
+    // L'élément audio doit apparaître
+    await expect(page.locator('audio')).toBeAttached()
+
+    // play() doit avoir été appelé automatiquement par le watcher
+    const playCallCount = await page.evaluate(() => window.__playCallCount)
+    expect(playCallCount).toBeGreaterThanOrEqual(1)
+  })
+
   test('affiche le champ de réponse pendant la partie', async ({ page }) => {
     await joinRoom(page)
     await page.getByRole('button', { name: 'Lancer la partie' }).click()
 
     await expect(page.getByPlaceholder("Nom de l'anime...")).toBeVisible()
     await expect(page.getByRole('button', { name: 'Envoyer ma réponse' })).toBeVisible()
+  })
+
+  test('affiche la vidéo de révélation en fin de round', async ({ page }) => {
+    await mockAllApis(page)
+
+    let wsServer
+    await page.routeWebSocket(/\/ws/, (ws) => {
+      wsServer = ws
+      ws.send(LOBBY_STATE)
+      ws.send(PLAYER_LIST)
+      ws.onMessage((msg) => {
+        const data = JSON.parse(msg)
+        if (data.type === 'START_GAME') {
+          ws.send(PLAYING_STATE)
+          ws.send(NEW_QUESTION)
+        }
+      })
+    })
+
+    await page.goto('/')
+    await loginAs(page)
+    await openRoomList(page)
+    await page.getByRole('button', { name: 'Rejoindre' }).first().click()
+    await page.getByRole('button', { name: 'Lancer la partie' }).click()
+    await expect(page.locator('audio')).toBeAttached()
+
+    wsServer.send(ROUND_ENDED)
+
+    await expect(page.locator('video')).toBeAttached()
+    await expect(page.getByText('Naruto')).toBeVisible()
   })
 })
 
