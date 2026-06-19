@@ -9,16 +9,7 @@
       @connect-mal="connectMAL"
     />
 
-    <Transition name="toast">
-      <div v-if="xpToast" class="xp-toast" role="status" aria-live="polite" aria-atomic="true">
-        <span class="xp-icon">⭐</span>
-        <div>
-          <strong>+{{ xpToast.xpGained }} XP</strong>
-          <div v-if="xpToast.levelUp" class="level-up">Niveau {{ xpToast.newLevel }} atteint ! 🎉</div>
-          <div v-else class="xp-total">Total : {{ xpToast.newXP }} XP · Niv. {{ xpToast.newLevel }}</div>
-        </div>
-      </div>
-    </Transition>
+    <ToastContainer />
 
     <main>
       <LandingPage
@@ -172,8 +163,8 @@
 
                   <video
                     v-if="currentAnswerInfo.videoUrl"
+                    ref="videoEl"
                     :src="currentAnswerInfo.videoUrl"
-                    autoplay
                     controls
                     :aria-label="`Générique de ${currentAnswerInfo.animeName}`"
                     style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 14px;"
@@ -188,9 +179,9 @@
 
                   <audio
                     v-if="currentAudioUrl"
+                    ref="audioEl"
                     :src="currentAudioUrl"
                     :aria-label="`Extrait audio — trouvez le nom de l'anime`"
-                    autoplay
                     controls
                   ></audio>
 
@@ -288,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, watch, nextTick, onMounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
@@ -302,8 +293,12 @@ import ReactionOverlay from "./components/ReactionOverlay.vue";
 import AnimeAutocomplete from "./components/AnimeAutocomplete.vue";
 import AppHeader from "./components/AppHeader.vue";
 import HomeDashboard from "./components/HomeDashboard.vue";
+import ToastContainer from "./components/ToastContainer.vue";
 import { authStore } from "./authStore";
+import { useToast } from "./composables/useToast";
 import { API_URL, WS_URL } from "./config";
+
+const toast = useToast();
 
 const isConnected = ref(false);
 const room = ref("");
@@ -323,7 +318,6 @@ const currentAnswerInfo = ref({
   difficulty: 0,
   foundBy: [],
 });
-const xpToast = ref(null);
 const finalScores = ref([]);
 const roundHistory = ref([]);
 const skipVotes = ref({ votes: 0, needed: 1 });
@@ -343,6 +337,25 @@ const isSpectator = ref(false);
 const spectatorCount = ref(0);
 const mobileTab = ref("game");
 const reactionOverlay = ref(null);
+const audioEl = ref(null);
+const videoEl = ref(null);
+
+// Play audio after Vue renders the new src into the DOM
+watch(currentAudioUrl, async (url) => {
+  if (!url) return;
+  await nextTick();
+  if (!audioEl.value) return;
+  audioEl.value.load();
+  audioEl.value.play().catch(() => {});
+});
+
+// Play video after Vue renders the reveal panel
+watch(() => currentAnswerInfo.value.videoUrl, async (url) => {
+  if (!url) return;
+  await nextTick();
+  videoEl.value?.play().catch(() => {});
+});
+
 let socket = null;
 let reconnectAttempts = 0;
 let intentionalClose = false;
@@ -490,11 +503,7 @@ const connectWebSocket = (room_id, password) => {
           roundDuration.value = data.payload.duration;
           hasVotedSkip.value = false;
           skipVotes.value = { votes: 0, needed: 1 };
-          const audio = document.querySelector("audio");
-          if (audio) {
-            audio.load();
-            audio.play().catch((e) => console.warn("Autoplay bloqué par le navigateur"));
-          }
+          // playback is driven by the watch(currentAudioUrl) watcher above
           break;
         case "ROUND_ENDED":
           isRevealing.value = true;
@@ -525,7 +534,7 @@ const connectWebSocket = (room_id, password) => {
           break;
         case "KICKED":
           disconnect();
-          alert(data.payload ?? "Vous avez été expulsé de la partie.");
+          toast.error(data.payload ?? "Vous avez été expulsé de la partie.", { title: "Expulsé" });
           break;
         case "GAME_OVER":
           finalScores.value = [...players.value].sort((a, b) => b.score - a.score);
@@ -542,24 +551,23 @@ const connectWebSocket = (room_id, password) => {
         case "REACTION_BROADCAST":
           reactionOverlay.value?.addParticle(data.payload.emoji);
           break;
-        case "XP_GAINED":
+        case "XP_GAINED": {
           const oldLevel = authStore.user?.level ?? 1;
-          const levelUp = data.payload.new_level > oldLevel;
-          xpToast.value = {
+          const levelUp  = data.payload.new_level > oldLevel;
+          toast.xp({
             xpGained: data.payload.xp_gained,
-            newXP: data.payload.new_xp,
+            newXP:    data.payload.new_xp,
             newLevel: data.payload.new_level,
             levelUp,
-          };
-          // Mettre à jour le niveau dans le store
+          });
           if (authStore.user) {
             authStore.setUser(
               { ...authStore.user, xp: data.payload.new_xp, level: data.payload.new_level },
               authStore.token
             );
           }
-          setTimeout(() => { xpToast.value = null; }, 5000);
           break;
+        }
       }
     } catch (err) {
       console.error("Erreur message:", err);
@@ -945,28 +953,7 @@ main { flex: 1; display: flex; flex-direction: column; }
   font-size: 0.88rem;
 }
 
-/* ── XP Toast ───────────────────────────────────────────── */
-.xp-toast {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  background: #16213e;
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #f1f5f9;
-  padding: 14px 20px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-  border-left: 4px solid #ffd700;
-  z-index: 1000;
-}
-.xp-icon { font-size: 1.8rem; }
-.level-up { color: #ffd700; font-weight: 700; margin-top: 2px; }
-.xp-total { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
-.toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
+/* XP / notification toasts are handled by ToastContainer.vue */
 
 /* ── Leaderboard public (avant login) ───────────────────── */
 .public-leaderboard {
@@ -1071,8 +1058,6 @@ main { flex: 1; display: flex; flex-direction: column; }
     outline: 2px solid #f97316;
     outline-offset: -2px;
   }
-
-  .xp-toast { right: 12px; bottom: 68px; left: 12px; }
 
   .sidebar { width: 100%; border-right: none; }
   .chat-aside { width: 100%; border-left: none; }
