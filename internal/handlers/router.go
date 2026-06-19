@@ -170,6 +170,8 @@ func NewRouter(store Store) *gin.Engine {
 		})
 
 		protected.POST("/api/admin/import", BatchImportHandler)
+		protected.POST("/api/admin/audio/healthcheck", AudioHealthcheckHandler)
+		protected.GET("/api/admin/audio/healthcheck/status", AudioHealthStatusHandler)
 		protected.GET("/api/anime/search", AnimeSearchHandler)
 
 		// Retourne les MAL IDs depuis la liste AniList et/ou MAL de l'utilisateur

@@ -179,11 +179,18 @@
 
                   <audio
                     v-if="currentAudioUrl"
+                    v-show="!audioFailed"
                     ref="audioEl"
                     :src="currentAudioUrl"
                     :aria-label="`Extrait audio — trouvez le nom de l'anime`"
                     controls
+                    @error="onAudioError"
                   ></audio>
+
+                  <div v-if="audioFailed" class="audio-failed" role="alert">
+                    ⚠️ L'extrait audio n'a pas pu être chargé.
+                    <button type="button" class="audio-retry" @click="retryAudio">Réessayer</button>
+                  </div>
 
                   <div v-if="isSpectator" class="spectator-watching" role="status">
                     👁 Vous regardez la partie en tant que spectateur
@@ -339,15 +346,31 @@ const mobileTab = ref("game");
 const reactionOverlay = ref(null);
 const audioEl = ref(null);
 const videoEl = ref(null);
+const audioFailed = ref(false);
 
 // Play audio after Vue renders the new src into the DOM
 watch(currentAudioUrl, async (url) => {
   if (!url) return;
+  audioFailed.value = false;
   await nextTick();
   if (!audioEl.value) return;
   audioEl.value.load();
   audioEl.value.play().catch(() => {});
 });
+
+// Le clip est servi depuis un mirror externe : il peut être mort/indisponible.
+// On le signale clairement plutôt que de laisser un lecteur muet.
+const onAudioError = () => {
+  if (currentAudioUrl.value) audioFailed.value = true;
+};
+
+const retryAudio = async () => {
+  audioFailed.value = false;
+  await nextTick();
+  if (!audioEl.value) return;
+  audioEl.value.load();
+  audioEl.value.play().catch(() => {});
+};
 
 // Play video after Vue renders the reveal panel
 watch(() => currentAnswerInfo.value.videoUrl, async (url) => {
@@ -864,6 +887,32 @@ main { flex: 1; display: flex; flex-direction: column; }
 .reveal-zone h2 { font-size: 1.4rem; margin-bottom: 10px; }
 .answer-name { color: #f9a8d4; font-weight: 700; }
 .no-video { font-style: italic; margin-top: 20px; color: #94a3b8; }
+
+.audio-failed {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  color: #fbbf24;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.audio-retry {
+  background: #f97316;
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.audio-retry:hover { opacity: 0.88; }
 
 /* ── Reveal enrichi ─────────────────────────────────────── */
 .reveal-header { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
