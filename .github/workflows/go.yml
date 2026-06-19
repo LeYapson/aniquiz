@@ -37,7 +37,7 @@ jobs:
       # turn a green pipeline red with no code change. Flip to exit-code: 1 once the
       # dependency tree is pinned and triaged.
       - name: Trivy SAST (filesystem scan)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -211,7 +211,7 @@ jobs:
 
       - name: Trivy image scan
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           # Scan by digest — metadata-action pushes a SHORT sha tag, so a full-sha
           # tag ref would not resolve. The digest is exact and unambiguous.
