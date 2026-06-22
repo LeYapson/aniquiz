@@ -189,4 +189,10 @@ onMounted(loadFriends);
 .btn-remove { background: transparent; color: #64748b; font-size: 0.9rem; padding: 5px 8px; }
 .btn-remove:hover { color: #ef4444; }
 .btn-accept:hover, .btn-decline:hover { opacity: 0.85; }
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .add-row { flex-direction: column; }
+  .btn-add-friend { width: 100%; }
+}
 </style>

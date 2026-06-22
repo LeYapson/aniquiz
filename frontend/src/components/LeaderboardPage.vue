@@ -146,6 +146,8 @@ function formatDate(iso) {
   max-width: 860px;
   margin: 0 auto;
   padding: 40px 24px;
+  min-width: 0;
+  width: 100%;
 }
 
 .lb-tabs {
@@ -243,4 +245,12 @@ function formatDate(iso) {
 .lb-silver { background: rgba(192,192,192,0.06) !important; }
 .lb-bronze { background: rgba(205,127,50,0.07) !important; }
 .lb-me { outline: 2px solid #f97316; outline-offset: -2px; }
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .leaderboard-page { padding: 24px 14px; }
+  /* Tables larges : défilement horizontal interne plutôt que débordement de page. */
+  .lb-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  .lb-table thead th, .lb-table td { padding: 10px 12px; }
+}
 </style>
