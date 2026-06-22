@@ -5,7 +5,7 @@
     <template v-else-if="profile">
       <!-- En-tête profil -->
       <div class="profile-header">
-        <div class="avatar">{{ profile.username.charAt(0).toUpperCase() }}</div>
+        <div class="avatar" :class="frameClass(profile.avatar_frame)">{{ profile.username.charAt(0).toUpperCase() }}</div>
         <div class="profile-info">
           <h2>{{ profile.username }}</h2>
           <div class="level-badge">Niveau {{ profile.level }}</div>
@@ -13,6 +13,28 @@
             <div class="xp-bar" :style="{ width: xpProgress + '%' }"></div>
           </div>
           <small>{{ profile.xp }} XP · {{ xpToNextLevel }} XP pour le niveau {{ profile.level + 1 }}</small>
+        </div>
+      </div>
+
+      <!-- Cadre d'avatar (cosmétique débloqué par niveau) -->
+      <div class="section">
+        <h3>🎀 Cadre d'avatar</h3>
+        <div class="frames-grid">
+          <button
+            v-for="f in FRAMES"
+            :key="f.id"
+            class="frame-option"
+            :class="{ selected: profile.avatar_frame === f.id, locked: profile.level < f.level }"
+            :disabled="profile.level < f.level"
+            @click="selectFrame(f)"
+          >
+            <span class="frame-swatch" :class="frameClass(f.id)">
+              {{ profile.username.charAt(0).toUpperCase() }}
+            </span>
+            <span class="frame-name">{{ f.name }}</span>
+            <span v-if="profile.level < f.level" class="frame-lock">🔒 Niv. {{ f.level }}</span>
+            <span v-else-if="profile.avatar_frame === f.id" class="frame-current">✓ équipé</span>
+          </button>
         </div>
       </div>
 
@@ -128,6 +150,7 @@ import { ref, computed, onMounted } from "vue";
 import { authStore } from "../authStore";
 import { API_URL } from "../config";
 import FriendsPanel from "./FriendsPanel.vue";
+import { FRAMES, frameClass } from "../cosmetics";
 
 const profile = ref(null);
 const history = ref([]);
@@ -145,6 +168,28 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+// Sélectionne un cadre d'avatar (ignore si verrouillé). Met à jour le profil
+// local et authStore pour que le header reflète le changement immédiatement.
+const selectFrame = async (frame) => {
+  if (!profile.value || profile.value.level < frame.level) return;
+  if (profile.value.avatar_frame === frame.id) return;
+  try {
+    const res = await fetch(`${API_URL}/api/me/cosmetics`, {
+      method: "PUT",
+      headers: authStore.authHeaders(),
+      body: JSON.stringify({ avatar_frame: frame.id }),
+    });
+    if (res.ok) {
+      profile.value.avatar_frame = frame.id;
+      if (authStore.user) {
+        authStore.setUser({ ...authStore.user, avatar_frame: frame.id }, authStore.token);
+      }
+    }
+  } catch (e) {
+    console.error("Erreur changement de cadre :", e);
+  }
+};
 
 // XP nécessaire pour atteindre un niveau : level = floor(sqrt(xp/100)) + 1
 // => xp_seuil(level) = (level - 1)^2 * 100
@@ -341,6 +386,37 @@ const importLabel = (malId) => {
 .btn-add.error { background: #ef4444; }
 .btn-add.loading { background: #475569; }
 .btn-add.skipped { background: #64748b; }
+
+/* ── Cadres d'avatar ── */
+.frames-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+}
+.frame-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px 10px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.frame-option:hover:not(.locked) { border-color: rgba(249,115,22,0.4); transform: translateY(-2px); }
+.frame-option.selected { border-color: #f97316; background: rgba(249,115,22,0.08); }
+.frame-option.locked { opacity: 0.5; cursor: not-allowed; }
+.frame-swatch {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; font-weight: 800; flex-shrink: 0;
+}
+.frame-name { font-size: 0.8rem; font-weight: 600; color: #e2e8f0; }
+.frame-lock { font-size: 0.7rem; color: #64748b; }
+.frame-current { font-size: 0.7rem; color: #f97316; font-weight: 700; }
 
 /* ── Mobile ── */
 @media (max-width: 600px) {

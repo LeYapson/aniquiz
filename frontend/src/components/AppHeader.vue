@@ -39,7 +39,7 @@
       </div>
 
       <div class="player-card">
-        <div class="avatar">
+        <div class="avatar" :class="frameClass(user?.avatar_frame)">
           {{ initial }}
           <span class="avatar-level">{{ user?.level ?? 1 }}</span>
         </div>
@@ -66,6 +66,7 @@
 <script setup>
 import { computed } from 'vue';
 import { authStore } from '../authStore';
+import { frameClass } from '../cosmetics';
 
 defineProps({
   currentView: { type: String, default: 'home' },
