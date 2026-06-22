@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'html' : 'list',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://192.168.27.74:5173',
     trace: 'on-first-retry',
   },
 
@@ -18,7 +18,7 @@ export default defineConfig({
 
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://192.168.27.74:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
