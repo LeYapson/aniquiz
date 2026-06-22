@@ -26,6 +26,17 @@
       <AuthForm v-else-if="!authStore.user" />
 
       <template v-else>
+        <!-- Invitations reçues à rejoindre un salon -->
+        <div v-if="!isConnected && incomingInvites.length > 0" class="invites-banner">
+          <div v-for="inv in incomingInvites" :key="inv.id" class="invite-card">
+            <span class="invite-text">🎮 <strong>{{ inv.from_username }}</strong> t'invite à jouer</span>
+            <div class="invite-actions">
+              <button class="btn-join-invite" @click="acceptInvite(inv)">Rejoindre</button>
+              <button class="btn-dismiss-invite" @click="dismissInvite(inv)" aria-label="Ignorer">✕</button>
+            </div>
+          </div>
+        </div>
+
         <LeaderboardPage v-if="!isConnected && currentView === 'leaderboard'" :ownUsername="authStore.user?.username" />
 
         <ProfilePage v-else-if="!isConnected && currentView === 'profile'" />
@@ -83,6 +94,28 @@
                 <button @click="startGame" class="btn-start">
                   Lancer la partie
                 </button>
+
+                <!-- Inviter un ami dans ce salon -->
+                <div class="invite-zone">
+                  <button type="button" class="btn-invite-friend" @click="toggleInvitePicker">
+                    👥 Inviter un ami
+                  </button>
+                  <div v-if="showInvitePicker" class="invite-picker">
+                    <p v-if="friendsForInvite.length === 0" class="invite-empty">
+                      Aucun ami à inviter. Ajoute-en depuis ton profil !
+                    </p>
+                    <button
+                      v-for="f in friendsForInvite"
+                      :key="f.user_id"
+                      class="invite-friend-row"
+                      @click="inviteFriend(f)"
+                    >
+                      <span class="invite-friend-dot">{{ f.username.charAt(0).toUpperCase() }}</span>
+                      {{ f.username }}
+                    </button>
+                  </div>
+                </div>
+
                 <GameSettings
                   v-if="isCreator"
                   :socket="socket"
@@ -317,7 +350,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
@@ -554,6 +587,87 @@ onMounted(() => {
   loadAnimeDictionary();
   checkOAuthCallback();
 });
+
+// ─── Invitations entre amis ─────────────────────────────────────────────────
+const incomingInvites = ref([]);
+const friendsForInvite = ref([]);
+const showInvitePicker = ref(false);
+let invitePollTimer = null;
+
+// Envoyer : depuis le lobby, inviter un ami dans le salon courant.
+const toggleInvitePicker = () => {
+  showInvitePicker.value = !showInvitePicker.value;
+  if (showInvitePicker.value) loadFriendsForInvite();
+};
+
+const loadFriendsForInvite = async () => {
+  try {
+    const res = await authFetch(`${API_URL}/api/friends`);
+    if (res.ok) friendsForInvite.value = await res.json();
+  } catch { /* silencieux */ }
+};
+
+const inviteFriend = async (friend) => {
+  try {
+    const res = await authFetch(`${API_URL}/api/invites`, {
+      method: "POST",
+      body: JSON.stringify({ to_user_id: friend.user_id, room_id: room.value }),
+    });
+    if (res.ok) {
+      toast.success(`Invitation envoyée à ${friend.username}`);
+      showInvitePicker.value = false;
+    } else {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Échec de l'invitation");
+    }
+  } catch {
+    toast.error("Erreur réseau");
+  }
+};
+
+// Recevoir : tant qu'on n'est pas en partie, on interroge périodiquement.
+const fetchInvites = async () => {
+  if (!authStore.user || isConnected.value) {
+    incomingInvites.value = [];
+    return;
+  }
+  try {
+    const res = await authFetch(`${API_URL}/api/invites`);
+    if (res.ok) incomingInvites.value = await res.json();
+  } catch { /* silencieux */ }
+};
+
+const acceptInvite = (inv) => {
+  incomingInvites.value = incomingInvites.value.filter((i) => i.id !== inv.id);
+  authFetch(`${API_URL}/api/invites/${inv.id}`, { method: "DELETE" }).catch(() => {});
+  setupWebSocket({ room_id: inv.room_id, password: inv.password, isCreator: false });
+};
+
+const dismissInvite = (inv) => {
+  incomingInvites.value = incomingInvites.value.filter((i) => i.id !== inv.id);
+  authFetch(`${API_URL}/api/invites/${inv.id}`, { method: "DELETE" }).catch(() => {});
+};
+
+const startInvitePolling = () => {
+  if (invitePollTimer) return;
+  fetchInvites();
+  invitePollTimer = setInterval(fetchInvites, 15000);
+};
+const stopInvitePolling = () => {
+  if (invitePollTimer) { clearInterval(invitePollTimer); invitePollTimer = null; }
+};
+
+// Sonder uniquement hors-partie et connecté.
+watch(isConnected, (connected) => {
+  if (connected) { stopInvitePolling(); incomingInvites.value = []; }
+  else if (authStore.user) startInvitePolling();
+});
+watch(() => authStore.user, (u) => {
+  if (u && !isConnected.value) startInvitePolling();
+  else if (!u) { stopInvitePolling(); incomingInvites.value = []; }
+});
+onMounted(() => { if (authStore.user && !isConnected.value) startInvitePolling(); });
+onUnmounted(stopInvitePolling);
 
 const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
   room.value = room_id;
@@ -838,6 +952,70 @@ main { flex: 1; display: flex; flex-direction: column; }
   padding: 24px;
   flex: 1;
 }
+/* ── Invitations entre amis ── */
+.invites-banner {
+  max-width: 1100px;
+  margin: 16px auto 0;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.12), rgba(59,130,246,0.08));
+  border: 1px solid rgba(249,115,22,0.3);
+  border-radius: 10px;
+}
+.invite-text { color: #f1f5f9; font-size: 0.9rem; }
+.invite-actions { display: flex; align-items: center; gap: 8px; }
+.btn-join-invite {
+  background: #f97316; color: #fff; border: none;
+  padding: 7px 14px; border-radius: 7px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+}
+.btn-join-invite:hover { opacity: 0.88; }
+.btn-dismiss-invite { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.95rem; }
+.btn-dismiss-invite:hover { color: #ef4444; }
+
+.invite-zone { margin-top: 12px; }
+.btn-invite-friend {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  color: #cbd5e1;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-invite-friend:hover { background: rgba(255,255,255,0.1); }
+.invite-picker {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 6px;
+}
+.invite-empty { color: #64748b; font-size: 0.82rem; font-style: italic; padding: 6px 8px; margin: 0; }
+.invite-friend-row {
+  display: flex; align-items: center; gap: 9px;
+  background: none; border: none; cursor: pointer;
+  color: #e2e8f0; font-size: 0.88rem; font-weight: 600;
+  padding: 7px 8px; border-radius: 6px; text-align: left; width: 100%;
+}
+.invite-friend-row:hover { background: rgba(249,115,22,0.12); }
+.invite-friend-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+}
+
 .btn-start {
   background: linear-gradient(135deg, #f97316, #ea580c);
   color: white;

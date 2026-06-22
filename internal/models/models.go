@@ -92,3 +92,12 @@ type FriendRequest struct {
 	Level     int       `json:"level"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// RoomInvite représente une invitation reçue à rejoindre un salon.
+type RoomInvite struct {
+	ID           int       `json:"id"`
+	FromUsername string    `json:"from_username"`
+	RoomID       string    `json:"room_id"`
+	Password     string    `json:"password"`
+	CreatedAt    time.Time `json:"created_at"`
+}

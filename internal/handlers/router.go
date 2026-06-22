@@ -238,6 +238,11 @@ func NewRouter(store Store) *gin.Engine {
 		protected.POST("/api/friends/respond", RespondFriendRequestHandler)
 		protected.DELETE("/api/friends/:id", RemoveFriendHandler)
 
+		// Invitations à rejoindre un salon
+		protected.GET("/api/invites", ListRoomInvitesHandler)
+		protected.POST("/api/invites", SendRoomInviteHandler)
+		protected.DELETE("/api/invites/:id", DismissRoomInviteHandler)
+
 		protected.GET("/api/profile", func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 			user, err := database.GetUserByID(userID.(int))

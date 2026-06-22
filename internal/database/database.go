@@ -58,6 +58,17 @@ func Migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id)`,
+		// Invitations à rejoindre un salon (éphémères, consommées à l'acceptation).
+		`CREATE TABLE IF NOT EXISTS room_invites (
+			id           SERIAL PRIMARY KEY,
+			from_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			to_user_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			room_id      TEXT NOT NULL,
+			password     TEXT NOT NULL DEFAULT '',
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT room_invites_unique UNIQUE (from_user_id, to_user_id, room_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_room_invites_to ON room_invites(to_user_id)`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
