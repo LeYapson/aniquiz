@@ -249,7 +249,9 @@ docker compose -f docker-compose.monitoring.yml up -d
 ssh -L 3000:127.0.0.1:3000 user@serveur   # puis http://localhost:3000
 ```
 
-> Les réseaux `aniquiz_proxy_net` et `aniquiz_app_net` sont déclarés `external` : la stack prod doit être démarrée **avant** la stack monitoring.
+> Les réseaux `aniquiz_proxy_net` et `aniquiz_app_net` sont déclarés `external` : la stack prod doit être démarrée **avant** la stack monitoring. Le nom de projet est épinglé (`name: aniquiz` dans `docker-compose.prod.yml`) pour que ces noms de réseaux soient déterministes quel que soit le répertoire de lancement.
+
+> ⚠ **Limite connue — pas de `/metrics` applicatif.** L'app n'expose pas encore d'endpoint Prometheus ; le job `aniquiz-health` ne sert qu'à la disponibilité (up/down via `/health`). Pour des métriques applicatives réelles (latence, requêtes, parties en cours), ajouter un middleware Prometheus à Gin et exposer `/metrics`, puis créer un scrape job dédié. Le `node-exporter` (hôte) nécessite `extra_hosts: host.docker.internal:host-gateway` sur le service Prometheus (déjà en place) pour être résolu sur un hôte Linux.
 
 ### Sondes de santé applicatives
 

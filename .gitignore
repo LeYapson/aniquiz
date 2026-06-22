@@ -1,8 +1,8 @@
 # Variables d'environnement — ne jamais commiter
+# (.env.example EST versionné : c'est le modèle d'onboarding)
 .env
 .env.local
 .env.*.local
-**.env.example
 
 # Binaires Go
 /aniquiz

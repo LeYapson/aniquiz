@@ -1,3 +1,8 @@
+# Pin the project name so container names (aniquiz-app, aniquiz-db) and network
+# names (aniquiz_app_net, aniquiz_proxy_net) are deterministic regardless of the
+# directory the stack is launched from — the monitoring stack relies on them.
+name: aniquiz
+
 services:
   # ─── Database ─────────────────────────────────────────────────────────────────
   db:
@@ -31,6 +36,7 @@ services:
   # ─── Application ──────────────────────────────────────────────────────────────
   app:
     image: ghcr.io/leyapson/aniquiz:${IMAGE_TAG:-latest}
+    container_name: aniquiz-app # fixed name so deploy/rollback can `docker inspect aniquiz-app`
     restart: unless-stopped
     depends_on:
       db:
