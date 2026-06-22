@@ -231,6 +231,13 @@ func NewRouter(store Store) *gin.Engine {
 			})
 		})
 
+		// Système d'amis
+		protected.GET("/api/friends", ListFriendsHandler)
+		protected.GET("/api/friends/requests", ListFriendRequestsHandler)
+		protected.POST("/api/friends/request", SendFriendRequestHandler)
+		protected.POST("/api/friends/respond", RespondFriendRequestHandler)
+		protected.DELETE("/api/friends/:id", RemoveFriendHandler)
+
 		protected.GET("/api/profile", func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 			user, err := database.GetUserByID(userID.(int))

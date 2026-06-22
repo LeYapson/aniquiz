@@ -33,6 +33,12 @@
         </div>
       </div>
 
+      <!-- Amis -->
+      <div class="section">
+        <h3>👥 Amis</h3>
+        <FriendsPanel />
+      </div>
+
       <!-- Stats globales -->
       <div class="section">
         <h3>Statistiques</h3>
@@ -121,6 +127,7 @@
 import { ref, computed, onMounted } from "vue";
 import { authStore } from "../authStore";
 import { API_URL } from "../config";
+import FriendsPanel from "./FriendsPanel.vue";
 
 const profile = ref(null);
 const history = ref([]);
