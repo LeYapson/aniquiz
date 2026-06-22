@@ -7,7 +7,7 @@
         <img :src="img.logo" alt="AniQuiz" class="hero-logo" />
         <p class="hero-tagline">
           Reconnais les génériques d'anime avant tes adversaires.<br />
-          Prouve que tu es le vrai otaku.
+          En multi, en solo ou en Speed Run — prouve que tu es le vrai otaku.
         </p>
         <div class="hero-actions">
           <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
@@ -16,9 +16,9 @@
         <div class="hero-stats">
           <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
           <div class="hero-stat-sep"></div>
-          <div class="hero-stat"><strong>Gratuit</strong><span>sans pub</span></div>
+          <div class="hero-stat"><strong>3 modes</strong><span>de jeu</span></div>
           <div class="hero-stat-sep"></div>
-          <div class="hero-stat"><strong>Multi</strong><span>temps réel</span></div>
+          <div class="hero-stat"><strong>Gratuit</strong><span>sans pub</span></div>
         </div>
       </div>
       <img :src="img.mascot" alt="Kora" class="hero-kora" />
@@ -59,6 +59,19 @@
           <h3>{{ mode.title }}</h3>
           <p>{{ mode.body }}</p>
           <span class="mode-badge" :class="mode.soon ? 'mode-soon' : 'mode-available'">{{ mode.soon ? 'Bientôt' : 'Disponible' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ PROGRESSION & SOCIAL ══ -->
+    <section class="section progression-section">
+      <h2 class="section-title">Progresse et personnalise</h2>
+      <p class="section-sub">Chaque partie contribue à ta progression permanente</p>
+      <div class="progression-grid">
+        <div class="prog-card" v-for="feat in progressionFeats" :key="feat.icon">
+          <div class="prog-icon" aria-hidden="true">{{ feat.icon }}</div>
+          <h3>{{ feat.title }}</h3>
+          <p>{{ feat.body }}</p>
         </div>
       </div>
     </section>
@@ -161,9 +174,15 @@ const steps = [
 
 const modes = [
   { icon: '⚔️', title: 'Multijoueur', soon: false, body: "Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime." },
-  { icon: '🎯', title: 'Solo / Entraînement', soon: false, body: "Joue à ton rythme, sans pression. Parfait pour découvrir de nouveaux animes ou s'entraîner avant d'affronter des adversaires." },
+  { icon: '🎯', title: 'Solo', soon: false, body: "Joue à ton rythme, sans pression. Configure tes rounds et tes filtres — parfait pour s'entraîner ou explorer de nouveaux animes." },
+  { icon: '⚡', title: 'Speed Run', soon: false, body: "5 minutes, un maximum d'animes. Enchaîne les pistes, entretiens ta série de bonnes réponses et bats ton meilleur score." },
   { icon: '🏆', title: 'Classé', soon: true, body: 'Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.' },
-  { icon: '🤝', title: 'Équipes', soon: true, body: "Formez des équipes et affrontez d'autres groupes. La coordination et la complémentarité font la différence." },
+];
+
+const progressionFeats = [
+  { icon: '⭐', title: 'XP & Niveaux', body: "Gagne de l'XP à chaque partie et monte en niveau. Ta progression est visible sur ton profil et dans le classement global." },
+  { icon: '🖼️', title: 'Cadres d\'avatar', body: 'Débloque des cadres exclusifs du Bronze au Rainbow en montant de niveau. Affiche ton rang avec style.' },
+  { icon: '👥', title: 'Amis & Invitations', body: 'Ajoute tes amis et invite-les directement dans tes salons depuis le header. Jouer ensemble n\'a jamais été aussi simple.' },
 ];
 
 const rankedFeatures = [
@@ -424,6 +443,36 @@ const badges = [
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
+
+/* ─── Progression ───────────────────────────────────────────── */
+.progression-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.progression-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.prog-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.prog-card:hover {
+  background: rgba(249,115,22,0.05);
+  border-color: rgba(249,115,22,0.2);
+}
+
+.prog-icon { font-size: 2rem; }
+.prog-card h3 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.prog-card p  { font-size: 0.88rem; color: #64748b; line-height: 1.6; margin: 0; }
 
 .mode-card {
   background: rgba(255,255,255,0.03);
@@ -696,6 +745,7 @@ const badges = [
   .step-arrow { width: 2px; height: 32px; background: linear-gradient(180deg, rgba(249,115,22,0.5), rgba(249,115,22,0.15)); }
   .step-arrow::after { right: -4px; top: auto; bottom: -1px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid rgba(249,115,22,0.5); }
   .modes-grid { grid-template-columns: 1fr; }
+  .progression-grid { grid-template-columns: 1fr; }
   .ranked-inner { grid-template-columns: 1fr; gap: 40px; }
   .section-title.left { text-align: center; }
   .support-section { flex-direction: column; text-align: center; gap: 32px; }
