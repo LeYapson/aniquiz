@@ -71,9 +71,10 @@ import { authStore } from '../authStore';
 import { frameClass } from '../cosmetics';
 import NotificationsBell from './NotificationsBell.vue';
 
-defineProps({
+const props = defineProps({
   currentView: { type: String, default: 'home' },
   inGame: { type: Boolean, default: false },
+  isAdmin: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal', 'join-room']);
@@ -81,12 +82,16 @@ const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal'
 const logoSrc = '/logo.png';
 const user = computed(() => authStore.user);
 
-const tabs = [
-  { id: 'home',        icon: '🎮', label: 'Jouer' },
-  { id: 'leaderboard', icon: '🏆', label: 'Classement' },
-  { id: 'profile',     icon: '👤', label: 'Profil' },
-  { id: 'news',        icon: '📰', label: 'News' },
-];
+const tabs = computed(() => {
+  const base = [
+    { id: 'home',        icon: '🎮', label: 'Jouer' },
+    { id: 'leaderboard', icon: '🏆', label: 'Classement' },
+    { id: 'profile',     icon: '👤', label: 'Profil' },
+    { id: 'news',        icon: '📰', label: 'News' },
+  ];
+  if (props.isAdmin) base.push({ id: 'admin', icon: '🛠️', label: 'Admin' });
+  return base;
+});
 
 const initial = computed(() => (user.value?.username?.[0] ?? '?').toUpperCase());
 

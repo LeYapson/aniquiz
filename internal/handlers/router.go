@@ -169,12 +169,25 @@ func NewRouter(store Store) *gin.Engine {
 			})
 		})
 
+		// Import d'un anime : fonctionnalité ouverte à tous (crowdsourcing, rate-limité).
 		protected.POST("/api/admin/import", BatchImportHandler)
-		protected.POST("/api/admin/seed", SeedHandler)
-		protected.GET("/api/admin/seed/status", SeedStatusHandler)
-		protected.POST("/api/admin/audio/healthcheck", AudioHealthcheckHandler)
-		protected.GET("/api/admin/audio/healthcheck/status", AudioHealthStatusHandler)
 		protected.GET("/api/anime/search", AnimeSearchHandler)
+
+		// Le client demande s'il est admin (pour afficher l'onglet Admin).
+		protected.GET("/api/me/admin", func(c *gin.Context) {
+			username, _ := c.Get("username")
+			c.JSON(http.StatusOK, gin.H{"is_admin": IsAdmin(username.(string))})
+		})
+
+		// Opérations lourdes d'administration : réservées aux admins.
+		admin := protected.Group("")
+		admin.Use(AdminMiddleware())
+		{
+			admin.POST("/api/admin/seed", SeedHandler)
+			admin.GET("/api/admin/seed/status", SeedStatusHandler)
+			admin.POST("/api/admin/audio/healthcheck", AudioHealthcheckHandler)
+			admin.GET("/api/admin/audio/healthcheck/status", AudioHealthStatusHandler)
+		}
 
 		// Retourne les MAL IDs depuis la liste AniList et/ou MAL de l'utilisateur
 		protected.GET("/api/me/anime-ids", func(c *gin.Context) {
