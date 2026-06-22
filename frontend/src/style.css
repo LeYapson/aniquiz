@@ -94,3 +94,20 @@ a:hover { text-decoration: underline; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ── Cadres d'avatar cosmétiques (débloqués par niveau) ───────────────────── */
+/* Appliqués à un élément rond (border-radius:50%) ; l'anneau = box-shadow. */
+.frame-bronze   { box-shadow: 0 0 0 3px #cd7f32; }
+.frame-silver   { box-shadow: 0 0 0 3px #c0c0c0; }
+.frame-gold     { box-shadow: 0 0 0 3px #ffd700; }
+.frame-emerald  { box-shadow: 0 0 0 3px #10b981; }
+.frame-sapphire { box-shadow: 0 0 0 3px #3b82f6; }
+.frame-ruby     { box-shadow: 0 0 0 3px #ef4444; }
+.frame-rainbow  { animation: frame-rainbow 3s linear infinite; }
+@keyframes frame-rainbow {
+  0%   { box-shadow: 0 0 0 3px hsl(0, 85%, 60%); }
+  25%  { box-shadow: 0 0 0 3px hsl(90, 85%, 60%); }
+  50%  { box-shadow: 0 0 0 3px hsl(180, 85%, 60%); }
+  75%  { box-shadow: 0 0 0 3px hsl(270, 85%, 60%); }
+  100% { box-shadow: 0 0 0 3px hsl(360, 85%, 60%); }
+}

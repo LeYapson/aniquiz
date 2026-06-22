@@ -16,6 +16,7 @@ type User struct {
 	MalUsername     string    `json:"mal_username" db:"mal_username"`
 	MalUserID       int       `json:"mal_user_id" db:"mal_user_id"`
 	MalToken        string    `json:"-" db:"mal_token"`
+	AvatarFrame     string    `json:"avatar_frame" db:"avatar_frame"` // cadre d'avatar cosmétique sélectionné
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 

@@ -69,6 +69,8 @@ func Migrate() error {
 			CONSTRAINT room_invites_unique UNIQUE (from_user_id, to_user_id, room_id)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_room_invites_to ON room_invites(to_user_id)`,
+		// Cosmétique : cadre d'avatar sélectionné (débloqué par niveau).
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_frame TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
@@ -101,6 +103,7 @@ func GetUserByID(userID int) (*models.User, error) {
 		SELECT id, username, email, password_hash, xp, level,
 		       COALESCE(anilist_username, ''), COALESCE(anilist_user_id, 0), COALESCE(anilist_token, ''),
 		       COALESCE(mal_username, ''),     COALESCE(mal_user_id, 0),     COALESCE(mal_token, ''),
+		       COALESCE(avatar_frame, ''),
 		       created_at
 		FROM users
 		WHERE id = $1
@@ -109,7 +112,8 @@ func GetUserByID(userID int) (*models.User, error) {
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.Xp, &user.Level,
 		&user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken,
-		&user.MalUsername, &user.MalUserID, &user.MalToken, &user.CreatedAt,
+		&user.MalUsername, &user.MalUserID, &user.MalToken,
+		&user.AvatarFrame, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -139,6 +143,13 @@ func UpdateUserAnilist(userID, anilistUserID int, anilistUsername, token string)
 		WHERE id = $4
 	`
 	_, err := Pool.Exec(context.Background(), query, anilistUserID, anilistUsername, token, userID)
+	return err
+}
+
+// SetAvatarFrame met à jour le cadre d'avatar cosmétique sélectionné.
+func SetAvatarFrame(userID int, frame string) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE users SET avatar_frame = $1 WHERE id = $2`, frame, userID)
 	return err
 }
 
@@ -269,13 +280,13 @@ func GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error
 func GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
 	var user models.User
 	query := `
-		SELECT id, username, email, password_hash, xp, level, created_at
+		SELECT id, username, email, password_hash, xp, level, COALESCE(avatar_frame, ''), created_at
 		FROM users
 		WHERE username = $1 OR email = $1
 	`
 
 	err := Pool.QueryRow(context.Background(), query, identifier).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Xp, &user.Level, &user.CreatedAt,
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Xp, &user.Level, &user.AvatarFrame, &user.CreatedAt,
 	)
 
 	if err != nil {

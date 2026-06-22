@@ -238,6 +238,9 @@ func NewRouter(store Store) *gin.Engine {
 		protected.POST("/api/friends/respond", RespondFriendRequestHandler)
 		protected.DELETE("/api/friends/:id", RemoveFriendHandler)
 
+		// Cosmétiques (cadre d'avatar)
+		protected.PUT("/api/me/cosmetics", SetCosmeticsHandler)
+
 		// Invitations à rejoindre un salon
 		protected.GET("/api/invites", ListRoomInvitesHandler)
 		protected.POST("/api/invites", SendRoomInviteHandler)

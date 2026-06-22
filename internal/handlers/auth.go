@@ -95,12 +95,13 @@ func LoginHandler(store Store) gin.HandlerFunc {
 			"message": "Connexion réussie !",
 			"token":   token,
 			"user": gin.H{
-				"id":         user.ID,
-				"username":   user.Username,
-				"email":      user.Email,
-				"xp":         user.Xp,
-				"level":      user.Level,
-				"created_at": user.CreatedAt,
+				"id":           user.ID,
+				"username":     user.Username,
+				"email":        user.Email,
+				"xp":           user.Xp,
+				"level":        user.Level,
+				"avatar_frame": user.AvatarFrame,
+				"created_at":   user.CreatedAt,
 			},
 		})
 	}
