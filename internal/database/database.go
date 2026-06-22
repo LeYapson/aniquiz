@@ -78,12 +78,19 @@ func CreateUser(username, email, passwordHash string) error {
 }
 
 // GetUserByID récupère un utilisateur par son ID.
+//
+// Les colonnes OAuth (anilist_*, mal_*) sont NULL tant que l'utilisateur n'a
+// pas lié de compte : CreateUser ne les renseigne pas. Sans COALESCE, scanner
+// un NULL dans un string/int Go échoue, ce qui faisait renvoyer 404 à
+// /api/profile pour tout compte non lié (et masquait tout le profil, panneau
+// d'amis compris).
 func GetUserByID(userID int) (*models.User, error) {
 	var user models.User
 	query := `
 		SELECT id, username, email, password_hash, xp, level,
-		       anilist_username, anilist_user_id, anilist_token,
-		       mal_username, mal_user_id, mal_token, created_at
+		       COALESCE(anilist_username, ''), COALESCE(anilist_user_id, 0), COALESCE(anilist_token, ''),
+		       COALESCE(mal_username, ''),     COALESCE(mal_user_id, 0),     COALESCE(mal_token, ''),
+		       created_at
 		FROM users
 		WHERE id = $1
 	`
