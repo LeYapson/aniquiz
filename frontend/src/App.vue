@@ -103,6 +103,24 @@
                     <span class="pts">{{ p.score }} pts</span>
                   </li>
                 </ol>
+                <!-- Stats de vitesse de réponse -->
+                <div v-if="speedStats.length > 0" class="speed-stats">
+                  <h3>⚡ Vitesse de réponse</h3>
+                  <table class="speed-table">
+                    <thead>
+                      <tr><th>Joueur</th><th>Trouvés</th><th>Moyenne</th><th>Plus rapide</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(s, i) in speedStats" :key="s.username" :class="{ me: s.username === authStore.user.username }">
+                        <td>{{ i === 0 ? '⚡ ' : '' }}{{ s.username }}</td>
+                        <td>{{ s.found }}</td>
+                        <td>{{ (s.avgMs / 1000).toFixed(1) }}s</td>
+                        <td>{{ (s.bestMs / 1000).toFixed(1) }}s</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
                 <!-- Résumé round par round -->
                 <div v-if="roundHistory.length > 0" class="round-history">
                   <h3>Récapitulatif</h3>
@@ -340,6 +358,24 @@ const currentAnswerInfo = ref({
 });
 const finalScores = ref([]);
 const roundHistory = ref([]);
+
+// Stats de vitesse par joueur, calculées depuis l'historique des rounds
+// (chaque bonne réponse porte son time_ms). Trié du plus rapide en moyenne.
+const speedStats = computed(() => {
+  const map = {};
+  for (const r of roundHistory.value) {
+    for (const f of r.found_by || []) {
+      const s = map[f.username] || (map[f.username] = { username: f.username, found: 0, totalMs: 0, bestMs: Infinity });
+      s.found++;
+      s.totalMs += f.time_ms;
+      if (f.time_ms < s.bestMs) s.bestMs = f.time_ms;
+    }
+  }
+  return Object.values(map)
+    .map((s) => ({ ...s, avgMs: Math.round(s.totalMs / s.found) }))
+    .sort((a, b) => a.avgMs - b.avgMs);
+});
+
 const skipVotes = ref({ votes: 0, needed: 1 });
 const hasVotedSkip = ref(false);
 const reconnectMsg = ref("");
@@ -881,6 +917,14 @@ main { flex: 1; display: flex; flex-direction: column; }
 .btn-kick:hover { color: #ef4444; }
 
 /* ── Résumé de fin de partie ────────────────────────────── */
+.speed-stats { margin-top: 24px; text-align: left; }
+.speed-stats h3 { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.speed-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: #16213e; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+.speed-table th { background: #0f0f23; color: #f97316; padding: 8px 12px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.speed-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; }
+.speed-table tr:last-child td { border-bottom: none; }
+.speed-table tr.me td { color: #fb923c; font-weight: 700; }
+
 .round-history {
   margin-top: 24px;
   text-align: left;

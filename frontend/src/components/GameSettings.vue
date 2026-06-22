@@ -92,6 +92,21 @@
     <button @click="apply" class="btn-apply" :disabled="loadingIds">
       {{ loadingIds ? 'Chargement…' : 'Appliquer' }}
     </button>
+
+    <!-- Partage de configuration -->
+    <div class="config-share">
+      <button type="button" class="btn-ghost" @click="copyConfig">📋 Copier la config</button>
+      <div class="import-inline">
+        <input
+          v-model="importCode"
+          type="text"
+          placeholder="Coller un code de config…"
+          class="config-input"
+          @keyup.enter="importConfig"
+        />
+        <button type="button" class="btn-ghost" @click="importConfig" :disabled="!importCode.trim()">📥 Importer</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -99,6 +114,9 @@
 import { reactive, ref, computed, watch } from "vue";
 import { authStore } from "../authStore";
 import { API_URL } from "../config";
+import { useToast } from "../composables/useToast";
+
+const toast = useToast();
 
 const props = defineProps({
   socket: Object,
@@ -195,6 +213,49 @@ const apply = () => {
       filter_mal_ids: local.useAnilistFilter ? local.filterMalIds : [],
     },
   }));
+};
+
+// ─── Partage de configuration ───────────────────────────────────────────────
+// On exporte uniquement les réglages de jeu réutilisables (pas le mot de passe
+// ni la liste perso, qui sont propres à une salle/un utilisateur).
+const importCode = ref("");
+const CONFIG_KEYS = ["maxRounds", "roundDuration", "filterType", "guessMode", "decade", "buzzerMode"];
+const ALLOWED_DECADES = ["0", "1990", "2000", "2010", "2020"];
+const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
+
+const copyConfig = async () => {
+  const cfg = {};
+  for (const k of CONFIG_KEYS) cfg[k] = local[k];
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+  try {
+    await navigator.clipboard.writeText(code);
+    toast.success("Config copiée ! Partage ce code.");
+  } catch {
+    toast.info(code, { title: "Copie manuelle de la config" });
+  }
+};
+
+const importConfig = () => {
+  const raw = importCode.value.trim();
+  if (!raw) return;
+  let cfg;
+  try {
+    cfg = JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch {
+    toast.error("Code de config invalide");
+    return;
+  }
+  // N'appliquer que des valeurs connues et valides.
+  if (typeof cfg.maxRounds === "number") local.maxRounds = clamp(Math.round(cfg.maxRounds), 1, 20);
+  if (typeof cfg.roundDuration === "number") local.roundDuration = clamp(Math.round(cfg.roundDuration), 10, 60);
+  if (["", "OP", "ED"].includes(cfg.filterType)) local.filterType = cfg.filterType;
+  if (["anime", "title", "artist"].includes(cfg.guessMode)) local.guessMode = cfg.guessMode;
+  if (ALLOWED_DECADES.includes(String(cfg.decade))) local.decade = String(cfg.decade);
+  if (typeof cfg.buzzerMode === "boolean") local.buzzerMode = cfg.buzzerMode;
+
+  importCode.value = "";
+  apply();
+  toast.success("Config importée et appliquée !");
 };
 </script>
 
@@ -307,6 +368,33 @@ input[type="checkbox"] { accent-color: #f97316; width: 16px; height: 16px; }
 
 .buzzer-label { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; color: #e2e8f0; }
 .buzzer-hint { width: 100%; font-size: 0.72rem; color: #94a3b8; font-weight: 500; font-style: italic; }
+
+.config-share {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.import-inline { display: flex; gap: 8px; }
+.config-input {
+  flex: 1; padding: 7px 10px;
+  background: #0f0f23; border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9; border-radius: 7px; font-size: 0.82rem; outline: none;
+}
+.config-input:focus { border-color: #f97316; }
+.config-input::placeholder { color: #475569; }
+.btn-ghost {
+  background: rgba(255,255,255,0.05);
+  color: #cbd5e1;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 7px 12px; border-radius: 7px; cursor: pointer;
+  font-weight: 600; font-size: 0.82rem; white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-apply {
   background: #f97316;
