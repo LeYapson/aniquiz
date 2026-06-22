@@ -341,4 +341,15 @@ const importLabel = (malId) => {
 .btn-add.error { background: #ef4444; }
 .btn-add.loading { background: #475569; }
 .btn-add.skipped { background: #64748b; }
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .profile-page { padding: 24px 14px; }
+  .profile-header { flex-direction: column; text-align: center; gap: 14px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .import-row { flex-direction: column; }
+  .btn-import { width: 100%; }
+  .history-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  .anime-card { flex-wrap: wrap; }
+}
 </style>

@@ -840,8 +840,8 @@ defineExpose({ state, isConnected });
 
 <style>
 /* ── Layout principal ───────────────────────────────────── */
-main { flex: 1; display: flex; flex-direction: column; }
-.app-main { flex: 1; display: flex; flex-direction: column; }
+main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .lobby-wrapper {
   flex: 1;
@@ -1300,6 +1300,7 @@ main { flex: 1; display: flex; flex-direction: column; }
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: #0f0f23;
   padding-top: 10px;
 }
@@ -1410,5 +1411,24 @@ main { flex: 1; display: flex; flex-direction: column; }
   .quiz-box { padding: 16px; }
   .final-scores { max-width: 100%; }
   .room-selection-container { padding: 20px 14px; }
+
+  /* Invitations entre amis */
+  .invites-banner { padding: 0 14px; }
+  .invite-card { flex-wrap: wrap; }
+  .invite-actions { width: 100%; justify-content: flex-end; }
+
+  /* Stats de vitesse : éviter le débordement horizontal */
+  .speed-stats { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .speed-table { font-size: 0.78rem; }
+  .speed-table th, .speed-table td { padding: 7px 8px; }
+
+  /* Récap des rounds plus compact */
+  .round-history { max-height: 260px; }
+}
+
+/* La nav mobile fixe doit respecter la zone sûre (encoches iOS). */
+@media (max-width: 768px) {
+  .mobile-tabs { padding-bottom: env(safe-area-inset-bottom, 0); height: calc(56px + env(safe-area-inset-bottom, 0)); }
+  .game-layout { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
 }
 </style>

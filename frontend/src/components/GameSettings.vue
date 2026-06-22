@@ -410,4 +410,11 @@ input[type="checkbox"] { accent-color: #f97316; width: 16px; height: 16px; }
 }
 .btn-apply:hover:not(:disabled) { opacity: 0.85; }
 .btn-apply:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .settings-grid { grid-template-columns: 1fr; }
+  .import-inline { flex-direction: column; }
+  .import-inline .btn-ghost { width: 100%; }
+}
 </style>
