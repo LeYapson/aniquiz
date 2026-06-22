@@ -38,6 +38,8 @@
         </button>
       </div>
 
+      <NotificationsBell :inGame="inGame" @join="(inv) => emit('join-room', inv)" />
+
       <div class="player-card">
         <div class="avatar" :class="frameClass(user?.avatar_frame)">
           {{ initial }}
@@ -67,12 +69,14 @@
 import { computed } from 'vue';
 import { authStore } from '../authStore';
 import { frameClass } from '../cosmetics';
+import NotificationsBell from './NotificationsBell.vue';
 
 defineProps({
   currentView: { type: String, default: 'home' },
+  inGame: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal']);
+const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal', 'join-room']);
 
 const logoSrc = '/logo.png';
 const user = computed(() => authStore.user);

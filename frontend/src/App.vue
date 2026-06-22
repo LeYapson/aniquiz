@@ -3,10 +3,12 @@
     <AppHeader
       v-if="authStore.user"
       :currentView="currentView"
+      :inGame="isConnected"
       @navigate="navigateTo"
       @logout="authStore.logout"
       @connect-anilist="connectAnilist"
       @connect-mal="connectMAL"
+      @join-room="onJoinFromInvite"
     />
 
     <ToastContainer />
@@ -26,17 +28,6 @@
       <AuthForm v-else-if="!authStore.user" />
 
       <template v-else>
-        <!-- Invitations reçues à rejoindre un salon -->
-        <div v-if="!isConnected && incomingInvites.length > 0" class="invites-banner">
-          <div v-for="inv in incomingInvites" :key="inv.id" class="invite-card">
-            <span class="invite-text">🎮 <strong>{{ inv.from_username }}</strong> t'invite à jouer</span>
-            <div class="invite-actions">
-              <button class="btn-join-invite" @click="acceptInvite(inv)">Rejoindre</button>
-              <button class="btn-dismiss-invite" @click="dismissInvite(inv)" aria-label="Ignorer">✕</button>
-            </div>
-          </div>
-        </div>
-
         <LeaderboardPage v-if="!isConnected && currentView === 'leaderboard'" :ownUsername="authStore.user?.username" />
 
         <ProfilePage v-else-if="!isConnected && currentView === 'profile'" />
@@ -350,7 +341,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
@@ -589,10 +580,8 @@ onMounted(() => {
 });
 
 // ─── Invitations entre amis ─────────────────────────────────────────────────
-const incomingInvites = ref([]);
 const friendsForInvite = ref([]);
 const showInvitePicker = ref(false);
-let invitePollTimer = null;
 
 // Envoyer : depuis le lobby, inviter un ami dans le salon courant.
 const toggleInvitePicker = () => {
@@ -625,49 +614,12 @@ const inviteFriend = async (friend) => {
   }
 };
 
-// Recevoir : tant qu'on n'est pas en partie, on interroge périodiquement.
-const fetchInvites = async () => {
-  if (!authStore.user || isConnected.value) {
-    incomingInvites.value = [];
-    return;
-  }
-  try {
-    const res = await authFetch(`${API_URL}/api/invites`);
-    if (res.ok) incomingInvites.value = await res.json();
-  } catch { /* silencieux */ }
+// Recevoir : la cloche de notifications (header) sonde et affiche les
+// invitations ; « Rejoindre » remonte ici. On n'est jamais en partie quand
+// l'invitation est visible (la cloche les masque en jeu), donc connexion directe.
+const onJoinFromInvite = (invite) => {
+  setupWebSocket({ room_id: invite.room_id, password: invite.password, isCreator: false });
 };
-
-const acceptInvite = (inv) => {
-  incomingInvites.value = incomingInvites.value.filter((i) => i.id !== inv.id);
-  authFetch(`${API_URL}/api/invites/${inv.id}`, { method: "DELETE" }).catch(() => {});
-  setupWebSocket({ room_id: inv.room_id, password: inv.password, isCreator: false });
-};
-
-const dismissInvite = (inv) => {
-  incomingInvites.value = incomingInvites.value.filter((i) => i.id !== inv.id);
-  authFetch(`${API_URL}/api/invites/${inv.id}`, { method: "DELETE" }).catch(() => {});
-};
-
-const startInvitePolling = () => {
-  if (invitePollTimer) return;
-  fetchInvites();
-  invitePollTimer = setInterval(fetchInvites, 15000);
-};
-const stopInvitePolling = () => {
-  if (invitePollTimer) { clearInterval(invitePollTimer); invitePollTimer = null; }
-};
-
-// Sonder uniquement hors-partie et connecté.
-watch(isConnected, (connected) => {
-  if (connected) { stopInvitePolling(); incomingInvites.value = []; }
-  else if (authStore.user) startInvitePolling();
-});
-watch(() => authStore.user, (u) => {
-  if (u && !isConnected.value) startInvitePolling();
-  else if (!u) { stopInvitePolling(); incomingInvites.value = []; }
-});
-onMounted(() => { if (authStore.user && !isConnected.value) startInvitePolling(); });
-onUnmounted(stopInvitePolling);
 
 const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
   room.value = room_id;
@@ -952,35 +904,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   padding: 24px;
   flex: 1;
 }
-/* ── Invitations entre amis ── */
-.invites-banner {
-  max-width: 1100px;
-  margin: 16px auto 0;
-  padding: 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.invite-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(249,115,22,0.12), rgba(59,130,246,0.08));
-  border: 1px solid rgba(249,115,22,0.3);
-  border-radius: 10px;
-}
-.invite-text { color: #f1f5f9; font-size: 0.9rem; }
-.invite-actions { display: flex; align-items: center; gap: 8px; }
-.btn-join-invite {
-  background: #f97316; color: #fff; border: none;
-  padding: 7px 14px; border-radius: 7px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
-}
-.btn-join-invite:hover { opacity: 0.88; }
-.btn-dismiss-invite { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.95rem; }
-.btn-dismiss-invite:hover { color: #ef4444; }
-
+/* ── Inviter un ami (lobby) ── */
 .invite-zone { margin-top: 12px; }
 .btn-invite-friend {
   width: 100%;
@@ -1411,11 +1335,6 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .quiz-box { padding: 16px; }
   .final-scores { max-width: 100%; }
   .room-selection-container { padding: 20px 14px; }
-
-  /* Invitations entre amis */
-  .invites-banner { padding: 0 14px; }
-  .invite-card { flex-wrap: wrap; }
-  .invite-actions { width: 100%; justify-content: flex-end; }
 
   /* Stats de vitesse : éviter le débordement horizontal */
   .speed-stats { overflow-x: auto; -webkit-overflow-scrolling: touch; }
