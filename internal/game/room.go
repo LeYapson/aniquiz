@@ -68,6 +68,7 @@ type Room struct {
 	FilterMalID   []int
 	BuzzerMode    bool
 	Buzzed        map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
+	GuessMode     string           // "anime" (défaut), "title" ou "artist"
 
 	Mu   sync.Mutex
 	done chan struct{} // closed when Run() exits; signals background goroutines to stop
@@ -409,6 +410,7 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 		return
 	}
 	buzzerMode := r.BuzzerMode
+	guessMode := r.GuessMode
 	buzzMs, hasBuzzed := r.Buzzed[client.ID]
 	// En mode buzzer, il faut avoir buzzé avant de pouvoir répondre.
 	if buzzerMode && !hasBuzzed {
@@ -419,7 +421,7 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 	elapsed := time.Since(r.RoundStart).Milliseconds()
 	r.Mu.Unlock()
 
-	result := VerifyAnswer(answer, track)
+	result := VerifyAnswerMode(answer, track, guessMode)
 
 	if buzzerMode {
 		r.checkAnswerBuzzer(client, result.Points, buzzMs)

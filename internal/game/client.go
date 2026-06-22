@@ -200,6 +200,7 @@ func (c *Client) ReadPump() {
 				MaxYear       int    `json:"max_year"`
 				FilterMalIDs  []int  `json:"filter_mal_ids"`
 				BuzzerMode    bool   `json:"buzzer_mode"`
+				GuessMode     string `json:"guess_mode"`
 			}
 
 			var settings SettingsPayload
@@ -223,6 +224,11 @@ func (c *Client) ReadPump() {
 				c.Room.MaxYear = settings.MaxYear
 				c.Room.FilterMalID = settings.FilterMalIDs
 				c.Room.BuzzerMode = settings.BuzzerMode
+				if settings.GuessMode == GuessModeTitle || settings.GuessMode == GuessModeArtist {
+					c.Room.GuessMode = settings.GuessMode
+				} else {
+					c.Room.GuessMode = GuessModeAnime
+				}
 				c.Room.Mu.Unlock()
 
 				settingsMsg, _ := json.Marshal(map[string]interface{}{
@@ -236,6 +242,7 @@ func (c *Client) ReadPump() {
 						"max_year":       c.Room.MaxYear,
 						"filter_mal_ids": c.Room.FilterMalID,
 						"buzzer_mode":    c.Room.BuzzerMode,
+						"guess_mode":     c.Room.GuessMode,
 					},
 				})
 				c.Room.Broadcast <- settingsMsg

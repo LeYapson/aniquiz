@@ -1,9 +1,17 @@
 package game
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/LeYapson/aniquiz/internal/models"
+)
+
+// Modes de réponse : ce que les joueurs doivent deviner.
+const (
+	GuessModeAnime  = "anime"  // nom de l'anime (défaut)
+	GuessModeTitle  = "title"  // titre de la musique
+	GuessModeArtist = "artist" // artiste / interprète
 )
 
 type AnswerResult struct {
@@ -12,9 +20,35 @@ type AnswerResult struct {
 	Message   string `json:"message"`
 }
 
+// VerifyAnswer vérifie une réponse contre le nom de l'anime (mode par défaut).
+// Conservé pour les appelants existants (speedrun, endpoint /quiz/answer).
 func VerifyAnswer(userInput string, track *models.Track) AnswerResult {
+	return VerifyAnswerMode(userInput, track, GuessModeAnime)
+}
+
+// VerifyAnswerMode vérifie une réponse selon le mode de jeu : nom de l'anime,
+// titre de la musique ou artiste. Un mode inconnu/vide retombe sur l'anime.
+func VerifyAnswerMode(userInput string, track *models.Track, mode string) AnswerResult {
+	target := track.AnimeName
+	label := "nom de l'anime"
+	switch mode {
+	case GuessModeTitle:
+		target, label = track.Title, "titre"
+	case GuessModeArtist:
+		target, label = track.Artist, "artiste"
+	}
+	return matchAnswer(userInput, target, label)
+}
+
+// matchAnswer applique la logique de correspondance (exacte / partielle / floue)
+// d'une saisie contre une cible donnée.
+func matchAnswer(userInput, targetRaw, label string) AnswerResult {
 	user := strings.ToLower(strings.TrimSpace(userInput))
-	target := strings.ToLower(track.AnimeName)
+	target := strings.ToLower(strings.TrimSpace(targetRaw))
+
+	if target == "" {
+		return AnswerResult{IsCorrect: false, Points: 0, Message: ""}
+	}
 
 	if user == target {
 		return AnswerResult{IsCorrect: true, Points: 10, Message: "Parfait !"}
@@ -25,7 +59,7 @@ func VerifyAnswer(userInput string, track *models.Track) AnswerResult {
 
 	// Partial match: user input is a substring of the target or vice-versa.
 	if len(userRunes) >= 3 && (strings.Contains(target, user) || strings.Contains(user, target)) {
-		return AnswerResult{IsCorrect: false, Points: 5, Message: "C'est presque ça (nom de l'anime) !"}
+		return AnswerResult{IsCorrect: false, Points: 5, Message: fmt.Sprintf("C'est presque ça (%s) !", label)}
 	}
 
 	// Fuzzy match: Levenshtein ≥80% similarity, operates on runes for correct Unicode handling.
