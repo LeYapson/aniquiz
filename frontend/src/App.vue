@@ -4,6 +4,7 @@
       v-if="authStore.user"
       :currentView="currentView"
       :inGame="isConnected"
+      :isAdmin="isAdmin"
       @navigate="navigateTo"
       @logout="authStore.logout"
       @connect-anilist="connectAnilist"
@@ -33,6 +34,8 @@
         <ProfilePage v-else-if="!isConnected && currentView === 'profile'" />
 
         <NewsPage v-else-if="!isConnected && currentView === 'news'" />
+
+        <AdminPage v-else-if="!isConnected && currentView === 'admin' && isAdmin" />
 
         <div v-else class="app-main">
 
@@ -355,6 +358,7 @@ import ReactionOverlay from "./components/ReactionOverlay.vue";
 import AnimeAutocomplete from "./components/AnimeAutocomplete.vue";
 import AppHeader from "./components/AppHeader.vue";
 import HomeDashboard from "./components/HomeDashboard.vue";
+import AdminPage from "./components/AdminPage.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import { authStore } from "./authStore";
 import { useToast } from "./composables/useToast";
@@ -407,6 +411,7 @@ const showLanding = ref(true);
 const showPublicLeaderboard = ref(false);
 const currentView = ref("home");
 const isCreator = ref(false);
+const isAdmin = ref(authStore.user?.is_admin === true);
 
 const navigateTo = (view) => {
   currentView.value = view;
@@ -574,9 +579,28 @@ const authFetch = (url, options = {}) => {
   });
 };
 
+// Statut admin : confirmé côté serveur (robuste même pour une session
+// ouverte avant l'ajout du flag au login).
+const loadAdminStatus = async () => {
+  if (!authStore.user) { isAdmin.value = false; return; }
+  try {
+    const res = await authFetch(`${API_URL}/api/me/admin`);
+    if (res.ok) {
+      const d = await res.json();
+      isAdmin.value = d.is_admin === true;
+    }
+  } catch { /* silencieux */ }
+};
+
+watch(() => authStore.user, (u) => {
+  if (u) loadAdminStatus();
+  else { isAdmin.value = false; if (currentView.value === 'admin') currentView.value = 'home'; }
+});
+
 onMounted(() => {
   loadAnimeDictionary();
   checkOAuthCallback();
+  loadAdminStatus();
 });
 
 // ─── Invitations entre amis ─────────────────────────────────────────────────

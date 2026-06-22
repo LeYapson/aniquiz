@@ -101,6 +101,7 @@ func LoginHandler(store Store) gin.HandlerFunc {
 				"xp":           user.Xp,
 				"level":        user.Level,
 				"avatar_frame": user.AvatarFrame,
+				"is_admin":     IsAdmin(user.Username),
 				"created_at":   user.CreatedAt,
 			},
 		})
