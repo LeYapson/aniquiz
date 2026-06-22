@@ -66,6 +66,8 @@ type Room struct {
 	MinYear       int
 	MaxYear       int
 	FilterMalID   []int
+	BuzzerMode    bool
+	Buzzed        map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
 
 	Mu   sync.Mutex
 	done chan struct{} // closed when Run() exits; signals background goroutines to stop
@@ -123,6 +125,7 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 		RoundAnswers:  []RoundAnswer{},
 		SkipVotes:     make(map[string]bool),
 		RoundHistory:  []RoundSummaryItem{},
+		Buzzed:        make(map[string]int64),
 		done:          make(chan struct{}),
 	}
 }
@@ -352,9 +355,63 @@ func (r *Room) EndRound(reason string) {
 
 const bonusPremier = 10
 
+// buzzerPlacementPoints : points selon l'ordre des bonnes réponses en mode
+// buzzer (1er, 2e, 3e) ; au-delà, 1 point.
+var buzzerPlacementPoints = []int{5, 3, 2}
+
+// buzzerPoints combine le bonus de placement et le bonus de vitesse (buzz rapide).
+func buzzerPoints(placement int, buzzMs int64) int {
+	pts := 1
+	if placement < len(buzzerPlacementPoints) {
+		pts = buzzerPlacementPoints[placement]
+	}
+	switch {
+	case buzzMs < 3000:
+		pts += 3
+	case buzzMs < 6000:
+		pts += 2
+	case buzzMs < 10000:
+		pts += 1
+	}
+	return pts
+}
+
+// Buzz enregistre le buzz d'un joueur en mode buzzer et prévient la salle.
+// Le buzz coupe l'audio du joueur côté client : il s'engage sur ce qu'il a
+// entendu. Sans buzz préalable, aucune réponse n'est acceptée en mode buzzer.
+func (r *Room) Buzz(client *Client) {
+	r.Mu.Lock()
+	if !r.BuzzerMode || !r.IsPlaying || r.CurrentTrack == nil {
+		r.Mu.Unlock()
+		return
+	}
+	if _, already := r.Buzzed[client.ID]; already || r.HasAnswered[client.ID] {
+		r.Mu.Unlock()
+		return
+	}
+	r.Buzzed[client.ID] = time.Since(r.RoundStart).Milliseconds()
+	r.Mu.Unlock()
+
+	msg, _ := json.Marshal(map[string]interface{}{
+		"type":    "PLAYER_BUZZED",
+		"payload": map[string]interface{}{"username": client.Username},
+	})
+	select {
+	case r.Broadcast <- msg:
+	case <-r.done:
+	}
+}
+
 func (r *Room) CheckAnswer(client *Client, answer string) {
 	r.Mu.Lock()
 	if !r.IsPlaying || r.CurrentTrack == nil || r.HasAnswered[client.ID] {
+		r.Mu.Unlock()
+		return
+	}
+	buzzerMode := r.BuzzerMode
+	buzzMs, hasBuzzed := r.Buzzed[client.ID]
+	// En mode buzzer, il faut avoir buzzé avant de pouvoir répondre.
+	if buzzerMode && !hasBuzzed {
 		r.Mu.Unlock()
 		return
 	}
@@ -363,6 +420,12 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 	r.Mu.Unlock()
 
 	result := VerifyAnswer(answer, track)
+
+	if buzzerMode {
+		r.checkAnswerBuzzer(client, result.Points, buzzMs)
+		return
+	}
+
 	if result.Points == 0 {
 		return
 	}
@@ -406,6 +469,60 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 	go r.BroadcastPlayerList()
 }
 
+// checkAnswerBuzzer applique le scoring du mode buzzer : une réponse (juste ou
+// fausse) consomme le tour du joueur. Bonne réponse → points de placement +
+// bonus de vitesse ; mauvaise réponse → verrouillé pour le round.
+func (r *Room) checkAnswerBuzzer(client *Client, points int, buzzMs int64) {
+	r.Mu.Lock()
+	if r.HasAnswered[client.ID] {
+		r.Mu.Unlock()
+		return
+	}
+	r.HasAnswered[client.ID] = true
+
+	if points == 0 {
+		r.Mu.Unlock()
+		msg, _ := json.Marshal(map[string]interface{}{
+			"type":    "PLAYER_WRONG",
+			"payload": map[string]interface{}{"username": client.Username},
+		})
+		select {
+		case r.Broadcast <- msg:
+		case <-r.done:
+		}
+		go r.BroadcastPlayerList()
+		return
+	}
+
+	placement := len(r.RoundAnswers)
+	awarded := buzzerPoints(placement, buzzMs)
+	isFirst := placement == 0
+	r.RoundAnswers = append(r.RoundAnswers, RoundAnswer{
+		Username: client.Username,
+		TimeMs:   buzzMs,
+		Bonus:    awarded,
+	})
+	r.Mu.Unlock()
+
+	client.Score += awarded
+
+	msg, _ := json.Marshal(map[string]interface{}{
+		"type": "PLAYER_GUESS",
+		"payload": map[string]interface{}{
+			"username": client.Username,
+			"is_first": isFirst,
+			"points":   awarded,
+		},
+	})
+	select {
+	case r.Broadcast <- msg:
+	case <-r.done:
+		return
+	}
+
+	go r.BroadcastPlayerList()
+}
+
 func (r *Room) nextRound() {
 	r.Mu.Lock()
 	if r.CurrentRound >= r.MaxRounds {
@@ -417,6 +534,7 @@ func (r *Room) nextRound() {
 	r.HasAnswered = make(map[string]bool)
 	r.RoundAnswers = []RoundAnswer{}
 	r.SkipVotes = make(map[string]bool)
+	r.Buzzed = make(map[string]int64)
 	r.RoundStart = time.Now()
 	duration := r.RoundDuration
 	filters := models.TrackFilters{

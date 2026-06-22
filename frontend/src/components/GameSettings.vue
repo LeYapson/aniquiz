@@ -62,6 +62,12 @@
         Connecte ton compte AniList ou MAL dans ton profil pour activer ce filtre.
       </p>
 
+      <label class="full-width buzzer-label">
+        <input type="checkbox" v-model="local.buzzerMode" />
+        🔔 Mode buzzer
+        <span class="buzzer-hint">buzze pour répondre — l'audio se coupe, mauvaise réponse = éliminé du round</span>
+      </label>
+
       <label class="full-width">
         <input type="checkbox" v-model="local.isPrivate" /> Salon privé
         <input
@@ -112,6 +118,7 @@ const local = reactive({
   decade: props.initialSettings?.decade ?? 0,
   isPrivate: props.initialSettings?.isPrivate ?? false,
   password: props.initialSettings?.password ?? "",
+  buzzerMode: props.initialSettings?.buzzerMode ?? false,
   useAnilistFilter: false,
   filterMalIds: [],
 });
@@ -173,6 +180,7 @@ const apply = () => {
       max_year: maxYear,
       is_private: local.isPrivate,
       password: local.password,
+      buzzer_mode: local.buzzerMode,
       filter_mal_ids: local.useAnilistFilter ? local.filterMalIds : [],
     },
   }));
@@ -285,6 +293,9 @@ const apply = () => {
 .password-input:focus { border-color: #f97316; }
 
 input[type="checkbox"] { accent-color: #f97316; width: 16px; height: 16px; }
+
+.buzzer-label { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; color: #e2e8f0; }
+.buzzer-hint { width: 100%; font-size: 0.72rem; color: #94a3b8; font-weight: 500; font-style: italic; }
 
 .btn-apply {
   background: #f97316;

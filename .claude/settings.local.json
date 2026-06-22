@@ -28,7 +28,28 @@
       "Bash(git stash *)",
       "Bash(cd \"/c/Users/theau/Documents/YNOV/ynov_M1/ci-cd/projet perso/aniquiz\" && find . -name \"*test*\" -type f ! -path \"*/node_modules/*\" | head -20)",
       "Read(//c/c/Users/theau/Documents/YNOV/ynov_M1/ci-cd/projet perso/**)",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "WebSearch",
+      "WebFetch(domain:anime-music-quiz.fandom.com)",
+      "WebFetch(domain:animemusicquiz.com)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:www.youtube.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:mechanicalanimereviews.com)",
+      "WebFetch(domain:amqplus.moe)",
+      "WebFetch(domain:www.artstation.com)",
+      "WebFetch(domain:jonspencerreviews.wordpress.com)",
+      "WebFetch(domain:animemusicquiz.fun)",
+      "WebFetch(domain:y0uc4n7kn0w.com)",
+      "WebFetch(domain:greasyfork.org)",
+      "WebFetch(domain:willdrevo.com)",
+      "WebFetch(domain:animedin.net)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:alternativeto.net)",
+      "WebFetch(domain:anilist.co)",
+      "Bash(gh issue *)",
+      "WebFetch(domain:wiki.mozilla.org)",
+      "WebFetch(domain:userstyles.world)"
     ]
   }
 }
