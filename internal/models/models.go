@@ -76,3 +76,19 @@ type SpeedrunLeaderboardEntry struct {
 	BestScore int       `json:"best_score"`
 	PlayedAt  time.Time `json:"played_at"`
 }
+
+// Friend représente un ami confirmé (relation acceptée).
+type Friend struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Level    int    `json:"level"`
+}
+
+// FriendRequest représente une demande d'ami reçue, en attente de réponse.
+type FriendRequest struct {
+	RequestID int       `json:"request_id"`
+	UserID    int       `json:"user_id"` // l'expéditeur
+	Username  string    `json:"username"`
+	Level     int       `json:"level"`
+	CreatedAt time.Time `json:"created_at"`
+}

@@ -46,6 +46,18 @@ func Migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_speedrun_user   ON speedrun_results(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_speedrun_score  ON speedrun_results(score DESC)`,
+		// Système d'amis : une ligne par relation, statut 'pending' puis 'accepted'.
+		`CREATE TABLE IF NOT EXISTS friendships (
+			id           SERIAL PRIMARY KEY,
+			requester_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			addressee_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			status       TEXT NOT NULL DEFAULT 'pending',
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT friendships_no_self CHECK (requester_id <> addressee_id),
+			CONSTRAINT friendships_unique_pair UNIQUE (requester_id, addressee_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id)`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
