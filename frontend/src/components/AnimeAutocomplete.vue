@@ -10,7 +10,7 @@
         @keydown="onKeydown"
         @blur="onBlur"
         @focus="showDropdown = suggestions.length > 0"
-        placeholder="Nom de l'anime..."
+        :placeholder="placeholder"
         autocomplete="off"
         spellcheck="false"
         aria-autocomplete="list"
@@ -49,6 +49,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   dictionary: { type: Array, default: () => [] },
   inputId: { type: String, default: 'anime-guess' },
+  placeholder: { type: String, default: "Nom de l'anime..." },
 });
 
 const emit = defineEmits(['update:modelValue', 'submit']);

@@ -173,7 +173,7 @@
                 </div>
 
                 <div v-else>
-                  <p>🎵 Écoutez attentivement...</p>
+                  <p>🎵 Écoutez et devinez <strong>{{ guessLabel }}</strong>…</p>
 
                   <GameTimer :duration="roundDuration" :key="currentAudioUrl" />
 
@@ -207,7 +207,8 @@
                     <AnimeAutocomplete
                       v-else
                       v-model="userGuess"
-                      :dictionary="animeDictionary"
+                      :dictionary="guessMode === 'anime' ? animeDictionary : []"
+                      :placeholder="`Devine ${guessLabel}…`"
                       input-id="anime-guess"
                       @submit="submitAnswer"
                     />
@@ -350,8 +351,14 @@ const isCreator = ref(false);
 const navigateTo = (view) => {
   currentView.value = view;
 };
-const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "", buzzerMode: false });
+const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "", buzzerMode: false, guessMode: "anime" });
 const buzzerMode = computed(() => roomSettings.value.buzzerMode === true);
+const guessMode = computed(() => roomSettings.value.guessMode || "anime");
+const guessLabel = computed(() => ({
+  anime: "le nom de l'anime",
+  title: "le titre de la musique",
+  artist: "l'artiste",
+}[guessMode.value] || "le nom de l'anime"));
 const hasBuzzed = ref(false);
 const buzzedUsers = ref([]);
 const chatMessages = ref([]);
@@ -575,6 +582,7 @@ const connectWebSocket = (room_id, password) => {
             filterType: data.payload.filter_type,
             isPrivate: data.payload.is_private,
             buzzerMode: data.payload.buzzer_mode === true,
+            guessMode: data.payload.guess_mode || "anime",
           };
           break;
         case "PLAYER_BUZZED":

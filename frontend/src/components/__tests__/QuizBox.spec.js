@@ -55,6 +55,6 @@ describe('App Quiz Logic', () => {
     wrapper.vm.state = 'PLAYING'
     await nextTick()
 
-    expect(wrapper.text()).toContain('Écoutez attentivement')
+    expect(wrapper.text()).toContain('Écoutez et devinez')
   })
 })

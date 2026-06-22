@@ -14,6 +14,15 @@
       </label>
 
       <label>
+        À deviner
+        <select v-model="local.guessMode">
+          <option value="anime">Nom de l'anime</option>
+          <option value="title">Titre de la musique</option>
+          <option value="artist">Artiste</option>
+        </select>
+      </label>
+
+      <label>
         Type de générique
         <select v-model="local.filterType">
           <option value="">Tout (OP + ED)</option>
@@ -115,6 +124,7 @@ const local = reactive({
   maxRounds: props.initialSettings?.maxRounds ?? 5,
   roundDuration: props.initialSettings?.roundDuration ?? 20,
   filterType: props.initialSettings?.filterType ?? "",
+  guessMode: props.initialSettings?.guessMode ?? "anime",
   decade: props.initialSettings?.decade ?? 0,
   isPrivate: props.initialSettings?.isPrivate ?? false,
   password: props.initialSettings?.password ?? "",
@@ -181,6 +191,7 @@ const apply = () => {
       is_private: local.isPrivate,
       password: local.password,
       buzzer_mode: local.buzzerMode,
+      guess_mode: local.guessMode,
       filter_mal_ids: local.useAnilistFilter ? local.filterMalIds : [],
     },
   }));

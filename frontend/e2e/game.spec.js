@@ -261,7 +261,7 @@ test.describe('Partie', () => {
 
     await page.getByRole('button', { name: 'Lancer la partie' }).click()
 
-    await expect(page.getByText('Écoutez attentivement')).toBeVisible()
+    await expect(page.getByText(/Écoutez et devinez/)).toBeVisible()
   })
 
   test('affiche le lecteur audio après le démarrage', async ({ page }) => {
@@ -312,7 +312,7 @@ test.describe('Partie', () => {
     await joinRoom(page)
     await page.getByRole('button', { name: 'Lancer la partie' }).click()
 
-    await expect(page.getByPlaceholder("Nom de l'anime...")).toBeVisible()
+    await expect(page.getByPlaceholder(/nom de l'anime/i)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Envoyer ma réponse' })).toBeVisible()
   })
 
@@ -414,7 +414,7 @@ test.describe('Spectateur', () => {
 
   test('n\'affiche pas le champ de réponse en mode spectateur', async ({ page }) => {
     await joinRoomAsSpectator(page)
-    await expect(page.getByPlaceholder("Nom de l'anime...")).not.toBeVisible()
+    await expect(page.getByPlaceholder(/nom de l'anime/i)).not.toBeVisible()
   })
 
   test('affiche le message de spectateur pendant la partie', async ({ page }) => {

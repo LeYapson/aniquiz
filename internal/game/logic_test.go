@@ -78,3 +78,43 @@ func TestVerifyAnswer(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyAnswerMode(t *testing.T) {
+	track := &models.Track{
+		AnimeName: "Cowboy Bebop",
+		Title:     "Tank!",
+		Artist:    "The Seatbelts",
+	}
+
+	tests := []struct {
+		name       string
+		input      string
+		mode       string
+		wantPoints int
+	}{
+		{"anime mode exact", "Cowboy Bebop", GuessModeAnime, 10},
+		{"title mode exact", "Tank!", GuessModeTitle, 10},
+		{"artist mode exact", "The Seatbelts", GuessModeArtist, 10},
+		{"title mode but gave anime", "Cowboy Bebop", GuessModeTitle, 0},
+		{"artist mode case insensitive", "the seatbelts", GuessModeArtist, 10},
+		{"unknown mode falls back to anime", "Cowboy Bebop", "bogus", 10},
+		{"empty mode falls back to anime", "Cowboy Bebop", "", 10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := VerifyAnswerMode(tt.input, track, tt.mode)
+			if got.Points != tt.wantPoints {
+				t.Errorf("VerifyAnswerMode(%q, %q) points = %d, want %d", tt.input, tt.mode, got.Points, tt.wantPoints)
+			}
+		})
+	}
+}
+
+// Une cible vide (ex. artiste inconnu) ne doit jamais valider une réponse vide.
+func TestMatchAnswerEmptyTarget(t *testing.T) {
+	track := &models.Track{AnimeName: "X", Title: "Y", Artist: ""}
+	if got := VerifyAnswerMode("", track, GuessModeArtist); got.Points != 0 || got.IsCorrect {
+		t.Errorf("cible vide : got %+v, want 0 points / incorrect", got)
+	}
+}
