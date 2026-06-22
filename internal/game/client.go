@@ -74,6 +74,12 @@ func (c *Client) ReadPump() {
 			fmt.Printf("Réponse reçue : %s\n", answer)
 			c.Room.CheckAnswer(c, answer)
 
+		case "BUZZ":
+			if c.IsSpectator {
+				continue
+			}
+			c.Room.Buzz(c)
+
 		case "CHAT":
 			var text string
 			if err := json.Unmarshal(msg.Payload, &text); err != nil || len([]rune(text)) == 0 {
@@ -193,6 +199,7 @@ func (c *Client) ReadPump() {
 				MinYear       int    `json:"min_year"`
 				MaxYear       int    `json:"max_year"`
 				FilterMalIDs  []int  `json:"filter_mal_ids"`
+				BuzzerMode    bool   `json:"buzzer_mode"`
 			}
 
 			var settings SettingsPayload
@@ -215,6 +222,7 @@ func (c *Client) ReadPump() {
 				c.Room.MinYear = settings.MinYear
 				c.Room.MaxYear = settings.MaxYear
 				c.Room.FilterMalID = settings.FilterMalIDs
+				c.Room.BuzzerMode = settings.BuzzerMode
 				c.Room.Mu.Unlock()
 
 				settingsMsg, _ := json.Marshal(map[string]interface{}{
@@ -227,6 +235,7 @@ func (c *Client) ReadPump() {
 						"min_year":       c.Room.MinYear,
 						"max_year":       c.Room.MaxYear,
 						"filter_mal_ids": c.Room.FilterMalID,
+						"buzzer_mode":    c.Room.BuzzerMode,
 					},
 				})
 				c.Room.Broadcast <- settingsMsg

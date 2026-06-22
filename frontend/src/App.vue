@@ -197,12 +197,24 @@
                   </div>
 
                   <div v-else class="answer-zone">
+                    <button
+                      v-if="buzzerMode && !hasBuzzed"
+                      type="button"
+                      class="btn-buzzer"
+                      @click="onBuzz"
+                    >🔔 BUZZER</button>
+
                     <AnimeAutocomplete
+                      v-else
                       v-model="userGuess"
                       :dictionary="animeDictionary"
                       input-id="anime-guess"
                       @submit="submitAnswer"
                     />
+
+                    <p v-if="buzzerMode && buzzedUsers.length > 0" class="buzzed-list" aria-live="polite">
+                      🔔 Ont buzzé : {{ buzzedUsers.join(', ') }}
+                    </p>
                   </div>
 
                   <!-- Vote pour passer -->
@@ -286,7 +298,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
@@ -338,7 +350,10 @@ const isCreator = ref(false);
 const navigateTo = (view) => {
   currentView.value = view;
 };
-const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "" });
+const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "", buzzerMode: false });
+const buzzerMode = computed(() => roomSettings.value.buzzerMode === true);
+const hasBuzzed = ref(false);
+const buzzedUsers = ref([]);
 const chatMessages = ref([]);
 const isSpectator = ref(false);
 const spectatorCount = ref(0);
@@ -421,6 +436,15 @@ const kickPlayer = (username) => {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "KICK_PLAYER", payload: username }));
   }
+};
+
+// Mode buzzer : buzze pour répondre. Le buzz coupe ton audio (tu t'engages sur
+// ce que tu as entendu) et fait apparaître le champ de réponse.
+const onBuzz = () => {
+  if (!socket || socket.readyState !== WebSocket.OPEN || hasBuzzed.value) return;
+  socket.send(JSON.stringify({ type: "BUZZ", payload: null }));
+  hasBuzzed.value = true;
+  if (audioEl.value) audioEl.value.muted = true;
 };
 
 const submitAnswer = () => {
@@ -526,6 +550,9 @@ const connectWebSocket = (room_id, password) => {
           roundDuration.value = data.payload.duration;
           hasVotedSkip.value = false;
           skipVotes.value = { votes: 0, needed: 1 };
+          hasBuzzed.value = false;
+          buzzedUsers.value = [];
+          if (audioEl.value) audioEl.value.muted = false;
           // playback is driven by the watch(currentAudioUrl) watcher above
           break;
         case "ROUND_ENDED":
@@ -547,7 +574,19 @@ const connectWebSocket = (room_id, password) => {
             roundDuration: data.payload.round_duration,
             filterType: data.payload.filter_type,
             isPrivate: data.payload.is_private,
+            buzzerMode: data.payload.buzzer_mode === true,
           };
+          break;
+        case "PLAYER_BUZZED":
+          if (data.payload.username && !buzzedUsers.value.includes(data.payload.username)) {
+            buzzedUsers.value.push(data.payload.username);
+          }
+          break;
+        case "PLAYER_WRONG":
+          buzzedUsers.value = buzzedUsers.value.filter((u) => u !== data.payload.username);
+          if (data.payload.username === authStore.user?.username) {
+            toast.error("Mauvaise réponse — éliminé pour ce round !", { title: "🔔 Buzzer" });
+          }
           break;
         case "NOTICE":
           toast.info(data.payload, { title: "Info partie" });
@@ -913,6 +952,25 @@ main { flex: 1; display: flex; flex-direction: column; }
   cursor: pointer;
 }
 .audio-retry:hover { opacity: 0.88; }
+
+.btn-buzzer {
+  margin-top: 8px;
+  width: 100%;
+  padding: 18px 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.btn-buzzer:hover { box-shadow: 0 6px 22px rgba(249, 115, 22, 0.5); }
+.btn-buzzer:active { transform: scale(0.97); }
+.buzzed-list { margin-top: 10px; font-size: 0.82rem; color: #fbbf24; }
 
 /* ── Reveal enrichi ─────────────────────────────────────── */
 .reveal-header { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
