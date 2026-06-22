@@ -176,7 +176,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Booting the buildx (docker-container) builder pulls moby/buildkit from
+      # Docker Hub, which intermittently fails on GitHub runners (transient
+      # registry hiccup / anonymous rate limit). Try once, retry once on failure.
       - name: Set up Docker Buildx
+        id: buildx
+        continue-on-error: true
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Docker Buildx (retry)
+        if: steps.buildx.outcome == 'failure'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
