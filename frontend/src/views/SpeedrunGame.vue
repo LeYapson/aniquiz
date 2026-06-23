@@ -81,28 +81,27 @@
 
         <!-- Colonne droite : formulaire réponse -->
         <div class="col-form">
-          <form class="answer-form" @submit.prevent="submitAnswer">
+          <div class="answer-form">
             <label class="form-label">Nom de l'anime</label>
-            <input
+            <AnimeAutocomplete
               ref="answerInput"
               v-model="answer"
-              type="text"
+              :dictionary="animeDictionary"
+              :show-submit="false"
               placeholder="Tape ta réponse..."
-              autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
-              :disabled="isSubmitting"
+              input-id="speedrun-guess"
+              @submit="submitAnswer"
             />
             <div v-if="feedback" class="feedback" :class="feedbackClass">
               {{ feedback }}
             </div>
-            <button type="submit" class="btn-primary btn-full" :disabled="!answer.trim() || isSubmitting">
+            <button type="button" class="btn-primary btn-full" @click="submitAnswer" :disabled="!answer.trim() || isSubmitting">
               Valider
             </button>
             <button type="button" class="btn-skip btn-full" @click="skipTrack" :disabled="isSubmitting">
               Abandonner cette piste →
             </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -142,9 +141,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { API_URL } from '../config.ts'
 import { authStore } from '../authStore.js'
+import AnimeAutocomplete from '../components/AnimeAutocomplete.vue'
 
 const phase        = ref('idle')
 const sessionId    = ref(null)
@@ -162,6 +162,7 @@ const abandoned    = ref(false)
 const streak       = ref(0)
 const tracksPlayed = ref(0)
 const tracksSkipped= ref(0)
+const animeDictionary = ref([])
 
 const audioEl    = ref(null)
 const answerInput= ref(null)
@@ -340,6 +341,16 @@ function onAudioEnded() {
 function focusInput() {
   setTimeout(() => { answerInput.value?.focus() }, 50)
 }
+
+// Charge le dictionnaire d'animes pour l'auto-complétion (aide à la saisie).
+onMounted(async () => {
+  try {
+    const res = await fetch(`${API_URL}/animes`)
+    if (res.ok) animeDictionary.value = await res.json()
+  } catch (err) {
+    console.error('Erreur chargement dictionnaire animes :', err)
+  }
+})
 
 onUnmounted(() => { clearInterval(timerInterval) })
 </script>

@@ -245,6 +245,7 @@ func NewRouter(store Store) *gin.Engine {
 		})
 
 		// Système d'amis
+		protected.GET("/api/users/search", SearchUsersHandler)
 		protected.GET("/api/friends", ListFriendsHandler)
 		protected.GET("/api/friends/requests", ListFriendRequestsHandler)
 		protected.POST("/api/friends/request", SendFriendRequestHandler)

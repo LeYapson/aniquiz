@@ -1,15 +1,42 @@
 <template>
   <div class="friends-panel">
-    <!-- Ajouter un ami -->
+    <!-- Ajouter un ami (avec aide à la recherche de pseudo) -->
     <div class="add-row">
-      <input
-        v-model="newFriend"
-        type="text"
-        placeholder="Pseudo d'un joueur à ajouter…"
-        class="friend-input"
-        @keyup.enter="sendRequest"
-        :disabled="sending"
-      />
+      <div class="search-wrap">
+        <input
+          v-model="newFriend"
+          type="text"
+          placeholder="Pseudo d'un joueur à ajouter…"
+          class="friend-input"
+          autocomplete="off"
+          spellcheck="false"
+          aria-autocomplete="list"
+          :aria-expanded="showDropdown && suggestions.length > 0"
+          @input="onSearchInput"
+          @keydown="onSearchKeydown"
+          @focus="showDropdown = suggestions.length > 0"
+          @blur="onSearchBlur"
+          :disabled="sending"
+        />
+        <ul
+          v-if="showDropdown && suggestions.length > 0"
+          class="search-dropdown"
+          role="listbox"
+        >
+          <li
+            v-for="(u, i) in suggestions"
+            :key="u.user_id"
+            :class="{ highlighted: i === activeIndex }"
+            @mousedown.prevent="selectUser(u)"
+            role="option"
+            :aria-selected="i === activeIndex"
+          >
+            <span class="sugg-dot">{{ u.username.charAt(0).toUpperCase() }}</span>
+            <span class="sugg-name">{{ u.username }}</span>
+            <small class="sugg-level">niv. {{ u.level }}</small>
+          </li>
+        </ul>
+      </div>
       <button @click="sendRequest" :disabled="sending || newFriend.trim().length < 1" class="btn-add-friend">
         {{ sending ? '…' : '➕ Ajouter' }}
       </button>
@@ -61,6 +88,69 @@ const loading = ref(true);
 const newFriend = ref("");
 const sending = ref(false);
 
+// ── Aide à la recherche de pseudo (auto-complétion serveur) ──
+const suggestions = ref([]);
+const showDropdown = ref(false);
+const activeIndex = ref(-1);
+let searchTimer = null;
+
+const onSearchInput = () => {
+  activeIndex.value = -1;
+  const q = newFriend.value.trim();
+  clearTimeout(searchTimer);
+  if (q.length < 1) {
+    suggestions.value = [];
+    showDropdown.value = false;
+    return;
+  }
+  searchTimer = setTimeout(() => searchUsers(q), 200);
+};
+
+const searchUsers = async (q) => {
+  try {
+    const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(q)}`, {
+      headers: authStore.authHeaders(),
+    });
+    if (!res.ok) return;
+    suggestions.value = await res.json();
+    showDropdown.value = suggestions.value.length > 0;
+  } catch {
+    // recherche best-effort : on ignore les erreurs réseau
+  }
+};
+
+const selectUser = (u) => {
+  newFriend.value = u.username;
+  suggestions.value = [];
+  showDropdown.value = false;
+  activeIndex.value = -1;
+};
+
+const onSearchKeydown = (e) => {
+  if (!showDropdown.value || suggestions.value.length === 0) {
+    if (e.key === "Enter") sendRequest();
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIndex.value = Math.min(activeIndex.value + 1, suggestions.value.length - 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIndex.value = Math.max(activeIndex.value - 1, -1);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (activeIndex.value >= 0) selectUser(suggestions.value[activeIndex.value]);
+    else sendRequest();
+  } else if (e.key === "Escape") {
+    showDropdown.value = false;
+    activeIndex.value = -1;
+  }
+};
+
+const onSearchBlur = () => {
+  setTimeout(() => { showDropdown.value = false; }, 150);
+};
+
 const loadFriends = async () => {
   try {
     const [fRes, rRes] = await Promise.all([
@@ -90,6 +180,8 @@ const sendRequest = async () => {
     if (res.ok) {
       toast.success(`Demande envoyée à ${username}`);
       newFriend.value = "";
+      suggestions.value = [];
+      showDropdown.value = false;
       await loadFriends();
     } else {
       toast.error(data.error || "Impossible d'envoyer la demande");
@@ -141,13 +233,38 @@ onMounted(loadFriends);
 <style scoped>
 .friends-panel { display: flex; flex-direction: column; gap: 16px; }
 
-.add-row { display: flex; gap: 10px; }
+.add-row { display: flex; gap: 10px; align-items: flex-start; }
+.search-wrap { position: relative; flex: 1; }
 .friend-input {
-  flex: 1; padding: 9px 12px;
+  width: 100%; padding: 9px 12px;
   background: #0f0f23; border: 1px solid rgba(255,255,255,0.1);
   color: #f1f5f9; border-radius: 7px; font-size: 0.9rem; outline: none;
   transition: border-color 0.15s;
 }
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px); left: 0; right: 0;
+  background: #1e2a45; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; list-style: none; padding: 4px 0; margin: 0;
+  z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  max-height: 260px; overflow-y: auto;
+}
+.search-dropdown li {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 12px; cursor: pointer; color: #e2e8f0; font-size: 0.9rem;
+  transition: background 0.1s;
+}
+.search-dropdown li:hover,
+.search-dropdown li.highlighted { background: rgba(249,115,22,0.15); }
+.sugg-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+}
+.sugg-name { font-weight: 600; }
+.sugg-level { color: #64748b; margin-left: auto; }
 .friend-input:focus { border-color: #f97316; }
 .friend-input::placeholder { color: #475569; }
 .friend-input:disabled { opacity: 0.5; }
