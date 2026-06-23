@@ -8,22 +8,32 @@
 
       <h2>1. Éditeur du site</h2>
       <p>
-        AniQuiz est un projet indépendant et <strong>non lucratif</strong>, développé par des
-        passionné·e·s d'anime dans un cadre éducatif et associatif.
+        AniQuiz est un projet indépendant et <strong>non lucratif</strong>, édité par un
+        particulier passionné d'anime, dans un cadre éducatif.
       </p>
       <p>
-        <strong>Éditeur / responsable de publication :</strong>
-        <span class="todo">[à compléter : nom et prénom ou raison sociale]</span><br />
-        <strong>Statut :</strong> projet personnel / étudiant sans but lucratif<br />
+        Conformément à l'article 6 III 2 de la loi n° 2004-575 (LCEN), l'éditeur étant un
+        <strong>particulier non professionnel</strong>, son identité complète est tenue à la
+        disposition de l'hébergeur. Le public peut le contacter via les coordonnées ci-dessous.
+      </p>
+      <p>
+        <strong>Directeur de la publication :</strong>
+        <span class="todo">[à compléter : ton pseudo ou prénom — ex. yatokishi]</span><br />
+        <strong>Statut :</strong> projet personnel sans but lucratif<br />
         <strong>Contact :</strong> <a href="mailto:contact@aniquiz.fr">contact@aniquiz.fr</a>
-        <span class="todo">[adapter l'adresse si besoin]</span>
+        <span class="todo">[remplacer par ton adresse réelle, ex. contact@tondomaine.fr]</span>
       </p>
 
       <h2>2. Hébergement</h2>
       <p>
-        Le code source et les images du service sont hébergés via GitHub. L'application et la
-        base de données sont hébergées sur :
-        <span class="todo">[à compléter : nom de l'hébergeur, raison sociale et adresse — ex. OVH, Scaleway, etc.]</span>.
+        Application et base de données :<br />
+        <strong>Hetzner Online GmbH</strong><br />
+        Industriestr. 25, 91710 Gunzenhausen, Allemagne<br />
+        Tél. : +49 (0)9831 505-0 — <a href="https://www.hetzner.com" target="_blank" rel="noopener">hetzner.com</a>
+      </p>
+      <p>
+        Le code source est par ailleurs hébergé sur GitHub (GitHub Inc., 88 Colin P. Kelly Jr.
+        Street, San Francisco, CA 94107, USA).
       </p>
 
       <h2>3. Propriété intellectuelle</h2>
