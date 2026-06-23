@@ -51,7 +51,8 @@
       "WebFetch(domain:wiki.mozilla.org)",
       "WebFetch(domain:userstyles.world)",
       "Bash(git show *)",
-      "Bash(git --no-pager show HEAD:.env.example)"
+      "Bash(git --no-pager show HEAD:.env.example)",
+      "PowerShell($g = Get-Command gh -ErrorAction SilentlyContinue; if \\($g\\) { Write-Output \\(\"gh found: \" + $g.Source\\); gh api repos/LeYapson/aniquiz/rulesets } else { Write-Output \"gh NOT installed\" })"
     ]
   }
 }

@@ -139,9 +139,10 @@ const xpProgress = computed(() => {
 .header-nav {
   display: flex;
   gap: 4px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
+  justify-content: center;
+  /* overflow guard: never push right block off-screen */
+  min-width: 0;
 }
 .nav-tab {
   display: flex;
@@ -296,15 +297,25 @@ const xpProgress = computed(() => {
 .logout-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
 /* ── Responsive ── */
+
+/* 1200px: hide XP text & bar, keep avatar + name */
+@media (max-width: 1200px) {
+  .player-xp { display: none; }
+  .xp-bar    { display: none; }
+  .player-info { min-width: unset; }
+}
+
+/* 1080px: hide AniList/MAL pills and player name — avatar badge enough */
+@media (max-width: 1080px) {
+  .header-links { display: none; }
+  .player-info  { display: none; }
+  .nav-tab { padding: 8px 12px; }
+}
+
+/* 860px: collapse nav to icons only */
 @media (max-width: 860px) {
-  .header-nav {
-    position: static;
-    transform: none;
-  }
   .nav-label { display: none; }
   .nav-tab { padding: 8px 10px; }
-  .header-links { display: none; }
-  .player-info { display: none; }
 }
 
 @media (max-width: 600px) {
