@@ -153,6 +153,9 @@
       <div class="footer-links">
         <button @click="emit('play')" class="footer-link">Jouer</button>
         <button @click="emit('leaderboard')" class="footer-link">Classement</button>
+        <RouterLink to="/legal" class="footer-link">Mentions légales</RouterLink>
+        <RouterLink to="/terms" class="footer-link">CGU</RouterLink>
+        <RouterLink to="/privacy" class="footer-link">Confidentialité</RouterLink>
         <a href="https://discord.gg/RZhW7qparB" target="_blank" rel="noopener" class="footer-link">Discord</a>
       </div>
     </footer>
@@ -748,7 +751,7 @@ const badges = [
   margin: 0 auto;
 }
 
-.footer-links { display: flex; gap: 20px; }
+.footer-links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
 .footer-link {
   background: none;
   border: none;
