@@ -14,7 +14,7 @@ const router = createRouter({
       component: App,
       meta: {
         title: "AniQuiz — Blindtest d'anime en ligne gratuit",
-        description: "AniQuiz est le blindtest d'anime en ligne gratuit et multijoueur. Reconnais les openings et endings d'anime, affronte tes amis en temps réel. 500+ animes disponibles.",
+        description: "AniQuiz est le blindtest d'anime en ligne gratuit et multijoueur. Reconnais les openings et endings d'anime, affronte tes amis en temps réel. 500+ animes. Compte gratuit en 30 secondes.",
         canonical: 'https://aniquiz.fr/',
       },
     },
