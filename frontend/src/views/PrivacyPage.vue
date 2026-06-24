@@ -16,7 +16,7 @@
       <h2>1. Responsable du traitement</h2>
       <p>
         Le responsable du traitement est l'éditeur d'AniQuiz
-        (<span class="todo">[à compléter : identité]</span>). Contact :
+        (<span>yatokishi</span>). Contact :
         <a href="mailto:contact@aniquiz.fr">contact@aniquiz.fr</a>.
       </p>
 
@@ -124,12 +124,6 @@
       <h2>10. Contact</h2>
       <p>
         Toute question relative à vos données : <a href="mailto:contact@aniquiz.fr">contact@aniquiz.fr</a>.
-      </p>
-
-      <p class="note">
-        ⚖️ Modèle de bonne foi reflétant le fonctionnement actuel du Service ; il ne constitue
-        pas un avis juridique. Complétez l'identité du responsable et faites relire avant une
-        mise en production publique.
       </p>
     </div>
   </div>
