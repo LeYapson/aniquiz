@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://aniquiz.fr/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <lastmod>2026-06-24</lastmod>
+  </url>
+  <url>
+    <loc>https://aniquiz.fr/speedrun</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2026-06-24</lastmod>
+  </url>
+  <url>
+    <loc>https://aniquiz.fr/legal</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+    <lastmod>2026-06-24</lastmod>
+  </url>
+  <url>
+    <loc>https://aniquiz.fr/terms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+    <lastmod>2026-06-24</lastmod>
+  </url>
+  <url>
+    <loc>https://aniquiz.fr/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+    <lastmod>2026-06-24</lastmod>
+  </url>
+</urlset>

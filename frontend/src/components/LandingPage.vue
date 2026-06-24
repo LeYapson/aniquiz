@@ -5,6 +5,7 @@
     <section class="hero">
       <div class="hero-content">
         <img :src="img.logo" alt="AniQuiz" class="hero-logo" />
+        <h1 class="hero-h1">Blindtest d'anime en ligne gratuit</h1>
         <p class="hero-tagline">
           Reconnais les génériques d'anime avant tes adversaires.<br />
           En multi, en solo ou en Speed Run — prouve que tu es le vrai otaku.
@@ -280,8 +281,16 @@ const badges = [
 
 .hero-logo {
   width: 220px;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
   filter: drop-shadow(0 4px 24px rgba(249,115,22,0.35));
+}
+
+.hero-h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f97316;
+  margin: 0 0 16px;
+  letter-spacing: 0.01em;
 }
 
 .hero-tagline {
