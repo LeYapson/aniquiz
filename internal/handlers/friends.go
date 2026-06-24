@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/LeYapson/aniquiz/internal/database"
 	"github.com/LeYapson/aniquiz/internal/models"
@@ -76,6 +77,28 @@ func RemoveFriendHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Ami retiré"})
+}
+
+// SearchUsersHandler — GET /api/users/search?q=...
+// Auto-complétion de pseudos pour l'ajout d'un ami (exclut l'utilisateur courant).
+func SearchUsersHandler(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	q := strings.TrimSpace(c.Query("q"))
+	if q == "" {
+		c.JSON(http.StatusOK, []models.Friend{})
+		return
+	}
+
+	users, err := database.SearchUsers(q, userID.(int), 8)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "erreur serveur"})
+		return
+	}
+	if users == nil {
+		users = []models.Friend{}
+	}
+	c.JSON(http.StatusOK, users)
 }
 
 // ListFriendsHandler — GET /api/friends

@@ -7,7 +7,7 @@
         <img :src="img.logo" alt="AniQuiz" class="hero-logo" />
         <p class="hero-tagline">
           Reconnais les génériques d'anime avant tes adversaires.<br />
-          Prouve que tu es le vrai otaku.
+          En multi, en solo ou en Speed Run — prouve que tu es le vrai otaku.
         </p>
         <div class="hero-actions">
           <button @click="emit('play')" class="btn-play">Jouer maintenant</button>
@@ -16,9 +16,9 @@
         <div class="hero-stats">
           <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
           <div class="hero-stat-sep"></div>
-          <div class="hero-stat"><strong>Gratuit</strong><span>sans pub</span></div>
+          <div class="hero-stat"><strong>3 modes</strong><span>de jeu</span></div>
           <div class="hero-stat-sep"></div>
-          <div class="hero-stat"><strong>Multi</strong><span>temps réel</span></div>
+          <div class="hero-stat"><strong>Gratuit</strong><span>sans pub</span></div>
         </div>
       </div>
       <img :src="img.mascot" alt="Kora" class="hero-kora" />
@@ -59,6 +59,19 @@
           <h3>{{ mode.title }}</h3>
           <p>{{ mode.body }}</p>
           <span class="mode-badge" :class="mode.soon ? 'mode-soon' : 'mode-available'">{{ mode.soon ? 'Bientôt' : 'Disponible' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ PROGRESSION & SOCIAL ══ -->
+    <section class="section progression-section">
+      <h2 class="section-title">Progresse et personnalise</h2>
+      <p class="section-sub">Chaque partie contribue à ta progression permanente</p>
+      <div class="progression-grid">
+        <div class="prog-card" v-for="feat in progressionFeats" :key="feat.icon">
+          <div class="prog-icon" aria-hidden="true">{{ feat.icon }}</div>
+          <h3>{{ feat.title }}</h3>
+          <p>{{ feat.body }}</p>
         </div>
       </div>
     </section>
@@ -122,6 +135,10 @@
             Chaque retour compte et contribue directement à améliorer l'expérience pour tout le monde.
           </p>
           <div class="community-actions">
+            <a href="https://discord.gg/RZhW7qparB" target="_blank" rel="noopener" class="btn-discord">
+              <svg class="discord-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+              Rejoindre le Discord
+            </a>
             <a href="https://github.com/LeYapson/aniquiz/issues" target="_blank" rel="noopener" class="btn-feedback">
               Donner mon avis
             </a>
@@ -136,6 +153,10 @@
       <div class="footer-links">
         <button @click="emit('play')" class="footer-link">Jouer</button>
         <button @click="emit('leaderboard')" class="footer-link">Classement</button>
+        <RouterLink to="/legal" class="footer-link">Mentions légales</RouterLink>
+        <RouterLink to="/terms" class="footer-link">CGU</RouterLink>
+        <RouterLink to="/privacy" class="footer-link">Confidentialité</RouterLink>
+        <a href="https://discord.gg/RZhW7qparB" target="_blank" rel="noopener" class="footer-link">Discord</a>
       </div>
     </footer>
   </div>
@@ -161,9 +182,15 @@ const steps = [
 
 const modes = [
   { icon: '⚔️', title: 'Multijoueur', soon: false, body: "Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime." },
-  { icon: '🎯', title: 'Solo / Entraînement', soon: false, body: "Joue à ton rythme, sans pression. Parfait pour découvrir de nouveaux animes ou s'entraîner avant d'affronter des adversaires." },
+  { icon: '🎯', title: 'Solo', soon: false, body: "Joue à ton rythme, sans pression. Configure tes rounds et tes filtres — parfait pour s'entraîner ou explorer de nouveaux animes." },
+  { icon: '⚡', title: 'Speed Run', soon: false, body: "5 minutes, un maximum d'animes. Enchaîne les pistes, entretiens ta série de bonnes réponses et bats ton meilleur score." },
   { icon: '🏆', title: 'Classé', soon: true, body: 'Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.' },
-  { icon: '🤝', title: 'Équipes', soon: true, body: "Formez des équipes et affrontez d'autres groupes. La coordination et la complémentarité font la différence." },
+];
+
+const progressionFeats = [
+  { icon: '⭐', title: 'XP & Niveaux', body: "Gagne de l'XP à chaque partie et monte en niveau. Ta progression est visible sur ton profil et dans le classement global." },
+  { icon: '🖼️', title: 'Cadres d\'avatar', body: 'Débloque des cadres exclusifs du Bronze au Rainbow en montant de niveau. Affiche ton rang avec style.' },
+  { icon: '👥', title: 'Amis & Invitations', body: 'Ajoute tes amis et invite-les directement dans tes salons depuis le header. Jouer ensemble n\'a jamais été aussi simple.' },
 ];
 
 const rankedFeatures = [
@@ -425,6 +452,36 @@ const badges = [
   gap: 20px;
 }
 
+/* ─── Progression ───────────────────────────────────────────── */
+.progression-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.progression-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.prog-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.prog-card:hover {
+  background: rgba(249,115,22,0.05);
+  border-color: rgba(249,115,22,0.2);
+}
+
+.prog-icon { font-size: 2rem; }
+.prog-card h3 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.prog-card p  { font-size: 0.88rem; color: #64748b; line-height: 1.6; margin: 0; }
+
 .mode-card {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
@@ -646,6 +703,24 @@ const badges = [
   gap: 16px;
 }
 
+.btn-discord {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #5865f2;
+  color: #fff;
+  text-decoration: none;
+  padding: 11px 26px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 4px 16px rgba(88,101,242,0.35);
+}
+.btn-discord:hover { opacity: 0.88; transform: translateY(-2px); }
+
+.discord-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
 .btn-feedback {
   display: inline-block;
   background: transparent;
@@ -676,7 +751,7 @@ const badges = [
   margin: 0 auto;
 }
 
-.footer-links { display: flex; gap: 20px; }
+.footer-links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
 .footer-link {
   background: none;
   border: none;
@@ -685,6 +760,7 @@ const badges = [
   cursor: pointer;
   transition: color 0.15s;
   padding: 0;
+  text-decoration: none;
 }
 .footer-link:hover { color: #f97316; }
 
@@ -696,6 +772,7 @@ const badges = [
   .step-arrow { width: 2px; height: 32px; background: linear-gradient(180deg, rgba(249,115,22,0.5), rgba(249,115,22,0.15)); }
   .step-arrow::after { right: -4px; top: auto; bottom: -1px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid rgba(249,115,22,0.5); }
   .modes-grid { grid-template-columns: 1fr; }
+  .progression-grid { grid-template-columns: 1fr; }
   .ranked-inner { grid-template-columns: 1fr; gap: 40px; }
   .section-title.left { text-align: center; }
   .support-section { flex-direction: column; text-align: center; gap: 32px; }

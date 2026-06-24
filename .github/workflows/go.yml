@@ -282,14 +282,14 @@ jobs:
             # Pull the new image
             docker pull ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
 
-            # Tag as staging-current for rollback reference
-            PREV=$(docker inspect --format='{{.Image}}' aniquiz-app 2>/dev/null || echo "")
+            # Capture current image (repo:tag) for rollback reference
+            PREV=$(docker inspect --format='{{.Config.Image}}' aniquiz-app 2>/dev/null || echo "")
             echo "Previous image: $PREV"
 
-            # Update the compose file to pin the new SHA
+            # Update only the app service (db/nginx stay up — zero-downtime swap)
             export IMAGE_TAG=${{ steps.tag.outputs.value }}
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d --no-deps app
 
             # Health check via the Nginx ingress (port 8080 is NOT published).
             echo "Waiting for health check..."
@@ -352,7 +352,8 @@ jobs:
             docker pull ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
             export IMAGE_TAG=${{ steps.tag.outputs.value }}
 
-            docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans
+            # Update only the app service (db/nginx stay up — zero-downtime swap)
+            docker compose -f docker-compose.prod.yml up -d --no-deps app
 
             # Health check via the Nginx ingress (port 8080 is NOT published).
             for i in $(seq 1 12); do

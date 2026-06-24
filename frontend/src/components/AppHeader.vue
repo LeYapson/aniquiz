@@ -38,6 +38,8 @@
         </button>
       </div>
 
+      <NotificationsBell :inGame="inGame" @join="(inv) => emit('join-room', inv)" />
+
       <div class="player-card">
         <div class="avatar" :class="frameClass(user?.avatar_frame)">
           <img v-if="user?.avatar_url" :src="user.avatar_url" class="avatar-img" alt="" />
@@ -68,22 +70,29 @@
 import { computed } from 'vue';
 import { authStore } from '../authStore';
 import { frameClass } from '../cosmetics';
+import NotificationsBell from './NotificationsBell.vue';
 
-defineProps({
+const props = defineProps({
   currentView: { type: String, default: 'home' },
+  inGame: { type: Boolean, default: false },
+  isAdmin: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal']);
+const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal', 'join-room']);
 
 const logoSrc = '/logo.png';
 const user = computed(() => authStore.user);
 
-const tabs = [
-  { id: 'home',        icon: '🎮', label: 'Jouer' },
-  { id: 'leaderboard', icon: '🏆', label: 'Classement' },
-  { id: 'profile',     icon: '👤', label: 'Profil' },
-  { id: 'news',        icon: '📰', label: 'News' },
-];
+const tabs = computed(() => {
+  const base = [
+    { id: 'home',        icon: '🎮', label: 'Jouer' },
+    { id: 'leaderboard', icon: '🏆', label: 'Classement' },
+    { id: 'profile',     icon: '👤', label: 'Profil' },
+    { id: 'news',        icon: '📰', label: 'News' },
+  ];
+  if (props.isAdmin) base.push({ id: 'admin', icon: '🛠️', label: 'Admin' });
+  return base;
+});
 
 const initial = computed(() => (user.value?.username?.[0] ?? '?').toUpperCase());
 
@@ -131,9 +140,10 @@ const xpProgress = computed(() => {
 .header-nav {
   display: flex;
   gap: 4px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
+  justify-content: center;
+  /* overflow guard: never push right block off-screen */
+  min-width: 0;
 }
 .nav-tab {
   display: flex;
@@ -297,15 +307,25 @@ const xpProgress = computed(() => {
 .logout-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
 /* ── Responsive ── */
+
+/* 1200px: hide XP text & bar, keep avatar + name */
+@media (max-width: 1200px) {
+  .player-xp { display: none; }
+  .xp-bar    { display: none; }
+  .player-info { min-width: unset; }
+}
+
+/* 1080px: hide AniList/MAL pills and player name — avatar badge enough */
+@media (max-width: 1080px) {
+  .header-links { display: none; }
+  .player-info  { display: none; }
+  .nav-tab { padding: 8px 12px; }
+}
+
+/* 860px: collapse nav to icons only */
 @media (max-width: 860px) {
-  .header-nav {
-    position: static;
-    transform: none;
-  }
   .nav-label { display: none; }
   .nav-tab { padding: 8px 10px; }
-  .header-links { display: none; }
-  .player-info { display: none; }
 }
 
 @media (max-width: 600px) {

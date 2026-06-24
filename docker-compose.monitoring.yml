@@ -16,6 +16,10 @@ services:
     networks:
       - monitoring_net
       - proxy_net
+    # node-exporter runs on the host network; host.docker.internal is not
+    # resolvable from a Linux container without this mapping.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:9090:9090"
     deploy:

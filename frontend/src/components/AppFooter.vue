@@ -22,6 +22,7 @@
         <RouterLink to="/legal">Mentions légales</RouterLink>
         <RouterLink to="/terms">CGU</RouterLink>
         <RouterLink to="/privacy">Vie privée</RouterLink>
+        <a href="https://discord.gg/RZhW7qparB" target="_blank" rel="noopener" class="discord-link">💬 Discord</a>
         <a href="https://ko-fi.com/yatokishi" target="_blank" rel="noopener" class="kofi-link">☕ Soutenir</a>
       </div>
     </div>
@@ -92,6 +93,7 @@ const logoSrc = '/logo.png';
   width: fit-content;
 }
 .footer-col a:hover { color: #f97316; }
+.discord-link { color: #7289da !important; }
 .kofi-link { color: #fb923c !important; }
 
 .footer-bottom {

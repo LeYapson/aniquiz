@@ -17,7 +17,12 @@
         :aria-expanded="showDropdown && suggestions.length > 0"
         aria-controls="autocomplete-list"
       />
-      <button @click="$emit('submit')" class="btn-submit" aria-label="Envoyer ma réponse">
+      <button
+        v-if="showSubmit"
+        @click="$emit('submit')"
+        class="btn-submit"
+        aria-label="Envoyer ma réponse"
+      >
         Envoyer ma réponse
       </button>
     </div>
@@ -50,6 +55,9 @@ const props = defineProps({
   dictionary: { type: Array, default: () => [] },
   inputId: { type: String, default: 'anime-guess' },
   placeholder: { type: String, default: "Nom de l'anime..." },
+  // When false, the built-in "Envoyer" button is hidden so the parent can
+  // provide its own action buttons (e.g. the speed-run Valider / Skip layout).
+  showSubmit: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update:modelValue', 'submit']);

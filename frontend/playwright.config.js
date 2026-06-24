@@ -8,6 +8,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'html' : 'list',
 
   use: {
+    // Vite dev server binds to localhost; tests mock all APIs/WS so no backend is needed.
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
@@ -20,6 +21,6 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 })

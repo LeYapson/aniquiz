@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/jackc/pgx/v5"
@@ -122,6 +123,36 @@ func ListFriends(userID int) ([]models.Friend, error) {
 		friends = append(friends, f)
 	}
 	return friends, nil
+}
+
+// SearchUsers retourne jusqu'à `limit` utilisateurs dont le pseudo contient
+// `query` (insensible à la casse), en excluant l'utilisateur courant. Sert à
+// l'auto-complétion lors de l'ajout d'un ami.
+func SearchUsers(query string, excludeUserID, limit int) ([]models.Friend, error) {
+	// Échappe les jokers ILIKE pour qu'ils soient traités littéralement.
+	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(query)
+	pattern := "%" + esc + "%"
+
+	rows, err := Pool.Query(context.Background(), `
+		SELECT id, username, level
+		FROM users
+		WHERE id <> $1 AND username ILIKE $2 ESCAPE '\'
+		ORDER BY username
+		LIMIT $3`, excludeUserID, pattern, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.Friend
+	for rows.Next() {
+		var u models.Friend
+		if err := rows.Scan(&u.UserID, &u.Username, &u.Level); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
 }
 
 // ListPendingRequests retourne les demandes d'ami reçues et encore en attente.
