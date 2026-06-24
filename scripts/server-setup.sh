@@ -102,7 +102,7 @@ if ! docker run --rm -v aniquiz_letsencrypt_certs:/etc/letsencrypt alpine \
     -v aniquiz_letsencrypt_certs:/etc/letsencrypt \
     -v aniquiz_certbot_webroot:/var/www/certbot \
     certbot/certbot certonly --standalone \
-    -d "${DOMAIN}" --email "${EMAIL}" --agree-tos --non-interactive
+    -d "${DOMAIN}" -d "www.${DOMAIN}" --email "${EMAIL}" --agree-tos --non-interactive
 else
   log "Certificate already present for ${DOMAIN} — skipping"
 fi
