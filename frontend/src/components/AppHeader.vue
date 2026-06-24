@@ -42,7 +42,8 @@
 
       <div class="player-card">
         <div class="avatar" :class="frameClass(user?.avatar_frame)">
-          {{ initial }}
+          <img v-if="user?.avatar_url" :src="user.avatar_url" class="avatar-img" alt="" />
+          <template v-else>{{ initial }}</template>
           <span class="avatar-level">{{ user?.level ?? 1 }}</span>
         </div>
         <div class="player-info">
@@ -234,6 +235,15 @@ const xpProgress = computed(() => {
   justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 2px 10px rgba(249, 115, 22, 0.35);
+  overflow: hidden;
+}
+.avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 .avatar-level {
   position: absolute;

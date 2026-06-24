@@ -46,8 +46,14 @@
               {{ e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}` }}
             </td>
             <td class="lb-username">
-              {{ e.username }}
-              <span v-if="e.username === ownUsername" class="lb-you">vous</span>
+              <div class="lb-player">
+                <div class="lb-avatar">
+                  <img v-if="e.avatar_url" :src="e.avatar_url" alt="" />
+                  <span v-else>{{ e.username[0].toUpperCase() }}</span>
+                </div>
+                {{ e.username }}
+                <span v-if="e.username === ownUsername" class="lb-you">vous</span>
+              </div>
             </td>
             <td><span class="lb-level">Niv. {{ e.level }}</span></td>
             <td class="lb-xp">{{ e.xp.toLocaleString() }} XP</td>
@@ -88,8 +94,14 @@
               {{ e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}` }}
             </td>
             <td class="lb-username">
-              {{ e.username }}
-              <span v-if="e.username === ownUsername" class="lb-you">vous</span>
+              <div class="lb-player">
+                <div class="lb-avatar">
+                  <img v-if="e.avatar_url" :src="e.avatar_url" alt="" />
+                  <span v-else>{{ e.username[0].toUpperCase() }}</span>
+                </div>
+                {{ e.username }}
+                <span v-if="e.username === ownUsername" class="lb-you">vous</span>
+              </div>
             </td>
             <td class="lb-sr-score">{{ e.best_score }} <span class="lb-sr-unit">animes</span></td>
             <td class="lb-date">{{ formatDate(e.played_at) }}</td>
@@ -213,6 +225,14 @@ function formatDate(iso) {
 
 .lb-rank { font-size: 1.2rem; text-align: center; width: 52px; }
 .lb-username { font-weight: 600; color: #f1f5f9; }
+.lb-player { display: flex; align-items: center; gap: 10px; }
+.lb-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff; font-size: 0.75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 .lb-you {
   background: rgba(249,115,22,0.2);
