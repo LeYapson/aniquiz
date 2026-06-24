@@ -33,6 +33,42 @@ func Connect() (*pgxpool.Pool, error) {
 // À appeler une fois au démarrage, après Connect().
 func Migrate() error {
 	migrations := []string{
+		// Tables de base — créées en premier pour qu'une base vierge (nouveau
+		// déploiement) se bootstrape seule. Idempotent : no-op si déjà présentes.
+		`CREATE TABLE IF NOT EXISTS users (
+			id               SERIAL PRIMARY KEY,
+			username         TEXT UNIQUE NOT NULL,
+			email            TEXT UNIQUE NOT NULL,
+			password_hash    TEXT NOT NULL,
+			xp               INT DEFAULT 0,
+			level            INT DEFAULT 1,
+			anilist_username TEXT DEFAULT '',
+			anilist_user_id  INT DEFAULT 0,
+			anilist_token    TEXT DEFAULT '',
+			mal_username     TEXT DEFAULT '',
+			mal_user_id      INT DEFAULT 0,
+			mal_token        TEXT DEFAULT '',
+			created_at       TIMESTAMPTZ DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS tracks (
+			id          SERIAL PRIMARY KEY,
+			title       TEXT NOT NULL,
+			anime_name  TEXT NOT NULL,
+			artist      TEXT DEFAULT '',
+			audio_url   TEXT NOT NULL,
+			difficulty  INT DEFAULT 1,
+			mal_id      INT DEFAULT 0,
+			track_type  TEXT DEFAULT '',
+			anime_year  INT DEFAULT 0,
+			CONSTRAINT tracks_unique_track UNIQUE (mal_id, title, track_type)
+		)`,
+		`CREATE TABLE IF NOT EXISTS game_results (
+			id         SERIAL PRIMARY KEY,
+			user_id    INT REFERENCES users(id),
+			score      INT NOT NULL,
+			xp_gained  INT NOT NULL,
+			played_at  TIMESTAMPTZ DEFAULT NOW()
+		)`,
 		// Index pour les filtres de jeu fréquents
 		`CREATE INDEX IF NOT EXISTS idx_tracks_mal_id    ON tracks(mal_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tracks_track_type ON tracks(track_type)`,

@@ -18,10 +18,9 @@
       </p>
       <p>
         <strong>Directeur de la publication :</strong>
-        <span class="todo">[à compléter : ton pseudo ou prénom — ex. yatokishi]</span><br />
+        <span>yatokishi</span><br />
         <strong>Statut :</strong> projet personnel sans but lucratif<br />
         <strong>Contact :</strong> <a href="mailto:contact@aniquiz.fr">contact@aniquiz.fr</a>
-        <span class="todo">[remplacer par ton adresse réelle, ex. contact@tondomaine.fr]</span>
       </p>
 
       <h2>2. Hébergement</h2>
@@ -71,12 +70,6 @@
       <h2>6. Contact</h2>
       <p>
         Pour toute question : <a href="mailto:contact@aniquiz.fr">contact@aniquiz.fr</a>.
-      </p>
-
-      <p class="note">
-        ⚖️ Ce document est un modèle de bonne foi adapté au service ; il ne constitue pas un
-        avis juridique. Complétez les champs <span class="todo">[à compléter]</span> et faites-le
-        relire avant une mise en production publique.
       </p>
     </div>
   </div>

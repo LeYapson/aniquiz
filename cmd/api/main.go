@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"syscall"
 	"time"
@@ -314,10 +315,18 @@ func main() {
 	if _, err := os.Stat("./static"); err == nil {
 		router.Static("/assets", "./static/assets")
 		router.StaticFile("/favicon.ico", "./static/favicon.ico")
-		// SPA fallback : toute route inconnue sert index.html
+		// Fallback : sert un vrai fichier statique s'il existe (ex: /logo.png,
+		// /kora-fr.png, /mascot_kora.png copiés depuis public/), sinon renvoie
+		// index.html pour le routage SPA côté client.
 		router.NoRoute(func(c *gin.Context) {
 			if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
 				c.JSON(http.StatusNotFound, gin.H{"error": "route introuvable"})
+				return
+			}
+			// path.Clean ancre le chemin à la racine (supprime ../) → pas de traversée.
+			candidate := "./static" + path.Clean(c.Request.URL.Path)
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				c.File(candidate)
 				return
 			}
 			c.File("./static/index.html")

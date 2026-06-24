@@ -5,7 +5,19 @@
     <template v-else-if="profile">
       <!-- En-tête profil -->
       <div class="profile-header">
-        <div class="avatar" :class="frameClass(profile.avatar_frame)">{{ profile.username.charAt(0).toUpperCase() }}</div>
+        <div class="avatar-section">
+          <div class="avatar" :class="frameClass(profile.avatar_frame)">
+            <img v-if="profile.avatar_url" :src="profile.avatar_url" class="avatar-img" alt="" />
+            <span v-else>{{ profile.username.charAt(0).toUpperCase() }}</span>
+          </div>
+          <div class="avatar-actions">
+            <label class="btn-avatar-upload" :class="{ uploading }">
+              {{ uploading ? '…' : '📷 Changer' }}
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" @change="uploadAvatar" hidden :disabled="uploading" />
+            </label>
+            <button v-if="profile.avatar_url" @click="deleteAvatar" class="btn-avatar-delete" :disabled="uploading" title="Supprimer la photo">🗑</button>
+          </div>
+        </div>
         <div class="profile-info">
           <h2>{{ profile.username }}</h2>
           <div class="level-badge">Niveau {{ profile.level }}</div>
@@ -155,6 +167,50 @@ import { FRAMES, frameClass } from "../cosmetics";
 const profile = ref(null);
 const history = ref([]);
 const loading = ref(true);
+const uploading = ref(false);
+
+const uploadAvatar = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  uploading.value = true;
+  const form = new FormData();
+  form.append("avatar", file);
+  try {
+    const res = await fetch(`${API_URL}/api/me/avatar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authStore.token}` },
+      body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      profile.value.avatar_url = data.avatar_url;
+      authStore.setUser({ ...authStore.user, avatar_url: data.avatar_url }, authStore.token);
+    }
+  } catch (err) {
+    console.error("Erreur upload avatar :", err);
+  } finally {
+    uploading.value = false;
+    e.target.value = "";
+  }
+};
+
+const deleteAvatar = async () => {
+  uploading.value = true;
+  try {
+    const res = await fetch(`${API_URL}/api/me/avatar`, {
+      method: "DELETE",
+      headers: authStore.authHeaders(),
+    });
+    if (res.ok) {
+      profile.value.avatar_url = "";
+      authStore.setUser({ ...authStore.user, avatar_url: "" }, authStore.token);
+    }
+  } catch (err) {
+    console.error("Erreur suppression avatar :", err);
+  } finally {
+    uploading.value = false;
+  }
+};
 
 onMounted(async () => {
   try {
@@ -290,12 +346,32 @@ const importLabel = (malId) => {
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 14px; padding: 24px; margin-bottom: 24px;
 }
+.avatar-section {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0;
+}
 .avatar {
-  width: 64px; height: 64px; border-radius: 50%;
+  width: 72px; height: 72px; border-radius: 50%;
   background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.8rem; font-weight: bold; flex-shrink: 0;
+  font-size: 1.8rem; font-weight: bold; overflow: hidden;
 }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-actions { display: flex; gap: 6px; align-items: center; }
+.btn-avatar-upload {
+  background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.3);
+  color: #fb923c; padding: 4px 10px; border-radius: 6px;
+  font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  white-space: nowrap;
+}
+.btn-avatar-upload:hover { background: rgba(249,115,22,0.28); }
+.btn-avatar-upload.uploading { opacity: 0.6; cursor: not-allowed; }
+.btn-avatar-delete {
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+  color: #ef4444; padding: 4px 8px; border-radius: 6px;
+  cursor: pointer; font-size: 0.72rem; transition: background 0.15s;
+}
+.btn-avatar-delete:hover { background: rgba(239,68,68,0.22); }
+.btn-avatar-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 .profile-info { flex: 1; }
 .profile-info h2 { margin: 0 0 6px; font-size: 1.4rem; color: #f1f5f9; }
 .level-badge {
