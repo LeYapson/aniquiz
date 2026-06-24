@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5173,
+    host: true,
     proxy: {
       '/ws': {
         target: 'ws://192.168.27.74:8080',
