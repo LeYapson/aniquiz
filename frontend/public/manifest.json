@@ -1,0 +1,20 @@
+{
+  "name": "AniQuiz — Blindtest d'anime en ligne",
+  "short_name": "AniQuiz",
+  "description": "Blindtest d'anime multijoueur gratuit. Reconnais les openings et endings avant tes adversaires.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f0f23",
+  "theme_color": "#f97316",
+  "lang": "fr",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
