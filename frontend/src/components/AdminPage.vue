@@ -53,6 +53,29 @@
         <p v-if="audio.last_error" class="last-err">⚠️ {{ audio.last_error }}</p>
       </div>
     </div>
+
+    <!-- Backfill des titres alternatifs -->
+    <div class="admin-card">
+      <h3>🌐 Titres alternatifs (anglais)</h3>
+      <p class="card-desc">
+        Recharge les titres anglais et synonymes des animes <strong>déjà</strong> en base
+        (l'import en masse ignore les animes existants). À lancer une fois pour que les
+        réponses en anglais soient acceptées sur l'ancienne bibliothèque.
+      </p>
+      <button class="btn-run" @click="startBackfill" :disabled="backfill.running">
+        {{ backfill.running ? 'En cours…' : 'Recharger les titres' }}
+      </button>
+      <div v-if="backfill.total || backfill.running || backfill.finished_at" class="progress">
+        <div class="progress-bar"><div class="progress-fill" :style="{ width: backfillPct + '%' }"></div></div>
+        <div class="progress-stats">
+          <span>{{ backfill.processed }}/{{ backfill.total }} traités</span>
+          <span class="ok">✓ {{ backfill.updated }} mis à jour</span>
+          <span v-if="backfill.failed" class="err">{{ backfill.failed }} échecs</span>
+          <span v-if="!backfill.running && backfill.finished_at" class="done">— terminé</span>
+        </div>
+        <p v-if="backfill.last_error" class="last-err">⚠️ {{ backfill.last_error }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -67,12 +90,15 @@ const toast = useToast();
 const seedPages = ref(4);
 const seed = reactive({ running: false, pages: 0, total: 0, processed: 0, imported: 0, skipped: 0, failed: 0, finished_at: "", last_error: "" });
 const audio = reactive({ running: false, total: 0, checked: 0, dead: 0, unreachable: 0, finished_at: "", last_error: "" });
+const backfill = reactive({ running: false, total: 0, processed: 0, updated: 0, failed: 0, finished_at: "", last_error: "" });
 
 let seedTimer = null;
 let audioTimer = null;
+let backfillTimer = null;
 
 const seedPct = computed(() => (seed.total ? Math.round((seed.processed / seed.total) * 100) : 0));
 const audioPct = computed(() => (audio.total ? Math.round((audio.checked / audio.total) * 100) : 0));
+const backfillPct = computed(() => (backfill.total ? Math.round((backfill.processed / backfill.total) * 100) : 0));
 
 const authFetch = (url, opts = {}) =>
   fetch(url, { ...opts, headers: { ...authStore.authHeaders(), ...(opts.headers || {}) } });
@@ -126,11 +152,35 @@ const startAudio = async () => {
   } catch { toast.error("Erreur réseau"); }
 };
 
+const pollBackfill = async () => {
+  try {
+    const res = await authFetch(`${API_URL}/api/admin/backfill-titles/status`);
+    if (res.ok) Object.assign(backfill, await res.json());
+  } catch { /* ignore */ }
+  if (!backfill.running && backfillTimer) { clearInterval(backfillTimer); backfillTimer = null; }
+};
+
+const startBackfill = async () => {
+  try {
+    const res = await authFetch(`${API_URL}/api/admin/backfill-titles`, { method: "POST" });
+    if (res.status === 403) { toast.error("Accès réservé aux administrateurs"); return; }
+    const data = await res.json().catch(() => ({}));
+    if (res.ok || res.status === 409) {
+      if (data.progress) Object.assign(backfill, data.progress);
+      if (!backfillTimer) backfillTimer = setInterval(pollBackfill, 2000);
+      toast.info(res.status === 409 ? "Un backfill est déjà en cours" : "Backfill démarré");
+    } else {
+      toast.error(data.error || "Échec du démarrage");
+    }
+  } catch { toast.error("Erreur réseau"); }
+};
+
 // Reprend l'affichage si un job tourne déjà à l'ouverture du panneau.
-onMounted(() => { pollSeed(); pollAudio(); });
+onMounted(() => { pollSeed(); pollAudio(); pollBackfill(); });
 onUnmounted(() => {
   if (seedTimer) clearInterval(seedTimer);
   if (audioTimer) clearInterval(audioTimer);
+  if (backfillTimer) clearInterval(backfillTimer);
 });
 </script>
 

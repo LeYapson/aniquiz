@@ -187,6 +187,8 @@ func NewRouter(store Store) *gin.Engine {
 			admin.GET("/api/admin/seed/status", SeedStatusHandler)
 			admin.POST("/api/admin/audio/healthcheck", AudioHealthcheckHandler)
 			admin.GET("/api/admin/audio/healthcheck/status", AudioHealthStatusHandler)
+			admin.POST("/api/admin/backfill-titles", BackfillTitlesHandler)
+			admin.GET("/api/admin/backfill-titles/status", BackfillTitlesStatusHandler)
 		}
 
 		// Retourne les MAL IDs depuis la liste AniList et/ou MAL de l'utilisateur
