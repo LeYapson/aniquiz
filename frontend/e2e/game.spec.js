@@ -276,7 +276,9 @@ test.describe('Partie', () => {
     await mockAllApis(page)
     await page.addInitScript(() => {
       window.__playCallCount = 0
-      HTMLMediaElement.prototype.load  = function () {}
+      // load() déclenche loadedmetadata comme un vrai navigateur : c'est ce
+      // handler qui positionne la lecture (partie aléatoire) puis appelle play().
+      HTMLMediaElement.prototype.load  = function () { this.dispatchEvent(new Event('loadedmetadata')) }
       HTMLMediaElement.prototype.play  = function () {
         window.__playCallCount++
         return Promise.resolve()
