@@ -10,10 +10,31 @@ import (
 )
 
 type AnimeMusicInfo struct {
-	Title    string
-	Openings []string
-	Endings  []string
-	Year     int
+	Title     string
+	AltTitles []string // titre anglais + synonymes
+	Openings  []string
+	Endings   []string
+	Year      int
+}
+
+// buildAltTitles assemble les titres alternatifs (anglais + synonymes), en
+// retirant les vides et ceux identiques au titre principal (insensible à la casse).
+func buildAltTitles(main, english string, synonyms []string) []string {
+	seen := map[string]bool{strings.ToLower(strings.TrimSpace(main)): true}
+	var alts []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		key := strings.ToLower(s)
+		if s != "" && !seen[key] {
+			seen[key] = true
+			alts = append(alts, s)
+		}
+	}
+	add(english)
+	for _, syn := range synonyms {
+		add(syn)
+	}
+	return alts
 }
 
 func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
@@ -38,6 +59,7 @@ func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
 			Title:      cleanTitle,
 			Artist:     cleanArtist,
 			AnimeName:  musicInfo.Title,
+			AltTitles:  musicInfo.AltTitles,
 			AudioURL:   audioURL,
 			MalID:      animeId,
 			Difficulty: 1,
@@ -58,6 +80,7 @@ func ProcessAndSaveAnime(animeId int) (*AnimeMusicInfo, error) {
 			Title:      cleanTitle,
 			Artist:     cleanArtist,
 			AnimeName:  musicInfo.Title,
+			AltTitles:  musicInfo.AltTitles,
 			AudioURL:   audioURL,
 			MalID:      animeId,
 			Difficulty: 1,
@@ -83,10 +106,11 @@ func GetAnimeMusic(animeId int) (*AnimeMusicInfo, error) {
 	}
 
 	return &AnimeMusicInfo{
-		Title:    anime.Data.Title,
-		Openings: themes.Data.Openings,
-		Endings:  themes.Data.Endings,
-		Year:     anime.Data.Year,
+		Title:     anime.Data.Title,
+		AltTitles: buildAltTitles(anime.Data.Title, anime.Data.TitleEnglish, anime.Data.TitleSynonyms),
+		Openings:  themes.Data.Openings,
+		Endings:   themes.Data.Endings,
+		Year:      anime.Data.Year,
 	}, nil
 }
 
