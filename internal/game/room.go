@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -60,6 +61,7 @@ type Room struct {
 	HasAnswered   map[string]bool
 	RoundAnswers  []RoundAnswer
 	RoundStart    time.Time
+	StartFraction float64 // fraction [0..0.5] où démarrer la lecture (partie aléatoire)
 	SkipVotes     map[string]bool
 	RoundHistory  []RoundSummaryItem
 	FilterType    string
@@ -163,8 +165,9 @@ func (r *Room) Run() {
 				msgTrack, _ := json.Marshal(map[string]interface{}{
 					"type": "NewQuestion",
 					"payload": map[string]interface{}{
-						"audio_url": r.CurrentTrack.AudioURL,
-						"room_id":   r.ID,
+						"audio_url":      r.CurrentTrack.AudioURL,
+						"room_id":        r.ID,
+						"start_fraction": r.StartFraction,
 					},
 				})
 				r.safeSend(client, msgTrack)
@@ -538,6 +541,10 @@ func (r *Room) nextRound() {
 	r.SkipVotes = make(map[string]bool)
 	r.Buzzed = make(map[string]int64)
 	r.RoundStart = time.Now()
+	// Démarre la lecture à un point aléatoire (0–50 %) plutôt qu'au début :
+	// plus fun, et identique pour tous les joueurs de la salle (équité).
+	r.StartFraction = rand.Float64() * 0.5
+	startFraction := r.StartFraction
 	duration := r.RoundDuration
 	filters := models.TrackFilters{
 		TrackType: r.FilterType,
@@ -582,9 +589,10 @@ func (r *Room) nextRound() {
 	msg := map[string]interface{}{
 		"type": "NewQuestion",
 		"payload": map[string]interface{}{
-			"audio_url": track.AudioURL,
-			"room_id":   r.ID,
-			"duration":  duration,
+			"audio_url":      track.AudioURL,
+			"room_id":        r.ID,
+			"duration":       duration,
+			"start_fraction": startFraction,
 		},
 	}
 	data, _ := json.Marshal(msg)

@@ -29,15 +29,27 @@ func VerifyAnswer(userInput string, track *models.Track) AnswerResult {
 // VerifyAnswerMode vérifie une réponse selon le mode de jeu : nom de l'anime,
 // titre de la musique ou artiste. Un mode inconnu/vide retombe sur l'anime.
 func VerifyAnswerMode(userInput string, track *models.Track, mode string) AnswerResult {
-	target := track.AnimeName
-	label := "nom de l'anime"
 	switch mode {
 	case GuessModeTitle:
-		target, label = track.Title, "titre"
+		return matchAnswer(userInput, track.Title, "titre")
 	case GuessModeArtist:
-		target, label = track.Artist, "artiste"
+		return matchAnswer(userInput, track.Artist, "artiste")
+	default:
+		// Anime : on accepte le titre principal OU un titre alternatif
+		// (anglais, synonymes). On retient la meilleure correspondance.
+		candidates := append([]string{track.AnimeName}, track.AltTitles...)
+		best := AnswerResult{}
+		for _, c := range candidates {
+			r := matchAnswer(userInput, c, "nom de l'anime")
+			if r.IsCorrect {
+				return r
+			}
+			if r.Points > best.Points {
+				best = r
+			}
+		}
+		return best
 	}
-	return matchAnswer(userInput, target, label)
 }
 
 // matchAnswer applique la logique de correspondance (exacte / partielle / floue)

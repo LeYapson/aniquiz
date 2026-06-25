@@ -17,13 +17,14 @@ var ErrNoTrack = errors.New("aucune piste ne correspond aux filtres")
 func SaveTrack(track models.Track) error {
 	// ON CONFLICT sur (mal_id, title, track_type) nécessite la contrainte :
 	// ALTER TABLE tracks ADD CONSTRAINT tracks_unique_track UNIQUE (mal_id, title, track_type);
-	query := `INSERT INTO tracks (title, anime_name, artist, audio_url, difficulty, mal_id, track_type, anime_year)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			  ON CONFLICT (mal_id, title, track_type) DO NOTHING`
+	query := `INSERT INTO tracks (title, anime_name, artist, audio_url, difficulty, mal_id, track_type, anime_year, anime_titles)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			  ON CONFLICT (mal_id, title, track_type)
+			  DO UPDATE SET anime_titles = EXCLUDED.anime_titles`
 
 	_, err := Pool.Exec(context.Background(), query,
 		track.Title, track.AnimeName, track.Artist, track.AudioURL,
-		track.Difficulty, track.MalID, track.TrackType, track.AnimeYear,
+		track.Difficulty, track.MalID, track.TrackType, track.AnimeYear, track.AltTitles,
 	)
 	if err != nil {
 		return fmt.Errorf("erreur lors de l'insertion : %v", err)
@@ -50,11 +51,18 @@ func GetAllTracks() ([]models.Track, error) {
 	return tracks, nil
 }
 
-// GetDistinctAnimeNames returns a sorted list of unique anime names from the tracks table.
-// Use this instead of GetAllTracks() + deduplication in Go for large libraries.
+// GetDistinctAnimeNames returns a sorted list of unique anime titles for the
+// answer autocomplete — including alternative titles (English name, synonyms)
+// so a player can type "How NOT to Summon a Demon King" and get a suggestion.
 func GetDistinctAnimeNames() ([]string, error) {
-	rows, err := Pool.Query(context.Background(),
-		`SELECT DISTINCT anime_name FROM tracks WHERE anime_name != '' ORDER BY anime_name`)
+	rows, err := Pool.Query(context.Background(), `
+		SELECT DISTINCT t FROM (
+			SELECT anime_name AS t FROM tracks
+			UNION
+			SELECT unnest(anime_titles) AS t FROM tracks
+		) titles
+		WHERE t IS NOT NULL AND t != ''
+		ORDER BY t`)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la récupération des animes : %v", err)
 	}
@@ -87,7 +95,7 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 
 	query := `
 		SELECT id, title, artist, anime_name, audio_url,
-		       difficulty, track_type, anime_year, mal_id
+		       difficulty, track_type, anime_year, mal_id, anime_titles
 		FROM tracks
 		WHERE audio_url != 'not_found'
 		  AND ($1 = '' OR track_type = $1)
@@ -103,7 +111,7 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	}
 	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear, malIDsParam).
 		Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL,
-			&t.Difficulty, &t.TrackType, &t.AnimeYear, &t.MalID)
+			&t.Difficulty, &t.TrackType, &t.AnimeYear, &t.MalID, &t.AltTitles)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoTrack
 	}
