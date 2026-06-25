@@ -111,6 +111,33 @@ func TestVerifyAnswerMode(t *testing.T) {
 	}
 }
 
+func TestVerifyAnswerAltTitles(t *testing.T) {
+	track := &models.Track{
+		AnimeName: "Isekai Maou to Shoukan Shoujo no Dorei Majutsu",
+		AltTitles: []string{"How NOT to Summon a Demon King", "The Otherworldly Demon King"},
+	}
+
+	tests := []struct {
+		name       string
+		input      string
+		wantPoints int
+	}{
+		{"titre japonais exact", "Isekai Maou to Shoukan Shoujo no Dorei Majutsu", 10},
+		{"titre anglais exact", "How NOT to Summon a Demon King", 10},
+		{"titre anglais insensible à la casse", "how not to summon a demon king", 10},
+		{"synonyme exact", "The Otherworldly Demon King", 10},
+		{"correspondance partielle sur l'anglais", "How NOT to Summon", 5},
+		{"réponse fausse", "Naruto", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := VerifyAnswer(tt.input, track); got.Points != tt.wantPoints {
+				t.Errorf("VerifyAnswer(%q) points = %d, want %d", tt.input, got.Points, tt.wantPoints)
+			}
+		})
+	}
+}
+
 // Une cible vide (ex. artiste inconnu) ne doit jamais valider une réponse vide.
 func TestMatchAnswerEmptyTarget(t *testing.T) {
 	track := &models.Track{AnimeName: "X", Title: "Y", Artist: ""}
