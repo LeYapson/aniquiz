@@ -180,6 +180,34 @@ func MarkAudioNotFound(id int) error {
 	return err
 }
 
+// GetDistinctMalIDs retourne les MAL IDs distincts présents dans la librairie,
+// pour rafraîchir leurs métadonnées (ex. backfill des titres alternatifs).
+func GetDistinctMalIDs() ([]int, error) {
+	rows, err := Pool.Query(context.Background(),
+		`SELECT DISTINCT mal_id FROM tracks WHERE mal_id > 0`)
+	if err != nil {
+		return nil, fmt.Errorf("récupération des mal_id échouée : %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// UpdateAnimeTitles met à jour les titres alternatifs de toutes les pistes d'un anime.
+func UpdateAnimeTitles(malID int, titles []string) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE tracks SET anime_titles = $1 WHERE mal_id = $2`, titles, malID)
+	return err
+}
+
 // IsAnimeImported retourne true si des pistes existent déjà pour cet anime.
 func IsAnimeImported(malID int) (bool, error) {
 	var count int
