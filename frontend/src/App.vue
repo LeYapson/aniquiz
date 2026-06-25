@@ -229,6 +229,7 @@
                     :src="currentAudioUrl"
                     :aria-label="`Extrait audio — trouvez le nom de l'anime`"
                     controls
+                    @loadedmetadata="onAudioLoaded"
                     @error="onAudioError"
                   ></audio>
 
@@ -435,14 +436,31 @@ const audioEl = ref(null);
 const videoEl = ref(null);
 const audioFailed = ref(false);
 
+const roundStartFraction = ref(0);
+
+// Démarre la lecture à la partie aléatoire choisie par le serveur (identique
+// pour toute la salle). Clampé pour laisser ≥10 s de musique après le point.
+const seekToStart = () => {
+  const el = audioEl.value;
+  if (!el || !el.duration || !isFinite(el.duration)) return;
+  let start = (roundStartFraction.value || 0) * el.duration;
+  if (el.duration - start < 10) start = Math.max(0, el.duration - 10);
+  try { el.currentTime = start; } catch { /* seek non supporté par la source */ }
+};
+
+// Une fois les métadonnées (durée) connues : on saute au bon endroit puis on lit.
+const onAudioLoaded = () => {
+  seekToStart();
+  audioEl.value?.play().catch(() => {});
+};
+
 // Play audio after Vue renders the new src into the DOM
 watch(currentAudioUrl, async (url) => {
   if (!url) return;
   audioFailed.value = false;
   await nextTick();
   if (!audioEl.value) return;
-  audioEl.value.load();
-  audioEl.value.play().catch(() => {});
+  audioEl.value.load(); // déclenche @loadedmetadata → seek + play
 });
 
 // Le clip est servi depuis un mirror externe : il peut être mort/indisponible.
@@ -455,8 +473,7 @@ const retryAudio = async () => {
   audioFailed.value = false;
   await nextTick();
   if (!audioEl.value) return;
-  audioEl.value.load();
-  audioEl.value.play().catch(() => {});
+  audioEl.value.load(); // @loadedmetadata relancera le seek + play
 };
 
 // Play video after Vue renders the reveal panel
@@ -681,6 +698,7 @@ const connectWebSocket = (room_id, password) => {
           isRevealing.value = false;
           currentAudioUrl.value = data.payload.audio_url;
           roundDuration.value = data.payload.duration;
+          roundStartFraction.value = data.payload.start_fraction ?? 0;
           hasVotedSkip.value = false;
           skipVotes.value = { votes: 0, needed: 1 };
           hasBuzzed.value = false;
