@@ -21,15 +21,16 @@ type User struct {
 }
 
 type Track struct {
-	ID         int    `json:"id"`
-	Title      string `json:"title"`
-	AnimeName  string `json:"anime_name"`
-	Artist     string `json:"artist"`
-	AudioURL   string `json:"audio_url"` // WebM — sert aussi de vidéo au reveal
-	Difficulty int    `json:"difficulty"`
-	MalID      int    `json:"mal_id"`
-	TrackType  string `json:"track_type"` // "OP", "ED", "OST"
-	AnimeYear  int    `json:"anime_year"`
+	ID         int      `json:"id"`
+	Title      string   `json:"title"`
+	AnimeName  string   `json:"anime_name"`
+	AltTitles  []string `json:"-"` // titres alternatifs (anglais, synonymes) ; jamais exposé au client
+	Artist     string   `json:"artist"`
+	AudioURL   string   `json:"audio_url"` // WebM — sert aussi de vidéo au reveal
+	Difficulty int      `json:"difficulty"`
+	MalID      int      `json:"mal_id"`
+	TrackType  string   `json:"track_type"` // "OP", "ED", "OST"
+	AnimeYear  int      `json:"anime_year"`
 }
 
 type TrackFilters struct {

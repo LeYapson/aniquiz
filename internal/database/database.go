@@ -107,6 +107,9 @@ func Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_room_invites_to ON room_invites(to_user_id)`,
 		// Cosmétique : cadre d'avatar sélectionné (débloqué par niveau).
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_frame TEXT NOT NULL DEFAULT ''`,
+		// Titres alternatifs d'un anime (anglais + synonymes) pour accepter
+		// "How NOT to Summon a Demon King" en plus du titre japonais.
+		`ALTER TABLE tracks ADD COLUMN IF NOT EXISTS anime_titles TEXT[] NOT NULL DEFAULT '{}'`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
