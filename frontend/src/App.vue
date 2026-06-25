@@ -667,6 +667,10 @@ const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
   isCreator.value = !!creator;
   intentionalClose = false;
   reconnectAttempts = 0;
+  // Rafraîchit le dictionnaire d'autocomplétion à chaque entrée en partie :
+  // il n'était chargé qu'au démarrage de l'app, donc les animes importés
+  // (et leurs titres anglais) n'apparaissaient pas sans recharger la page.
+  loadAnimeDictionary();
   connectWebSocket(room_id, password);
 };
 

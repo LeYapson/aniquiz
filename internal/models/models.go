@@ -103,3 +103,24 @@ type RoomInvite struct {
 	Password     string    `json:"password"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+// LibraryStats : aperçu chiffré de la base pour le panneau admin.
+type LibraryStats struct {
+	Tracks         int `json:"tracks"`
+	PlayableTracks int `json:"playable_tracks"`
+	Animes         int `json:"animes"`
+	WithAltTitles  int `json:"with_alt_titles"`
+	Users          int `json:"users"`
+}
+
+// AdminTrackRow : ligne du navigateur de pistes (admin, lecture seule).
+type AdminTrackRow struct {
+	ID        int      `json:"id"`
+	AnimeName string   `json:"anime_name"`
+	AltTitles []string `json:"alt_titles"`
+	Title     string   `json:"title"`
+	Artist    string   `json:"artist"`
+	TrackType string   `json:"track_type"`
+	AnimeYear int      `json:"anime_year"`
+	HasAudio  bool     `json:"has_audio"`
+}
