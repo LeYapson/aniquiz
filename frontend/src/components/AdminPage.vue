@@ -3,6 +3,54 @@
     <h2>🛠️ Administration</h2>
     <p class="admin-sub">Outils de gestion de la librairie. Réservé aux administrateurs.</p>
 
+    <!-- Données de la librairie -->
+    <div class="admin-card">
+      <h3>📊 Données de la librairie</h3>
+      <div v-if="stats" class="stat-row">
+        <span><strong>{{ stats.tracks }}</strong> pistes</span>
+        <span><strong>{{ stats.playable_tracks }}</strong> jouables</span>
+        <span><strong>{{ stats.animes }}</strong> animes</span>
+        <span><strong>{{ stats.with_alt_titles }}</strong> avec titres alt.</span>
+        <span><strong>{{ stats.users }}</strong> joueurs</span>
+      </div>
+      <div class="admin-row">
+        <input
+          v-model="trackQuery"
+          type="text"
+          placeholder="Rechercher un anime ou un titre…"
+          class="search-input"
+          @keyup.enter="searchTracks"
+        />
+        <button class="btn-run" @click="searchTracks">Rechercher</button>
+      </div>
+      <div v-if="tracks.length" class="tracks-table-wrap">
+        <table class="tracks-table">
+          <thead>
+            <tr><th>Anime</th><th>Titres alt.</th><th>Musique</th><th>Type</th><th>Année</th><th>Audio</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in tracks" :key="t.id">
+              <td>{{ t.anime_name }}</td>
+              <td>
+                <span v-if="t.alt_titles && t.alt_titles.length" class="alt-ok">{{ t.alt_titles.join(', ') }}</span>
+                <span v-else class="alt-none">—</span>
+              </td>
+              <td>{{ t.title }}<span v-if="t.artist" class="muted"> · {{ t.artist }}</span></td>
+              <td>{{ t.track_type }}</td>
+              <td>{{ t.anime_year || '—' }}</td>
+              <td>{{ t.has_audio ? '✓' : '✗' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pager">
+          <button class="btn-ghost" :disabled="trackOffset === 0" @click="prevTracks">← Précédent</button>
+          <span class="muted">{{ trackOffset + 1 }}–{{ trackOffset + tracks.length }}</span>
+          <button class="btn-ghost" :disabled="tracks.length < trackLimit" @click="nextTracks">Suivant →</button>
+        </div>
+      </div>
+      <p v-else-if="tracksLoaded" class="empty-tracks">Aucune piste trouvée.</p>
+    </div>
+
     <!-- Import en masse -->
     <div class="admin-card">
       <h3>📥 Import en masse</h3>
@@ -103,6 +151,35 @@ const backfillPct = computed(() => (backfill.total ? Math.round((backfill.proces
 const authFetch = (url, opts = {}) =>
   fetch(url, { ...opts, headers: { ...authStore.authHeaders(), ...(opts.headers || {}) } });
 
+// ── Données de la librairie (lecture seule) ──
+const stats = ref(null);
+const trackQuery = ref("");
+const tracks = ref([]);
+const tracksLoaded = ref(false);
+const trackOffset = ref(0);
+const trackLimit = 25;
+
+const loadStats = async () => {
+  try {
+    const res = await authFetch(`${API_URL}/api/admin/stats`);
+    if (res.ok) stats.value = await res.json();
+  } catch { /* ignore */ }
+};
+
+const loadTracks = async () => {
+  try {
+    const url = `${API_URL}/api/admin/tracks?q=${encodeURIComponent(trackQuery.value)}&limit=${trackLimit}&offset=${trackOffset.value}`;
+    const res = await authFetch(url);
+    if (res.ok) tracks.value = await res.json();
+  } catch { /* ignore */ } finally {
+    tracksLoaded.value = true;
+  }
+};
+
+const searchTracks = () => { trackOffset.value = 0; loadTracks(); };
+const nextTracks = () => { trackOffset.value += trackLimit; loadTracks(); };
+const prevTracks = () => { trackOffset.value = Math.max(0, trackOffset.value - trackLimit); loadTracks(); };
+
 const pollSeed = async () => {
   try {
     const res = await authFetch(`${API_URL}/api/admin/seed/status`);
@@ -176,7 +253,7 @@ const startBackfill = async () => {
 };
 
 // Reprend l'affichage si un job tourne déjà à l'ouverture du panneau.
-onMounted(() => { pollSeed(); pollAudio(); pollBackfill(); });
+onMounted(() => { pollSeed(); pollAudio(); pollBackfill(); loadStats(); loadTracks(); });
 onUnmounted(() => {
   if (seedTimer) clearInterval(seedTimer);
   if (audioTimer) clearInterval(audioTimer);
@@ -198,6 +275,35 @@ onUnmounted(() => {
 }
 .admin-card h3 { color: #f1f5f9; font-size: 1rem; margin: 0 0 6px; }
 .card-desc { color: #94a3b8; font-size: 0.84rem; margin: 0 0 14px; line-height: 1.5; }
+
+/* ── Données de la librairie ── */
+.stat-row { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 14px; font-size: 0.85rem; color: #cbd5e1; }
+.stat-row strong { color: #f97316; font-size: 1.05rem; }
+.search-input {
+  flex: 1; padding: 8px 11px;
+  background: #0f0f23; border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9; border-radius: 7px; font-size: 0.88rem; outline: none;
+}
+.search-input:focus { border-color: #f97316; }
+.tracks-table-wrap { margin-top: 14px; overflow-x: auto; }
+.tracks-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.tracks-table th {
+  text-align: left; color: #f97316; font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap;
+}
+.tracks-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; vertical-align: top; }
+.tracks-table .muted { color: #64748b; }
+.alt-ok { color: #34d399; }
+.alt-none { color: #475569; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; font-size: 0.82rem; color: #94a3b8; }
+.btn-ghost {
+  background: rgba(255,255,255,0.05); color: #cbd5e1;
+  border: 1px solid rgba(255,255,255,0.12); padding: 6px 12px; border-radius: 7px;
+  font-weight: 600; font-size: 0.82rem; cursor: pointer;
+}
+.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.empty-tracks { color: #64748b; font-style: italic; font-size: 0.86rem; margin-top: 10px; }
 
 .admin-row { display: flex; align-items: flex-end; gap: 12px; }
 .admin-row label { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: #94a3b8; font-weight: 600; }
