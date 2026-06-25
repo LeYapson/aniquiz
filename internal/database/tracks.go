@@ -180,6 +180,51 @@ func MarkAudioNotFound(id int) error {
 	return err
 }
 
+// GetLibraryStats retourne un aperçu chiffré de la librairie (panneau admin).
+func GetLibraryStats() (models.LibraryStats, error) {
+	var s models.LibraryStats
+	err := Pool.QueryRow(context.Background(), `
+		SELECT
+			COUNT(*),
+			COUNT(*) FILTER (WHERE audio_url <> 'not_found' AND audio_url <> ''),
+			COUNT(DISTINCT mal_id),
+			COUNT(*) FILTER (WHERE cardinality(anime_titles) > 0)
+		FROM tracks`).Scan(&s.Tracks, &s.PlayableTracks, &s.Animes, &s.WithAltTitles)
+	if err != nil {
+		return s, fmt.Errorf("stats librairie échouées : %w", err)
+	}
+	// Le nombre d'utilisateurs est indicatif : on ignore une éventuelle erreur.
+	_ = Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM users`).Scan(&s.Users)
+	return s, nil
+}
+
+// BrowseTracks retourne une page de pistes, filtrée par recherche (nom d'anime
+// ou titre). Lecture seule, pour inspection depuis le panneau admin.
+func BrowseTracks(q string, limit, offset int) ([]models.AdminTrackRow, error) {
+	rows, err := Pool.Query(context.Background(), `
+		SELECT id, anime_name, anime_titles, title, artist, track_type, anime_year,
+		       (audio_url <> 'not_found' AND audio_url <> '') AS has_audio
+		FROM tracks
+		WHERE ($1 = '' OR anime_name ILIKE '%' || $1 || '%' OR title ILIKE '%' || $1 || '%')
+		ORDER BY anime_name, track_type, id
+		LIMIT $2 OFFSET $3`, q, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("parcours des pistes échoué : %w", err)
+	}
+	defer rows.Close()
+
+	var out []models.AdminTrackRow
+	for rows.Next() {
+		var r models.AdminTrackRow
+		if err := rows.Scan(&r.ID, &r.AnimeName, &r.AltTitles, &r.Title, &r.Artist,
+			&r.TrackType, &r.AnimeYear, &r.HasAudio); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
 // GetDistinctMalIDs retourne les MAL IDs distincts présents dans la librairie,
 // pour rafraîchir leurs métadonnées (ex. backfill des titres alternatifs).
 func GetDistinctMalIDs() ([]int, error) {
