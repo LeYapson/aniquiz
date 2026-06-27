@@ -226,7 +226,7 @@
                     v-if="currentAudioUrl"
                     v-show="!audioFailed"
                     ref="audioEl"
-                    :src="currentAudioUrl"
+                    :src="playbackSrc"
                     :aria-label="`Extrait audio — trouvez le nom de l'anime`"
                     controls
                     @loadedmetadata="onAudioLoaded"
@@ -345,7 +345,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import RoomSelection from "./components/RoomSelection.vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
@@ -364,6 +364,7 @@ import ToastContainer from "./components/ToastContainer.vue";
 import { authStore } from "./authStore";
 import { useToast } from "./composables/useToast";
 import { API_URL, WS_URL } from "./config";
+import { audioOnlyUrl, isAudioOnly } from "./media";
 
 const toast = useToast();
 
@@ -436,6 +437,12 @@ const audioEl = ref(null);
 const videoEl = ref(null);
 const audioFailed = ref(false);
 
+// Source réellement lue par le <audio> : on tente d'abord l'audio-only (léger,
+// hôte distinct), avec repli automatique sur la vidéo WebM si le .ogg n'existe
+// pas. currentAudioUrl reste la source de vérité (URL WebM d'origine).
+const playbackSrc = ref("");
+const triedVideoFallback = ref(false);
+
 const roundStartFraction = ref(0);
 
 // Démarre la lecture à la partie aléatoire choisie par le serveur (identique
@@ -454,23 +461,58 @@ const onAudioLoaded = () => {
   audioEl.value?.play().catch(() => {});
 };
 
+// Libère explicitement la ressource d'un élément média avant qu'il ne soit
+// démonté (v-if). Sans cela, le navigateur garde vivants l'ancien WebMediaPlayer
+// ET sa connexion réseau jusqu'à un GC non déterministe. Comme tous les extraits
+// proviennent du même hôte (mirror externe), on sature en quelques manches la
+// limite de 6 connexions HTTP/1.1 par hôte (et le plafond de lecteurs média) :
+// les pistes suivantes « se chargent » mais ne démarrent plus. pause + src vidé
+// + load() annule la requête en cours et rend immédiatement la ressource.
+const releaseMedia = (el) => {
+  if (!el) return;
+  try {
+    el.pause();
+    el.removeAttribute("src");
+    el.load();
+  } catch { /* élément déjà détaché */ }
+};
+
 // Play audio after Vue renders the new src into the DOM
 watch(currentAudioUrl, async (url) => {
-  if (!url) return;
+  // Fin de manche : on relâche l'ancien lecteur avant que v-if ne le retire.
+  // Le watcher s'exécute en flush « pre » → audioEl pointe encore sur l'élément
+  // courant à cet instant.
+  if (!url) {
+    releaseMedia(audioEl.value);
+    playbackSrc.value = "";
+    return;
+  }
   audioFailed.value = false;
+  triedVideoFallback.value = false;
+  playbackSrc.value = audioOnlyUrl(url); // tente l'audio-only en premier
   await nextTick();
   if (!audioEl.value) return;
   audioEl.value.load(); // déclenche @loadedmetadata → seek + play
 });
 
 // Le clip est servi depuis un mirror externe : il peut être mort/indisponible.
-// On le signale clairement plutôt que de laisser un lecteur muet.
+// On tente d'abord l'audio-only (.ogg) ; s'il manque pour cette piste, on se
+// rabat une fois sur la vidéo WebM d'origine avant de signaler un vrai échec.
 const onAudioError = () => {
-  if (currentAudioUrl.value) audioFailed.value = true;
+  if (!currentAudioUrl.value) return;
+  if (!triedVideoFallback.value && isAudioOnly(playbackSrc.value)) {
+    triedVideoFallback.value = true;
+    playbackSrc.value = currentAudioUrl.value; // repli sur la vidéo WebM
+    nextTick(() => audioEl.value?.load());
+    return;
+  }
+  audioFailed.value = true;
 };
 
 const retryAudio = async () => {
   audioFailed.value = false;
+  triedVideoFallback.value = false;
+  playbackSrc.value = audioOnlyUrl(currentAudioUrl.value);
   await nextTick();
   if (!audioEl.value) return;
   audioEl.value.load(); // @loadedmetadata relancera le seek + play
@@ -620,6 +662,13 @@ onMounted(() => {
   loadAdminStatus();
 });
 
+// Filet de sécurité : relâche les ressources média si le composant disparaît
+// alors qu'une piste est en cours (navigation, fermeture d'onglet…).
+onUnmounted(() => {
+  releaseMedia(audioEl.value);
+  releaseMedia(videoEl.value);
+});
+
 // ─── Invitations entre amis ─────────────────────────────────────────────────
 const friendsForInvite = ref([]);
 const showInvitePicker = ref(false);
@@ -699,6 +748,9 @@ const connectWebSocket = (room_id, password) => {
           state.value = data.payload;
           break;
         case "NewQuestion":
+          // Relâche la vidéo du reveal précédent avant que v-if ne la démonte,
+          // pour ne pas accumuler des connexions vers le même hôte média.
+          releaseMedia(videoEl.value);
           isRevealing.value = false;
           currentAudioUrl.value = data.payload.audio_url;
           roundDuration.value = data.payload.duration;

@@ -53,7 +53,7 @@
         <!-- Colonne gauche : visualiseur + stats -->
         <div class="col-visual">
           <div class="audio-visual">
-            <audio ref="audioEl" :src="currentTrack.audio_url" autoplay @ended="onAudioEnded" />
+            <audio ref="audioEl" :src="playbackSrc" autoplay @ended="onAudioEnded" @error="onAudioError" />
             <div class="rings">
               <div class="ring ring-1" :class="{ active: isPlaying }" />
               <div class="ring ring-2" :class="{ active: isPlaying }" />
@@ -141,9 +141,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { API_URL } from '../config.ts'
 import { authStore } from '../authStore.js'
+import { audioOnlyUrl, isAudioOnly } from '../media.js'
 import AnimeAutocomplete from '../components/AnimeAutocomplete.vue'
 
 const phase        = ref('idle')
@@ -167,6 +168,25 @@ const animeDictionary = ref([])
 const audioEl    = ref(null)
 const answerInput= ref(null)
 let timerInterval= null
+
+// Source réellement lue : audio-only léger (hôte distinct) d'abord, avec repli
+// sur la vidéo WebM si le .ogg n'existe pas pour la piste. Voir media.js.
+const playbackSrc = ref('')
+const triedVideoFallback = ref(false)
+
+watch(() => currentTrack.value.audio_url, (url) => {
+  triedVideoFallback.value = false
+  playbackSrc.value = url ? audioOnlyUrl(url) : ''
+})
+
+function onAudioError() {
+  const url = currentTrack.value.audio_url
+  if (!url) return
+  if (!triedVideoFallback.value && isAudioOnly(playbackSrc.value)) {
+    triedVideoFallback.value = true
+    playbackSrc.value = url // repli sur la vidéo WebM d'origine
+  }
+}
 
 const formattedTime = computed(() => {
   const m = Math.floor(timeLeft.value / 60)
