@@ -38,6 +38,7 @@ export function useNews() {
         datetime: data.datetime ?? '',
         tag: data.tag ?? 'Annonce',
         title: data.title ?? '',
+        content, // markdown brut (utile pour publier sur Discord)
         bodyHtml: marked.parse(content),
         slug: path.replace(/.*\//, '').replace(/\.md$/, ''),
       };
