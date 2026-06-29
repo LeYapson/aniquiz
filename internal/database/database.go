@@ -110,6 +110,9 @@ func Migrate() error {
 		// Titres alternatifs d'un anime (anglais + synonymes) pour accepter
 		// "How NOT to Summon a Demon King" en plus du titre japonais.
 		`ALTER TABLE tracks ADD COLUMN IF NOT EXISTS anime_titles TEXT[] NOT NULL DEFAULT '{}'`,
+		// Liaison du compte Discord (id + pseudo), pour le bot Discord.
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
@@ -143,6 +146,7 @@ func GetUserByID(userID int) (*models.User, error) {
 		       COALESCE(anilist_username, ''), COALESCE(anilist_user_id, 0), COALESCE(anilist_token, ''),
 		       COALESCE(mal_username, ''),     COALESCE(mal_user_id, 0),     COALESCE(mal_token, ''),
 		       COALESCE(avatar_frame, ''),
+		       COALESCE(discord_id, ''), COALESCE(discord_username, ''),
 		       created_at
 		FROM users
 		WHERE id = $1
@@ -152,7 +156,7 @@ func GetUserByID(userID int) (*models.User, error) {
 		&user.Xp, &user.Level,
 		&user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken,
 		&user.MalUsername, &user.MalUserID, &user.MalToken,
-		&user.AvatarFrame, &user.CreatedAt,
+		&user.AvatarFrame, &user.DiscordID, &user.DiscordUsername, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -182,6 +186,14 @@ func UpdateUserAnilist(userID, anilistUserID int, anilistUsername, token string)
 		WHERE id = $4
 	`
 	_, err := Pool.Exec(context.Background(), query, anilistUserID, anilistUsername, token, userID)
+	return err
+}
+
+// UpdateUserDiscord enregistre (ou met à jour) le compte Discord lié.
+func UpdateUserDiscord(userID int, discordID, discordUsername string) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE users SET discord_id = $1, discord_username = $2 WHERE id = $3`,
+		discordID, discordUsername, userID)
 	return err
 }
 

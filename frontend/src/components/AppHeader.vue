@@ -36,6 +36,13 @@
         <button v-else class="link-pill connect" @click="emit('connect-mal')">
           + MAL
         </button>
+
+        <span v-if="user?.discord_username" class="link-pill linked" title="Discord lié">
+          <span class="dot discord"></span>Discord
+        </span>
+        <button v-else class="link-pill connect" @click="emit('connect-discord')">
+          + Discord
+        </button>
       </div>
 
       <NotificationsBell :inGame="inGame" @join="(inv) => emit('join-room', inv)" />
@@ -78,7 +85,7 @@ const props = defineProps({
   isAdmin: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal', 'join-room']);
+const emit = defineEmits(['navigate', 'logout', 'connect-anilist', 'connect-mal', 'connect-discord', 'join-room']);
 
 const logoSrc = '/logo.png';
 const user = computed(() => authStore.user);
@@ -214,6 +221,7 @@ const xpProgress = computed(() => {
 }
 .dot.anilist { background: #02a9ff; }
 .dot.mal { background: #2e51a2; }
+.dot.discord { background: #5865f2; }
 
 /* ── Carte joueur ── */
 .player-card {

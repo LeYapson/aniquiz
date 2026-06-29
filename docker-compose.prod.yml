@@ -53,6 +53,9 @@ services:
       MAL_REDIRECT_URI: ${MAL_REDIRECT_URI:-}
       ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
       DISCORD_NEWS_WEBHOOK_URL: ${DISCORD_NEWS_WEBHOOK_URL:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
       GIN_MODE: release
       PORT: "8080"
     # Port not exposed directly — Nginx is the only ingress

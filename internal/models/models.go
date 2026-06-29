@@ -17,6 +17,8 @@ type User struct {
 	MalUserID       int       `json:"mal_user_id" db:"mal_user_id"`
 	MalToken        string    `json:"-" db:"mal_token"`
 	AvatarFrame     string    `json:"avatar_frame" db:"avatar_frame"` // cadre d'avatar cosmétique sélectionné
+	DiscordID       string    `json:"-" db:"discord_id"`              // id Discord lié (jamais exposé au client)
+	DiscordUsername string    `json:"discord_username" db:"discord_username"`
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
