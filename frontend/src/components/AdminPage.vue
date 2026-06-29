@@ -124,6 +124,23 @@
         <p v-if="backfill.last_error" class="last-err">⚠️ {{ backfill.last_error }}</p>
       </div>
     </div>
+
+    <!-- Annonces Discord -->
+    <div class="admin-card">
+      <h3>📣 Annonces Discord</h3>
+      <p class="card-desc">
+        Publie une news sur le salon Discord (webhook). Choisis l'annonce à diffuser.
+      </p>
+      <div v-for="n in news" :key="n.id" class="announce-row">
+        <span class="announce-info">
+          <span class="announce-tag" :class="`tag-${(n.tag || '').toLowerCase()}`">{{ n.tag }}</span>
+          {{ n.title }} <small>· {{ n.date }}</small>
+        </span>
+        <button class="btn-ghost" :disabled="announcing === n.id" @click="announce(n)">
+          {{ announcing === n.id ? '…' : '📣 Publier' }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -132,8 +149,28 @@ import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { authStore } from "../authStore";
 import { API_URL } from "../config";
 import { useToast } from "../composables/useToast";
+import { useNews } from "../composables/useNews";
 
 const toast = useToast();
+const { news } = useNews();
+const announcing = ref(null);
+
+const announce = async (n) => {
+  announcing.value = n.id;
+  try {
+    const res = await authFetch(`${API_URL}/api/admin/announce`, {
+      method: "POST",
+      body: JSON.stringify({ title: n.title, content: n.content, tag: n.tag, date: n.date }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) toast.success("Publié sur Discord !");
+    else toast.error(data.error || "Échec de la publication");
+  } catch {
+    toast.error("Erreur réseau");
+  } finally {
+    announcing.value = null;
+  }
+};
 
 const seedPages = ref(4);
 const seed = reactive({ running: false, pages: 0, total: 0, processed: 0, imported: 0, skipped: 0, failed: 0, finished_at: "", last_error: "" });
@@ -275,6 +312,19 @@ onUnmounted(() => {
 }
 .admin-card h3 { color: #f1f5f9; font-size: 1rem; margin: 0 0 6px; }
 .card-desc { color: #94a3b8; font-size: 0.84rem; margin: 0 0 14px; line-height: 1.5; }
+
+/* ── Annonces Discord ── */
+.announce-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.announce-row:last-child { border-bottom: none; }
+.announce-info { color: #e2e8f0; font-size: 0.86rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.announce-info small { color: #64748b; }
+.announce-tag { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; }
+.tag-feature { background: rgba(34,197,94,0.15); color: #4ade80; }
+.tag-annonce { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.tag-fix { background: rgba(249,115,22,0.15); color: #fb923c; }
 
 /* ── Données de la librairie ── */
 .stat-row { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 14px; font-size: 0.85rem; color: #cbd5e1; }
