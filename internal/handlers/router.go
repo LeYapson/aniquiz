@@ -105,6 +105,14 @@ func NewRouter(store Store) *gin.Engine {
 		authLimited.POST("/api/auth/login", LoginHandler(store))
 	}
 
+	// --- ROUTES BOT DISCORD (auth par clé partagée X-Bot-Key, pas de JWT) ---
+	bot := router.Group("/api/bot")
+	bot.Use(BotAuthMiddleware())
+	{
+		bot.GET("/profile", BotProfileHandler)
+		bot.POST("/friends/request", BotFriendRequestHandler)
+	}
+
 	// --- ROUTES PROTÉGÉES PAR JWT ---
 	protected := router.Group("/")
 	protected.Use(AuthMiddleware())
