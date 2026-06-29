@@ -9,6 +9,7 @@
       @logout="authStore.logout"
       @connect-anilist="connectAnilist"
       @connect-mal="connectMAL"
+      @connect-discord="connectDiscord"
       @join-room="onJoinFromInvite"
     />
 
@@ -592,6 +593,10 @@ const connectMAL = () => {
   window.location.href = `${API_URL}/api/auth/mal?token=${authStore.token}`
 }
 
+const connectDiscord = () => {
+  window.location.href = `${API_URL}/api/auth/discord?token=${authStore.token}`
+}
+
 // Gestion des retours OAuth (?anilist=success&username=xxx ou ?mal=success&username=xxx)
 const checkOAuthCallback = () => {
   const params = new URLSearchParams(window.location.search)
@@ -612,7 +617,15 @@ const checkOAuthCallback = () => {
     }
   }
 
-  if (anilistStatus || malStatus) {
+  const discordStatus = params.get('discord')
+  if (discordStatus === 'success') {
+    const username = params.get('username')
+    if (username && authStore.user) {
+      authStore.setUser({ ...authStore.user, discord_username: username }, authStore.token)
+    }
+  }
+
+  if (anilistStatus || malStatus || discordStatus) {
     window.history.replaceState({}, '', window.location.pathname)
   }
 }

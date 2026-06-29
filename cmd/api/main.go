@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -235,6 +236,64 @@ func main() {
 		}
 
 		c.Redirect(http.StatusFound, frontendURL+"?anilist=success&username="+profile.Username)
+	})
+
+	// 4b - OAuth Discord (liaison de compte pour le bot)
+	// GET /api/auth/discord — redirige vers l'autorisation Discord (scope identify)
+	router.GET("/api/auth/discord", func(c *gin.Context) {
+		tokenString := c.Query("token")
+		if tokenString == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "token requis"})
+			return
+		}
+		if _, err := handlers.ValidateToken(tokenString); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide"})
+			return
+		}
+		c.Redirect(http.StatusFound, sourcing.BuildDiscordAuthURL(tokenString))
+	})
+
+	// GET /api/auth/discord/callback — Discord redirige ici après autorisation
+	router.GET("/api/auth/discord/callback", func(c *gin.Context) {
+		code := c.Query("code")
+		state := c.Query("state") // JWT de l'utilisateur
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:5173"
+		}
+
+		if code == "" || state == "" {
+			c.Redirect(http.StatusFound, frontendURL+"?discord=error&reason=missing_params")
+			return
+		}
+
+		claims, err := handlers.ValidateToken(state)
+		if err != nil {
+			c.Redirect(http.StatusFound, frontendURL+"?discord=error&reason=invalid_token")
+			return
+		}
+
+		accessToken, err := sourcing.ExchangeDiscordCode(code)
+		if err != nil {
+			log.Printf("Erreur échange code Discord: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?discord=error&reason=exchange_failed")
+			return
+		}
+
+		profile, err := sourcing.GetDiscordProfile(accessToken)
+		if err != nil {
+			log.Printf("Erreur profil Discord: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?discord=error&reason=profile_failed")
+			return
+		}
+
+		if err := database.UpdateUserDiscord(claims.UserID, profile.ID, profile.Username); err != nil {
+			log.Printf("Erreur sauvegarde Discord: %v", err)
+			c.Redirect(http.StatusFound, frontendURL+"?discord=error&reason=db_failed")
+			return
+		}
+
+		c.Redirect(http.StatusFound, frontendURL+"?discord=success&username="+url.QueryEscape(profile.Username))
 	})
 
 	// 5 - OAuth MyAnimeList (PKCE)

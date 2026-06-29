@@ -64,6 +64,11 @@
             <span v-if="profile.mal_username">MAL : <strong>{{ profile.mal_username }}</strong></span>
             <span v-else class="not-linked">MyAnimeList non connecté</span>
           </div>
+          <div class="account-card" :class="{ linked: profile.discord_username }">
+            <span class="acc-icon discord-color">D</span>
+            <span v-if="profile.discord_username">Discord : <strong>{{ profile.discord_username }}</strong></span>
+            <span v-else class="not-linked">Discord non connecté</span>
+          </div>
         </div>
       </div>
 
@@ -407,6 +412,7 @@ const importLabel = (malId) => {
 }
 .anilist-color { background: #02a9ff; }
 .mal-color { background: #2e51a2; }
+.discord-color { background: #5865f2; }
 .not-linked { color: #475569; font-size: 0.9rem; }
 
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
