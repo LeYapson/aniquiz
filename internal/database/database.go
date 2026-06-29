@@ -189,6 +189,23 @@ func UpdateUserAnilist(userID, anilistUserID int, anilistUsername, token string)
 	return err
 }
 
+// GetUserByDiscordID résout un compte AniQuiz à partir de l'id Discord lié.
+// Retourne (nil, nil) si aucun compte n'est lié à cet id.
+func GetUserByDiscordID(discordID string) (*models.User, error) {
+	var u models.User
+	err := Pool.QueryRow(context.Background(), `
+		SELECT id, username, COALESCE(email, ''), xp, level
+		FROM users
+		WHERE discord_id = $1`, discordID).Scan(&u.ID, &u.Username, &u.Email, &u.Xp, &u.Level)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 // UpdateUserDiscord enregistre (ou met à jour) le compte Discord lié.
 func UpdateUserDiscord(userID int, discordID, discordUsername string) error {
 	_, err := Pool.Exec(context.Background(),
