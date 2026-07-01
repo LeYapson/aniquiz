@@ -2,10 +2,22 @@ name: CI/CD AniQuiz
 
 on:
   push:
-    branches: [main, "feature/**", "working/**", "fix/**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Cible de déploiement'
+        required: true
+        type: choice
+        options: [staging, production]
+        default: staging
+      image_tag:
+        description: "Tag de l'image à déployer (ex: sha-abc1234, latest, 1.2.3)"
+        required: false
+        default: 'latest'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,6 +33,7 @@ env:
 jobs:
   security:
     name: Security Scan
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,21 +52,19 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
-      # Report-only (exit-code: 0). A newly published CVE in a dependency must not
-      # turn a green pipeline red with no code change. Flip to exit-code: 1 once the
-      # dependency tree is pinned and triaged.
       - name: Trivy SAST (filesystem scan)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
-          exit-code: 0
+          exit-code: 1
           severity: CRITICAL,HIGH
 
   # ─── BACKEND ─────────────────────────────────────────────────────────────────
   backend:
     name: Backend
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -91,6 +102,7 @@ jobs:
   # ─── FRONTEND ────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,6 +137,7 @@ jobs:
   # ─── E2E ─────────────────────────────────────────────────────────────────────
   e2e:
     name: E2E (Playwright)
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [frontend]
     permissions:
@@ -161,8 +174,9 @@ jobs:
   # ─── DOCKER ──────────────────────────────────────────────────────────────────
   docker:
     name: Docker
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
-    needs: [backend, frontend, e2e]
+    needs: [security, backend, frontend, e2e]
     permissions:
       contents: read
       packages: write
@@ -251,8 +265,6 @@ jobs:
     name: Deploy (Staging)
     runs-on: ubuntu-latest
     needs: [docker]
-    # Skips cleanly (no red check) until you set repo variable ENABLE_DEPLOY=true
-    # AND configure the staging secrets/environment. See docs/PRODUCTION_CHECKLIST.md.
     if: github.ref == 'refs/heads/main' && vars.ENABLE_DEPLOY == 'true'
     environment:
       name: staging
@@ -372,3 +384,63 @@ jobs:
         with:
           generate_release_notes: true
           make_latest: true
+
+  # ─── DEPLOY MANUEL ───────────────────────────────────────────────────────────
+  # Déclenché manuellement depuis l'onglet Actions → "Run workflow".
+  # Permet de déployer n'importe quel tag d'image existant sur staging (home)
+  # ou production (VPS) sans avoir à pousser un tag git.
+  deploy-manual:
+    name: Deploy (Manuel — ${{ inputs.deploy_target }})
+    if: github.event_name == 'workflow_dispatch' && vars.ENABLE_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.deploy_target }}
+      url: ${{ inputs.deploy_target == 'production' && vars.PROD_URL || vars.STAGING_URL }}
+    concurrency:
+      group: deploy-${{ inputs.deploy_target }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ inputs.deploy_target == 'production' && secrets.PROD_HOST || secrets.STAGING_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            TARGET=${{ inputs.deploy_target }}
+            IMAGE_TAG=${{ inputs.image_tag }}
+            cd ${{ vars.DEPLOY_PATH || '/opt/aniquiz' }}
+
+            if [ "$TARGET" = "production" ]; then
+              ./scripts/backup-db.sh || echo "Warning: backup failed, proceeding"
+            fi
+
+            docker pull ${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+
+            PREV=$(docker inspect --format='{{.Config.Image}}' aniquiz-app 2>/dev/null || echo "")
+            echo "Previous image: $PREV"
+
+            export IMAGE_TAG=${IMAGE_TAG}
+            docker compose -f docker-compose.prod.yml up -d --no-deps app
+
+            echo "Waiting for health check..."
+            for i in $(seq 1 12); do
+              sleep 5
+              STATUS=$(curl -sfk https://localhost/health && echo "ok" || echo "fail")
+              if [ "$STATUS" = "ok" ]; then
+                echo "Deploy ${IMAGE_TAG} on ${TARGET} succeeded (attempt $i)"
+                exit 0
+              fi
+              echo "Health check attempt $i/12 failed"
+            done
+
+            echo "Health check failed after 60s — rolling back"
+            if [ -n "$PREV" ]; then
+              export IMAGE_TAG="${PREV##*:}"
+              docker compose -f docker-compose.prod.yml up -d --no-deps app
+            fi
+            exit 1
