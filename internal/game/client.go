@@ -35,7 +35,12 @@ func (c *Client) ReadPump() {
 		c.Conn.Close()
 	}()
 
-	c.Conn.SetReadLimit(4096)
+	// 64 Ko : le message le plus gros est UPDATE_SETTINGS avec la liste perso
+	// (filter_mal_ids). Une liste MAL/AniList peut compter plusieurs milliers
+	// d'animes ; à ~6 octets par ID, 4 Ko ne tenaient que ~600 IDs et faisaient
+	// dépasser la limite → ReadMessage renvoyait une erreur et fermait la socket
+	// (le client croyait à une déconnexion et se reconnectait en boucle).
+	c.Conn.SetReadLimit(65536)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error {
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -207,6 +212,14 @@ func (c *Client) ReadPump() {
 			if err := json.Unmarshal(msg.Payload, &settings); err != nil {
 				log.Printf("Erreur décodage settings: %v", err)
 				continue
+			}
+
+			// Borne défensive : aucune liste perso réelle ne dépasse quelques
+			// milliers d'entrées. On tronque pour éviter d'accumuler en mémoire
+			// une liste arbitrairement grande envoyée par un client malveillant.
+			const maxFilterMalIDs = 10000
+			if len(settings.FilterMalIDs) > maxFilterMalIDs {
+				settings.FilterMalIDs = settings.FilterMalIDs[:maxFilterMalIDs]
 			}
 
 			c.Room.Mu.Lock()
