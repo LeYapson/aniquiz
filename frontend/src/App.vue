@@ -367,7 +367,7 @@ import AppHeader from "./components/AppHeader.vue";
 import HomeDashboard from "./components/HomeDashboard.vue";
 import AdminPage from "./components/AdminPage.vue";
 import ToastContainer from "./components/ToastContainer.vue";
-import { authStore } from "./authStore";
+import { authStore, apiFetch, consumeSessionExpired } from "./authStore";
 import { useToast } from "./composables/useToast";
 import { API_URL, WS_URL } from "./config";
 import { audioOnlyUrl, isAudioOnly } from "./media";
@@ -663,15 +663,9 @@ const loadAnimeDictionary = async () => {
   }
 };
 
-const authFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...authStore.authHeaders(),
-      ...(options.headers || {}),
-    },
-  });
-};
+// Délègue à apiFetch : injecte le token et déconnecte proprement sur 401
+// (token expiré/invalide) au lieu de laisser une session fantôme.
+const authFetch = apiFetch;
 
 // Statut admin : confirmé côté serveur (robuste même pour une session
 // ouverte avant l'ajout du flag au login).
@@ -692,6 +686,10 @@ watch(() => authStore.user, (u) => {
 });
 
 onMounted(() => {
+  // Session expirée pendant l'absence : on l'a déjà nettoyée, on prévient l'utilisateur.
+  if (consumeSessionExpired()) {
+    toast.info("Ta session a expiré, reconnecte-toi.", { title: "Session expirée" });
+  }
   loadAnimeDictionary();
   checkOAuthCallback();
   loadAdminStatus();

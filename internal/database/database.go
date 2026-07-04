@@ -107,6 +107,9 @@ func Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_room_invites_to ON room_invites(to_user_id)`,
 		// Cosmétique : cadre d'avatar sélectionné (débloqué par niveau).
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_frame TEXT NOT NULL DEFAULT ''`,
+		// Photo de profil : stockée en data URL base64 (pas de volume d'upload
+		// à gérer, persiste avec la base). Vide = avatar généré à partir de l'initiale.
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`,
 		// Titres alternatifs d'un anime (anglais + synonymes) pour accepter
 		// "How NOT to Summon a Demon King" en plus du titre japonais.
 		`ALTER TABLE tracks ADD COLUMN IF NOT EXISTS anime_titles TEXT[] NOT NULL DEFAULT '{}'`,
@@ -145,7 +148,7 @@ func GetUserByID(userID int) (*models.User, error) {
 		SELECT id, username, email, password_hash, xp, level,
 		       COALESCE(anilist_username, ''), COALESCE(anilist_user_id, 0), COALESCE(anilist_token, ''),
 		       COALESCE(mal_username, ''),     COALESCE(mal_user_id, 0),     COALESCE(mal_token, ''),
-		       COALESCE(avatar_frame, ''),
+		       COALESCE(avatar_frame, ''), COALESCE(avatar_url, ''),
 		       COALESCE(discord_id, ''), COALESCE(discord_username, ''),
 		       created_at
 		FROM users
@@ -156,7 +159,7 @@ func GetUserByID(userID int) (*models.User, error) {
 		&user.Xp, &user.Level,
 		&user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken,
 		&user.MalUsername, &user.MalUserID, &user.MalToken,
-		&user.AvatarFrame, &user.DiscordID, &user.DiscordUsername, &user.CreatedAt,
+		&user.AvatarFrame, &user.AvatarURL, &user.DiscordID, &user.DiscordUsername, &user.CreatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -218,6 +221,13 @@ func UpdateUserDiscord(userID int, discordID, discordUsername string) error {
 func SetAvatarFrame(userID int, frame string) error {
 	_, err := Pool.Exec(context.Background(),
 		`UPDATE users SET avatar_frame = $1 WHERE id = $2`, frame, userID)
+	return err
+}
+
+// SetAvatarURL met à jour la photo de profil (data URL base64, ou "" pour retirer).
+func SetAvatarURL(userID int, url string) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE users SET avatar_url = $1 WHERE id = $2`, url, userID)
 	return err
 }
 
@@ -347,14 +357,25 @@ func GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error
 // GetUserByUsernameOrEmail récupère un utilisateur pour vérifier ses identifiants au login
 func GetUserByUsernameOrEmail(identifier string) (*models.User, error) {
 	var user models.User
+	// On charge aussi les comptes liés (AniList/MAL/Discord) : sinon le login
+	// renvoie un user sans ces champs, et le client croit les connexions tierces
+	// perdues à chaque reconnexion alors qu'elles sont bien en base.
 	query := `
-		SELECT id, username, email, password_hash, xp, level, COALESCE(avatar_frame, ''), created_at
+		SELECT id, username, email, password_hash, xp, level,
+		       COALESCE(anilist_username, ''), COALESCE(anilist_user_id, 0), COALESCE(anilist_token, ''),
+		       COALESCE(mal_username, ''),     COALESCE(mal_user_id, 0),     COALESCE(mal_token, ''),
+		       COALESCE(avatar_frame, ''), COALESCE(avatar_url, ''),
+		       COALESCE(discord_id, ''), COALESCE(discord_username, ''),
+		       created_at
 		FROM users
 		WHERE username = $1 OR email = $1
 	`
 
 	err := Pool.QueryRow(context.Background(), query, identifier).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Xp, &user.Level, &user.AvatarFrame, &user.CreatedAt,
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Xp, &user.Level,
+		&user.AnilistUsername, &user.AnilistUserID, &user.AnilistToken,
+		&user.MalUsername, &user.MalUserID, &user.MalToken,
+		&user.AvatarFrame, &user.AvatarURL, &user.DiscordID, &user.DiscordUsername, &user.CreatedAt,
 	)
 
 	if err != nil {
