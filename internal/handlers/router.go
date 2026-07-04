@@ -268,6 +268,10 @@ func NewRouter(store Store) *gin.Engine {
 		// Cosmétiques (cadre d'avatar)
 		protected.PUT("/api/me/cosmetics", SetCosmeticsHandler)
 
+		// Photo de profil (upload / suppression)
+		protected.POST("/api/me/avatar", UploadAvatarHandler)
+		protected.DELETE("/api/me/avatar", DeleteAvatarHandler)
+
 		// Invitations à rejoindre un salon
 		protected.GET("/api/invites", ListRoomInvitesHandler)
 		protected.POST("/api/invites", SendRoomInviteHandler)

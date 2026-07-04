@@ -17,6 +17,7 @@
             </label>
             <button v-if="profile.avatar_url" @click="deleteAvatar" class="btn-avatar-delete" :disabled="uploading" title="Supprimer la photo">🗑</button>
           </div>
+          <p v-if="uploadError" class="avatar-error" role="alert">{{ uploadError }}</p>
         </div>
         <div class="profile-info">
           <h2>{{ profile.username }}</h2>
@@ -164,7 +165,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { authStore } from "../authStore";
+import { authStore, apiFetch } from "../authStore";
 import { API_URL } from "../config";
 import FriendsPanel from "./FriendsPanel.vue";
 import { FRAMES, frameClass } from "../cosmetics";
@@ -173,26 +174,67 @@ const profile = ref(null);
 const history = ref([]);
 const loading = ref(true);
 const uploading = ref(false);
+const uploadError = ref("");
+
+// Réduit l'image côté client (canvas) : n'importe quelle photo devient un petit
+// avatar carré (≤256px, JPEG), ce qui évite les rejets de taille et allège la
+// donnée stockée. Renvoie un Blob, ou null si le traitement échoue (fallback
+// = envoi du fichier d'origine, le serveur validera taille et type).
+const downscaleImage = (file, max = 256, quality = 0.85) =>
+  new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+      };
+      img.onerror = () => resolve(null);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
 
 const uploadAvatar = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  uploadError.value = "";
   uploading.value = true;
-  const form = new FormData();
-  form.append("avatar", file);
   try {
+    const resized = await downscaleImage(file);
+    const form = new FormData();
+    if (resized) form.append("avatar", resized, "avatar.jpg");
+    else form.append("avatar", file); // fallback : image d'origine
+
     const res = await fetch(`${API_URL}/api/me/avatar`, {
       method: "POST",
       headers: { Authorization: `Bearer ${authStore.token}` },
       body: form,
     });
+    if (res.status === 401) {
+      authStore.logout();
+      return;
+    }
     if (res.ok) {
       const data = await res.json();
       profile.value.avatar_url = data.avatar_url;
       authStore.setUser({ ...authStore.user, avatar_url: data.avatar_url }, authStore.token);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      uploadError.value = d.error || "Échec de l'envoi de l'image.";
     }
   } catch (err) {
     console.error("Erreur upload avatar :", err);
+    uploadError.value = "Erreur réseau lors de l'envoi.";
   } finally {
     uploading.value = false;
     e.target.value = "";
@@ -202,9 +244,8 @@ const uploadAvatar = async (e) => {
 const deleteAvatar = async () => {
   uploading.value = true;
   try {
-    const res = await fetch(`${API_URL}/api/me/avatar`, {
+    const res = await apiFetch(`${API_URL}/api/me/avatar`, {
       method: "DELETE",
-      headers: authStore.authHeaders(),
     });
     if (res.ok) {
       profile.value.avatar_url = "";
@@ -220,8 +261,8 @@ const deleteAvatar = async () => {
 onMounted(async () => {
   try {
     const [profileRes, historyRes] = await Promise.all([
-      fetch(`${API_URL}/api/profile`, { headers: authStore.authHeaders() }),
-      fetch(`${API_URL}/api/history`, { headers: authStore.authHeaders() }),
+      apiFetch(`${API_URL}/api/profile`),
+      apiFetch(`${API_URL}/api/history`),
     ]);
     if (profileRes.ok) profile.value = await profileRes.json();
     if (historyRes.ok) history.value = await historyRes.json();
@@ -236,9 +277,8 @@ const selectFrame = async (frame) => {
   if (!profile.value || profile.value.level < frame.level) return;
   if (profile.value.avatar_frame === frame.id) return;
   try {
-    const res = await fetch(`${API_URL}/api/me/cosmetics`, {
+    const res = await apiFetch(`${API_URL}/api/me/cosmetics`, {
       method: "PUT",
-      headers: authStore.authHeaders(),
       body: JSON.stringify({ avatar_frame: frame.id }),
     });
     if (res.ok) {
@@ -297,9 +337,8 @@ const searchAnime = async () => {
   searchResults.value = [];
   searchDone.value = false;
   try {
-    const res = await fetch(
-      `${API_URL}/api/anime/search?q=${encodeURIComponent(searchQuery.value)}`,
-      { headers: authStore.authHeaders() }
+    const res = await apiFetch(
+      `${API_URL}/api/anime/search?q=${encodeURIComponent(searchQuery.value)}`
     );
     if (res.ok) searchResults.value = await res.json();
   } finally {
@@ -311,9 +350,8 @@ const searchAnime = async () => {
 const importAnime = async (anime) => {
   importStatus.value[anime.mal_id] = "loading";
   try {
-    const res = await fetch(`${API_URL}/api/admin/import`, {
+    const res = await apiFetch(`${API_URL}/api/admin/import`, {
       method: "POST",
-      headers: authStore.authHeaders(),
       body: JSON.stringify({ ids: [anime.mal_id] }),
     });
     if (res.status === 429) {
@@ -377,6 +415,7 @@ const importLabel = (malId) => {
 }
 .btn-avatar-delete:hover { background: rgba(239,68,68,0.22); }
 .btn-avatar-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+.avatar-error { color: #f87171; font-size: 0.72rem; text-align: center; max-width: 120px; margin: 0; }
 .profile-info { flex: 1; }
 .profile-info h2 { margin: 0 0 6px; font-size: 1.4rem; color: #f1f5f9; }
 .level-badge {

@@ -20,6 +20,8 @@ vi.mock('../../authStore', () => ({
     }),
     logout: vi.fn(),
   },
+  apiFetch: (url, options = {}) => global.fetch(url, options),
+  consumeSessionExpired: () => false,
 }))
 
 describe('App Quiz Logic', () => {

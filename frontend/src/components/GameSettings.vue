@@ -112,7 +112,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch } from "vue";
-import { authStore } from "../authStore";
+import { authStore, apiFetch } from "../authStore";
 import { API_URL } from "../config";
 import { useToast } from "../composables/useToast";
 
@@ -164,9 +164,7 @@ const toggleAnilistFilter = async () => {
     if (local.filterMalIds.length === 0) {
       loadingIds.value = true;
       try {
-        const res = await fetch(`${API_URL}/api/me/anime-ids`, {
-          headers: authStore.authHeaders(),
-        });
+        const res = await apiFetch(`${API_URL}/api/me/anime-ids`);
         if (res.ok) {
           const data = await res.json();
           // Réponse : { ids, playable_anime, playable_tracks } (compat ancien tableau brut)
