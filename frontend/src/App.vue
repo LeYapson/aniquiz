@@ -239,6 +239,11 @@
                     <button type="button" class="audio-retry" @click="retryAudio">Réessayer</button>
                   </div>
 
+                  <div v-else-if="audioBlocked" class="audio-blocked" role="alert">
+                    🔇 Le son est bloqué par ton navigateur.
+                    <button type="button" class="audio-retry" @click="resumeAudio">🔊 Activer le son</button>
+                  </div>
+
                   <div v-if="isSpectator" class="spectator-watching" role="status">
                     👁 Vous regardez la partie en tant que spectateur
                   </div>
@@ -437,6 +442,9 @@ const reactionOverlay = ref(null);
 const audioEl = ref(null);
 const videoEl = ref(null);
 const audioFailed = ref(false);
+// autoplay bloqué par le navigateur (Firefox/Safari) faute de geste utilisateur :
+// typiquement un joueur qui rejoint une partie sans avoir cliqué « Démarrer ».
+const audioBlocked = ref(false);
 
 // Source réellement lue par le <audio> : on tente d'abord l'audio-only (léger,
 // hôte distinct), avec repli automatique sur la vidéo WebM si le .ogg n'existe
@@ -457,9 +465,22 @@ const seekToStart = () => {
 };
 
 // Une fois les métadonnées (durée) connues : on saute au bon endroit puis on lit.
+// Si le navigateur refuse l'autoplay (pas de geste utilisateur), on le signale
+// pour proposer un bouton d'activation, au lieu d'un lecteur muet inexpliqué.
 const onAudioLoaded = () => {
   seekToStart();
-  audioEl.value?.play().catch(() => {});
+  const p = audioEl.value?.play();
+  if (p) {
+    p.then(() => { audioBlocked.value = false; })
+     .catch(() => { audioBlocked.value = true; });
+  }
+};
+
+// Relance la lecture depuis un vrai geste utilisateur (débloque l'autoplay).
+const resumeAudio = () => {
+  audioEl.value?.play()
+    .then(() => { audioBlocked.value = false; })
+    .catch(() => {});
 };
 
 // Libère explicitement la ressource d'un élément média avant qu'il ne soit
@@ -489,6 +510,7 @@ watch(currentAudioUrl, async (url) => {
     return;
   }
   audioFailed.value = false;
+  audioBlocked.value = false;
   triedVideoFallback.value = false;
   playbackSrc.value = audioOnlyUrl(url); // tente l'audio-only en premier
   await nextTick();
@@ -1192,7 +1214,8 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .answer-name { color: #f9a8d4; font-weight: 700; }
 .no-video { font-style: italic; margin-top: 20px; color: #94a3b8; }
 
-.audio-failed {
+.audio-failed,
+.audio-blocked {
   margin-top: 16px;
   padding: 10px 14px;
   background: rgba(251, 191, 36, 0.12);
@@ -1205,6 +1228,11 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+}
+.audio-blocked {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
 }
 .audio-retry {
   background: #f97316;
