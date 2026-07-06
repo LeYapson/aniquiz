@@ -62,7 +62,8 @@ type Room struct {
 	RoundAnswers  []RoundAnswer
 	RoundStart    time.Time
 	StartFraction float64 // fraction [0..0.5] où démarrer la lecture (partie aléatoire)
-	SkipVotes     map[string]bool
+	SkipVotes         map[string]bool
+	RevealSkipVotes   map[string]bool
 	RoundHistory  []RoundSummaryItem
 	FilterType    string
 	MinYear       int
@@ -72,8 +73,9 @@ type Room struct {
 	Buzzed        map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
 	GuessMode     string           // "anime" (défaut), "title" ou "artist"
 
-	Mu   sync.Mutex
-	done chan struct{} // closed when Run() exits; signals background goroutines to stop
+	Mu          sync.Mutex
+	done        chan struct{} // closed when Run() exits; signals background goroutines to stop
+	revealSkip  chan struct{} // signaled by host to skip the reveal wait
 }
 
 type RoomSummary struct {
@@ -126,8 +128,9 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 		CreatorID:     creatorID,
 		HasAnswered:   make(map[string]bool),
 		RoundAnswers:  []RoundAnswer{},
-		SkipVotes:     make(map[string]bool),
-		RoundHistory:  []RoundSummaryItem{},
+		SkipVotes:         make(map[string]bool),
+		RevealSkipVotes:   make(map[string]bool),
+		RoundHistory:      []RoundSummaryItem{},
 		Buzzed:        make(map[string]int64),
 		done:          make(chan struct{}),
 	}
@@ -347,9 +350,16 @@ func (r *Room) EndRound(reason string) {
 		return
 	}
 
-	// Wait before starting next round; abort if room is destroyed.
+	// Prepare a fresh skip channel for this reveal window.
+	revealSkip := make(chan struct{}, 1)
+	r.Mu.Lock()
+	r.revealSkip = revealSkip
+	r.Mu.Unlock()
+
+	// Wait before starting next round; host can cut it short via SKIP_REVEAL.
 	select {
 	case <-time.After(10 * time.Second):
+	case <-revealSkip:
 	case <-r.done:
 		return
 	}
@@ -539,6 +549,7 @@ func (r *Room) nextRound() {
 	r.HasAnswered = make(map[string]bool)
 	r.RoundAnswers = []RoundAnswer{}
 	r.SkipVotes = make(map[string]bool)
+	r.RevealSkipVotes = make(map[string]bool)
 	r.Buzzed = make(map[string]int64)
 	r.RoundStart = time.Now()
 	// Démarre la lecture à un point aléatoire (0–50 %) plutôt qu'au début :
