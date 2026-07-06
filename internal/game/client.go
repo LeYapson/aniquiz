@@ -162,6 +162,43 @@ func (c *Client) ReadPump() {
 				go c.Room.EndRound("Piste passée par l'hôte")
 			}
 
+		case "VOTE_SKIP_REVEAL":
+			if c.IsSpectator {
+				continue
+			}
+			c.Room.Mu.Lock()
+			if c.Room.IsPlaying {
+				c.Room.Mu.Unlock()
+				continue
+			}
+			c.Room.RevealSkipVotes[c.ID] = true
+			votes := len(c.Room.RevealSkipVotes)
+			activeCount := 0
+			for cl := range c.Room.Clients {
+				if !cl.IsSpectator {
+					activeCount++
+				}
+			}
+			needed := (activeCount + 1) / 2
+			ch := c.Room.revealSkip
+			c.Room.Mu.Unlock()
+
+			voteMsg, _ := json.Marshal(map[string]interface{}{
+				"type": "REVEAL_SKIP_VOTE_UPDATE",
+				"payload": map[string]interface{}{
+					"votes":  votes,
+					"needed": needed,
+				},
+			})
+			c.Room.Broadcast <- voteMsg
+
+			if votes >= needed && ch != nil {
+				select {
+				case ch <- struct{}{}:
+				default:
+				}
+			}
+
 		case "KICK_PLAYER":
 			if c.Room.CreatorID != c.Username {
 				continue

@@ -216,6 +216,20 @@
                     style="width: 100%; max-width: 600px; border-radius: 8px; margin-top: 14px;"
                   ></video>
                   <p v-else class="no-video">Pas de vidéo disponible pour cette piste.</p>
+
+                  <div v-if="!isSpectator" class="skip-zone" style="margin-top: 12px;">
+                    <button
+                      @click="sendRevealSkipVote"
+                      :disabled="hasVotedRevealSkip"
+                      class="btn-skip"
+                      :title="hasVotedRevealSkip ? 'Vous avez déjà voté' : 'Voter pour passer la révélation'"
+                    >
+                      ⏭ Passer la révélation
+                      <span v-if="revealSkipVotes.votes > 0" class="skip-count">
+                        {{ revealSkipVotes.votes }}/{{ revealSkipVotes.needed }}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div v-else>
@@ -570,6 +584,8 @@ const backToLobby = () => {
   roundHistory.value = [];
   skipVotes.value = { votes: 0, needed: 1 };
   hasVotedSkip.value = false;
+  revealSkipVotes.value = { votes: 0, needed: 1 };
+  hasVotedRevealSkip.value = false;
   state.value = "LOBBY";
 };
 
@@ -583,6 +599,16 @@ const sendSkipVote = () => {
 const forceSkip = () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "FORCE_SKIP", payload: null }));
+  }
+};
+
+const revealSkipVotes = ref({ votes: 0, needed: 1 });
+const hasVotedRevealSkip = ref(false);
+
+const sendRevealSkipVote = () => {
+  if (socket && socket.readyState === WebSocket.OPEN && !hasVotedRevealSkip.value) {
+    socket.send(JSON.stringify({ type: "VOTE_SKIP_REVEAL", payload: null }));
+    hasVotedRevealSkip.value = true;
   }
 };
 
@@ -790,6 +816,8 @@ const connectWebSocket = (room_id, password) => {
           roundStartFraction.value = data.payload.start_fraction ?? 0;
           hasVotedSkip.value = false;
           skipVotes.value = { votes: 0, needed: 1 };
+          hasVotedRevealSkip.value = false;
+          revealSkipVotes.value = { votes: 0, needed: 1 };
           hasBuzzed.value = false;
           buzzedUsers.value = [];
           if (audioEl.value) audioEl.value.muted = false;
@@ -834,6 +862,9 @@ const connectWebSocket = (room_id, password) => {
           break;
         case "SKIP_VOTE_UPDATE":
           skipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
+          break;
+        case "REVEAL_SKIP_VOTE_UPDATE":
+          revealSkipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
           break;
         case "HOST_CHANGED":
           isCreator.value = data.payload === authStore.user?.username;
