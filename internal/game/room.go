@@ -42,40 +42,40 @@ type RoundSummaryItem struct {
 }
 
 type Room struct {
-	ID            string
-	Clients       map[*Client]bool
-	Broadcast     chan []byte
-	Register      chan *Client
-	Unregister    chan *Client
-	State         RoomState
-	CurrentTrack  *models.Track
-	Start         chan bool
-	IsPlaying     bool
-	CurrentRound  int
-	MaxRounds     int
-	RoundDuration int
-	IsPrivate     bool
-	IsSolo        bool
-	Password      string
-	CreatorID     string
-	HasAnswered   map[string]bool
-	RoundAnswers  []RoundAnswer
-	RoundStart    time.Time
-	StartFraction float64 // fraction [0..0.5] où démarrer la lecture (partie aléatoire)
-	SkipVotes         map[string]bool
-	RevealSkipVotes   map[string]bool
-	RoundHistory  []RoundSummaryItem
-	FilterType    string
-	MinYear       int
-	MaxYear       int
-	FilterMalID   []int
-	BuzzerMode    bool
-	Buzzed        map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
-	GuessMode     string           // "anime" (défaut), "title" ou "artist"
+	ID              string
+	Clients         map[*Client]bool
+	Broadcast       chan []byte
+	Register        chan *Client
+	Unregister      chan *Client
+	State           RoomState
+	CurrentTrack    *models.Track
+	Start           chan bool
+	IsPlaying       bool
+	CurrentRound    int
+	MaxRounds       int
+	RoundDuration   int
+	IsPrivate       bool
+	IsSolo          bool
+	Password        string
+	CreatorID       string
+	HasAnswered     map[string]bool
+	RoundAnswers    []RoundAnswer
+	RoundStart      time.Time
+	StartFraction   float64 // fraction [0..0.5] où démarrer la lecture (partie aléatoire)
+	SkipVotes       map[string]bool
+	RevealSkipVotes map[string]bool
+	RoundHistory    []RoundSummaryItem
+	FilterType      string
+	MinYear         int
+	MaxYear         int
+	FilterMalID     []int
+	BuzzerMode      bool
+	Buzzed          map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
+	GuessMode       string           // "anime" (défaut), "title" ou "artist"
 
-	Mu          sync.Mutex
-	done        chan struct{} // closed when Run() exits; signals background goroutines to stop
-	revealSkip  chan struct{} // signaled by host to skip the reveal wait
+	Mu         sync.Mutex
+	done       chan struct{} // closed when Run() exits; signals background goroutines to stop
+	revealSkip chan struct{} // signaled by host to skip the reveal wait
 }
 
 type RoomSummary struct {
@@ -111,28 +111,28 @@ func GetPublicRooms() []RoomSummary {
 
 func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 	return &Room{
-		ID:            id,
-		Clients:       make(map[*Client]bool),
-		Broadcast:     make(chan []byte, 64),
-		Register:      make(chan *Client),
-		Unregister:    make(chan *Client),
-		Start:         make(chan bool),
-		IsPlaying:     false,
-		State:         StateLobby,
-		CurrentRound:  0,
-		MaxRounds:     5,
-		RoundDuration: 20,
-		Password:      "",
-		IsPrivate:     false,
-		IsSolo:        isSolo,
-		CreatorID:     creatorID,
-		HasAnswered:   make(map[string]bool),
-		RoundAnswers:  []RoundAnswer{},
-		SkipVotes:         make(map[string]bool),
-		RevealSkipVotes:   make(map[string]bool),
-		RoundHistory:      []RoundSummaryItem{},
-		Buzzed:        make(map[string]int64),
-		done:          make(chan struct{}),
+		ID:              id,
+		Clients:         make(map[*Client]bool),
+		Broadcast:       make(chan []byte, 64),
+		Register:        make(chan *Client),
+		Unregister:      make(chan *Client),
+		Start:           make(chan bool),
+		IsPlaying:       false,
+		State:           StateLobby,
+		CurrentRound:    0,
+		MaxRounds:       5,
+		RoundDuration:   20,
+		Password:        "",
+		IsPrivate:       false,
+		IsSolo:          isSolo,
+		CreatorID:       creatorID,
+		HasAnswered:     make(map[string]bool),
+		RoundAnswers:    []RoundAnswer{},
+		SkipVotes:       make(map[string]bool),
+		RevealSkipVotes: make(map[string]bool),
+		RoundHistory:    []RoundSummaryItem{},
+		Buzzed:          make(map[string]int64),
+		done:            make(chan struct{}),
 	}
 }
 
