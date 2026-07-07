@@ -64,6 +64,7 @@ type Room struct {
 	StartFraction   float64 // fraction [0..0.5] où démarrer la lecture (partie aléatoire)
 	SkipVotes       map[string]bool
 	RevealSkipVotes map[string]bool
+	PlayedTrackIDs  []int
 	RoundHistory    []RoundSummaryItem
 	FilterType      string
 	MinYear         int
@@ -130,6 +131,7 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 		RoundAnswers:    []RoundAnswer{},
 		SkipVotes:       make(map[string]bool),
 		RevealSkipVotes: make(map[string]bool),
+		PlayedTrackIDs:  []int{},
 		RoundHistory:    []RoundSummaryItem{},
 		Buzzed:          make(map[string]int64),
 		done:            make(chan struct{}),
@@ -558,14 +560,25 @@ func (r *Room) nextRound() {
 	startFraction := r.StartFraction
 	duration := r.RoundDuration
 	filters := models.TrackFilters{
-		TrackType: r.FilterType,
-		MinYear:   r.MinYear,
-		MaxYear:   r.MaxYear,
-		MalIDs:    r.FilterMalID,
+		TrackType:  r.FilterType,
+		MinYear:    r.MinYear,
+		MaxYear:    r.MaxYear,
+		MalIDs:     r.FilterMalID,
+		ExcludeIDs: append([]int(nil), r.PlayedTrackIDs...),
 	}
 	r.Mu.Unlock()
 
 	track, err := database.GetRandomTrackFiltered(filters)
+
+	// Toutes les pistes disponibles ont déjà été jouées : on réinitialise l'historique
+	// et on retire l'exclusion plutôt que de bloquer la partie.
+	if errors.Is(err, database.ErrNoTrack) && len(filters.ExcludeIDs) > 0 {
+		filters.ExcludeIDs = nil
+		r.Mu.Lock()
+		r.PlayedTrackIDs = []int{}
+		r.Mu.Unlock()
+		track, err = database.GetRandomTrackFiltered(filters)
+	}
 
 	// La librairie est petite : filtrer sur la liste perso de l'utilisateur peut
 	// ne renvoyer aucune piste. Plutôt que de laisser la partie bloquée sans
@@ -593,6 +606,7 @@ func (r *Room) nextRound() {
 	r.Mu.Lock()
 	r.CurrentTrack = track
 	r.IsPlaying = true
+	r.PlayedTrackIDs = append(r.PlayedTrackIDs, track.ID)
 	r.Mu.Unlock()
 
 	log.Printf("Nouveau round dans %s : %s", r.ID, track.AnimeName)
