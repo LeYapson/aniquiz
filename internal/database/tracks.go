@@ -92,6 +92,10 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	for _, id := range f.MalIDs {
 		malIDs = append(malIDs, int32(id))
 	}
+	var excludeIDs []int32
+	for _, id := range f.ExcludeIDs {
+		excludeIDs = append(excludeIDs, int32(id))
+	}
 
 	query := `
 		SELECT id, title, artist, anime_name, audio_url,
@@ -102,6 +106,7 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 		  AND ($2 = 0  OR anime_year >= $2)
 		  AND ($3 = 0  OR anime_year <= $3)
 		  AND ($4::int[] IS NULL OR mal_id = ANY($4::int[]))
+		  AND ($5::int[] IS NULL OR id != ALL($5::int[]))
 		ORDER BY RANDOM()
 		LIMIT 1
 	`
@@ -109,7 +114,11 @@ func GetRandomTrackFiltered(f models.TrackFilters) (*models.Track, error) {
 	if len(malIDs) > 0 {
 		malIDsParam = malIDs
 	}
-	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear, malIDsParam).
+	var excludeIDsParam interface{} = nil
+	if len(excludeIDs) > 0 {
+		excludeIDsParam = excludeIDs
+	}
+	err := Pool.QueryRow(context.Background(), query, f.TrackType, f.MinYear, f.MaxYear, malIDsParam, excludeIDsParam).
 		Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL,
 			&t.Difficulty, &t.TrackType, &t.AnimeYear, &t.MalID, &t.AltTitles)
 	if errors.Is(err, pgx.ErrNoRows) {

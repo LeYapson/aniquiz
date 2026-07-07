@@ -36,10 +36,11 @@ type Track struct {
 }
 
 type TrackFilters struct {
-	TrackType string // "OP", "ED", ou "" pour tout
-	MinYear   int    // 0 = pas de filtre
-	MaxYear   int    // 0 = pas de filtre
-	MalIDs    []int  // liste blanche par MAL ID (liste perso) ; nil = pas de filtre
+	TrackType  string // "OP", "ED", ou "" pour tout
+	MinYear    int    // 0 = pas de filtre
+	MaxYear    int    // 0 = pas de filtre
+	MalIDs     []int  // liste blanche par MAL ID (liste perso) ; nil = pas de filtre
+	ExcludeIDs []int  // IDs de pistes déjà jouées à exclure
 }
 
 type Score struct {
