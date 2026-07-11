@@ -1,6 +1,6 @@
 module github.com/LeYapson/aniquiz
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/darenliang/jikan-go v1.2.3
