@@ -237,16 +237,59 @@
 
                   <GameTimer :duration="roundDuration" :key="currentAudioUrl" />
 
+                  <!-- Élément média piloté par le lecteur maison (pas de contrôles natifs) -->
                   <audio
                     v-if="currentAudioUrl"
-                    v-show="!audioFailed"
                     ref="audioEl"
                     :src="playbackSrc"
                     :aria-label="`Extrait audio — trouvez le nom de l'anime`"
-                    controls
                     @loadedmetadata="onAudioLoaded"
                     @error="onAudioError"
+                    @timeupdate="onTimeUpdate"
+                    @durationchange="onDurationChange"
+                    @play="onPlay"
+                    @pause="onPause"
+                    @ended="onPause"
                   ></audio>
+
+                  <!-- Lecteur maison : lecture/pause, progression, volume général -->
+                  <div v-if="currentAudioUrl && !audioFailed" class="audio-player">
+                    <button
+                      type="button"
+                      class="player-btn"
+                      @click="togglePlay"
+                      :aria-label="isPlaying ? 'Mettre en pause' : 'Lire'"
+                    >{{ isPlaying ? '⏸' : '▶' }}</button>
+
+                    <span class="player-time">{{ formatMediaTime(currentTime) }}</span>
+                    <input
+                      type="range"
+                      class="player-seek"
+                      min="0"
+                      :max="duration || 0"
+                      step="0.1"
+                      :value="currentTime"
+                      @input="onSeek"
+                      aria-label="Position dans l'extrait"
+                    />
+                    <span class="player-time">{{ formatMediaTime(duration) }}</span>
+
+                    <button
+                      type="button"
+                      class="volume-btn"
+                      @click="toggleMute"
+                      :aria-label="volume === 0 ? 'Rétablir le son' : 'Couper le son'"
+                    >{{ volumeIcon }}</button>
+                    <input
+                      type="range"
+                      class="volume-slider"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      v-model.number="volume"
+                      aria-label="Volume général"
+                    />
+                  </div>
 
                   <div v-if="audioFailed" class="audio-failed" role="alert">
                     ⚠️ L'extrait audio n'a pas pu être chargé.
@@ -460,6 +503,28 @@ const audioFailed = ref(false);
 // typiquement un joueur qui rejoint une partie sans avoir cliqué « Démarrer ».
 const audioBlocked = ref(false);
 
+// Volume général persistant. L'élément <audio> est recréé à chaque manche (v-if),
+// donc le navigateur remet le volume à 100 % à chaque extrait — d'où la corvée
+// de le rebaisser à chaque piste. On mémorise le réglage (localStorage) et on le
+// réapplique à chaque nouvel extrait ET à la vidéo du reveal.
+const AUDIO_VOLUME_KEY = "aniquiz_volume";
+const clampVolume = (v) => Math.min(1, Math.max(0, v));
+const storedVolume = parseFloat(localStorage.getItem(AUDIO_VOLUME_KEY));
+const volume = ref(Number.isFinite(storedVolume) ? clampVolume(storedVolume) : 0.7);
+const lastNonZeroVolume = ref(volume.value > 0 ? volume.value : 0.7);
+const volumeIcon = computed(() => (volume.value === 0 ? "🔇" : volume.value < 0.5 ? "🔉" : "🔊"));
+
+// Lecteur audio maison (on n'utilise plus les contrôles natifs du <audio>).
+const isPlaying = ref(false);
+const currentTime = ref(0);
+const duration = ref(0);
+const formatMediaTime = (s) => {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+};
+
 // Source réellement lue par le <audio> : on tente d'abord l'audio-only (léger,
 // hôte distinct), avec repli automatique sur la vidéo WebM si le .ogg n'existe
 // pas. currentAudioUrl reste la source de vérité (URL WebM d'origine).
@@ -483,6 +548,10 @@ const seekToStart = () => {
 // pour proposer un bouton d'activation, au lieu d'un lecteur muet inexpliqué.
 const onAudioLoaded = () => {
   seekToStart();
+  if (audioEl.value) {
+    audioEl.value.volume = volume.value; // réapplique le volume général
+    duration.value = audioEl.value.duration || 0;
+  }
   const p = audioEl.value?.play();
   if (p) {
     p.then(() => { audioBlocked.value = false; })
@@ -495,6 +564,41 @@ const resumeAudio = () => {
   audioEl.value?.play()
     .then(() => { audioBlocked.value = false; })
     .catch(() => {});
+};
+
+// ── Contrôles du lecteur maison ──
+const togglePlay = () => {
+  const el = audioEl.value;
+  if (!el) return;
+  if (el.paused) {
+    el.play().then(() => { audioBlocked.value = false; }).catch(() => { audioBlocked.value = true; });
+  } else {
+    el.pause();
+  }
+};
+const onPlay = () => { isPlaying.value = true; };
+const onPause = () => { isPlaying.value = false; };
+const onTimeUpdate = () => { if (audioEl.value) currentTime.value = audioEl.value.currentTime || 0; };
+const onDurationChange = () => { if (audioEl.value) duration.value = audioEl.value.duration || 0; };
+const onSeek = (e) => {
+  const el = audioEl.value;
+  if (!el) return;
+  const t = Number(e.target.value);
+  try { el.currentTime = t; currentTime.value = t; } catch { /* seek non supporté */ }
+};
+
+// Applique et persiste le volume général ; répercuté sur l'audio et la vidéo.
+watch(volume, (v) => {
+  v = clampVolume(v);
+  if (audioEl.value) audioEl.value.volume = v;
+  if (videoEl.value) videoEl.value.volume = v;
+  if (v > 0) lastNonZeroVolume.value = v;
+  localStorage.setItem(AUDIO_VOLUME_KEY, String(v));
+});
+
+// Bouton haut-parleur : coupe / rétablit le son au dernier niveau non nul.
+const toggleMute = () => {
+  volume.value = volume.value > 0 ? 0 : lastNonZeroVolume.value;
 };
 
 // Libère explicitement la ressource d'un élément média avant qu'il ne soit
@@ -526,6 +630,8 @@ watch(currentAudioUrl, async (url) => {
   audioFailed.value = false;
   audioBlocked.value = false;
   triedVideoFallback.value = false;
+  currentTime.value = 0;
+  duration.value = 0;
   playbackSrc.value = audioOnlyUrl(url); // tente l'audio-only en premier
   await nextTick();
   if (!audioEl.value) return;
@@ -559,6 +665,7 @@ const retryAudio = async () => {
 watch(() => currentAnswerInfo.value.videoUrl, async (url) => {
   if (!url) return;
   await nextTick();
+  if (videoEl.value) videoEl.value.volume = volume.value; // même volume général
   videoEl.value?.play().catch(() => {});
 });
 
@@ -1262,6 +1369,66 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   background: rgba(59, 130, 246, 0.12);
   border-color: rgba(59, 130, 246, 0.3);
   color: #93c5fd;
+}
+
+/* ── Lecteur audio maison ── */
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.player-btn {
+  background: #f97316;
+  color: #fff;
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.player-btn:hover { background: #ea580c; }
+.player-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.player-seek {
+  flex: 1 1 120px;
+  accent-color: #f97316;
+  cursor: pointer;
+  height: 4px;
+  min-width: 80px;
+}
+.volume-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.volume-slider {
+  flex: 0 1 90px;
+  accent-color: #f97316;
+  cursor: pointer;
+  height: 4px;
+  min-width: 60px;
 }
 .audio-retry {
   background: #f97316;
