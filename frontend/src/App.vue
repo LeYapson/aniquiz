@@ -408,8 +408,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
-import RoomSelection from "./components/RoomSelection.vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
@@ -426,386 +425,93 @@ import AdminPage from "./components/AdminPage.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import { authStore, apiFetch, consumeSessionExpired } from "./authStore";
 import { useToast } from "./composables/useToast";
-import { API_URL, WS_URL } from "./config";
-import { audioOnlyUrl, isAudioOnly } from "./media";
+import { useGameState } from "./composables/useGameState";
+import { useAudioPlayer } from "./composables/useAudioPlayer";
+import { useGameSocket } from "./composables/useGameSocket";
+import { useInvites } from "./composables/useInvites";
+import { useOAuth } from "./composables/useOAuth";
+import { API_URL } from "./config";
 
 const toast = useToast();
 
-const isConnected = ref(false);
-const room = ref("");
-const players = ref([]);
-const state = ref("LOBBY");
-const currentAudioUrl = ref("");
-const userGuess = ref("");
-const roundDuration = ref(0);
-const animeDictionary = ref([]);
-const isRevealing = ref(false);
-const currentAnswerInfo = ref({
-  animeName: "",
-  title: "",
-  artist: "",
-  videoUrl: "",
-  trackType: "",
-  difficulty: 0,
-  foundBy: [],
-});
-const finalScores = ref([]);
-const roundHistory = ref([]);
+// ── State réactif du jeu ─────────────────────────────────────────────────────
+const {
+  isConnected, room, players, state, currentAudioUrl, userGuess,
+  roundDuration, roundStartFraction, animeDictionary, isRevealing, currentAnswerInfo,
+  finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
+  revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
+  buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
+  isSpectator, spectatorCount, mobileTab,
+} = useGameState();
 
-// Stats de vitesse par joueur, calculées depuis l'historique des rounds
-// (chaque bonne réponse porte son time_ms). Trié du plus rapide en moyenne.
-const speedStats = computed(() => {
-  const map = {};
-  for (const r of roundHistory.value) {
-    for (const f of r.found_by || []) {
-      const s = map[f.username] || (map[f.username] = { username: f.username, found: 0, totalMs: 0, bestMs: Infinity });
-      s.found++;
-      s.totalMs += f.time_ms;
-      if (f.time_ms < s.bestMs) s.bestMs = f.time_ms;
-    }
-  }
-  return Object.values(map)
-    .map((s) => ({ ...s, avgMs: Math.round(s.totalMs / s.found) }))
-    .sort((a, b) => a.avgMs - b.avgMs);
-});
+// ── Lecteur audio ────────────────────────────────────────────────────────────
+const {
+  audioEl, videoEl, volume, volumeIcon, isPlaying, currentTime, duration,
+  formatMediaTime, playbackSrc, audioFailed, audioBlocked,
+  togglePlay, toggleMute, onSeek, onAudioLoaded, onAudioError,
+  onPlay, onPause, onTimeUpdate, onDurationChange,
+  resumeAudio, retryAudio, releaseMedia,
+} = useAudioPlayer({ currentAudioUrl, currentAnswerInfo, roundStartFraction });
 
-const skipVotes = ref({ votes: 0, needed: 1 });
-const hasVotedSkip = ref(false);
-const reconnectMsg = ref("");
-const showLanding = ref(true);
-const showPublicLeaderboard = ref(false);
-const currentView = ref("home");
-const isCreator = ref(false);
-const isAdmin = ref(authStore.user?.is_admin === true);
-
-const navigateTo = (view) => {
-  currentView.value = view;
-};
-const roomSettings = ref({ maxRounds: 5, roundDuration: 20, filterType: "", decade: 0, isPrivate: false, password: "", buzzerMode: false, guessMode: "anime" });
-const buzzerMode = computed(() => roomSettings.value.buzzerMode === true);
-const guessMode = computed(() => roomSettings.value.guessMode || "anime");
-const guessLabel = computed(() => ({
-  anime: "le nom de l'anime",
-  title: "le titre de la musique",
-  artist: "l'artiste",
-}[guessMode.value] || "le nom de l'anime"));
-const hasBuzzed = ref(false);
-const buzzedUsers = ref([]);
-const chatMessages = ref([]);
-const isSpectator = ref(false);
-const spectatorCount = ref(0);
-const mobileTab = ref("game");
-const reactionOverlay = ref(null);
-const audioEl = ref(null);
-const videoEl = ref(null);
-const audioFailed = ref(false);
-// autoplay bloqué par le navigateur (Firefox/Safari) faute de geste utilisateur :
-// typiquement un joueur qui rejoint une partie sans avoir cliqué « Démarrer ».
-const audioBlocked = ref(false);
-
-// Volume général persistant. L'élément <audio> est recréé à chaque manche (v-if),
-// donc le navigateur remet le volume à 100 % à chaque extrait — d'où la corvée
-// de le rebaisser à chaque piste. On mémorise le réglage (localStorage) et on le
-// réapplique à chaque nouvel extrait ET à la vidéo du reveal.
-const AUDIO_VOLUME_KEY = "aniquiz_volume";
-const clampVolume = (v) => Math.min(1, Math.max(0, v));
-const storedVolume = parseFloat(localStorage.getItem(AUDIO_VOLUME_KEY));
-const volume = ref(Number.isFinite(storedVolume) ? clampVolume(storedVolume) : 0.7);
-const lastNonZeroVolume = ref(volume.value > 0 ? volume.value : 0.7);
-const volumeIcon = computed(() => (volume.value === 0 ? "🔇" : volume.value < 0.5 ? "🔉" : "🔊"));
-
-// Lecteur audio maison (on n'utilise plus les contrôles natifs du <audio>).
-const isPlaying = ref(false);
-const currentTime = ref(0);
-const duration = ref(0);
-const formatMediaTime = (s) => {
-  if (!isFinite(s) || s < 0) s = 0;
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, "0")}`;
-};
-
-// Source réellement lue par le <audio> : on tente d'abord l'audio-only (léger,
-// hôte distinct), avec repli automatique sur la vidéo WebM si le .ogg n'existe
-// pas. currentAudioUrl reste la source de vérité (URL WebM d'origine).
-const playbackSrc = ref("");
-const triedVideoFallback = ref(false);
-
-const roundStartFraction = ref(0);
-
-// Démarre la lecture à la partie aléatoire choisie par le serveur (identique
-// pour toute la salle). Clampé pour laisser ≥10 s de musique après le point.
-const seekToStart = () => {
-  const el = audioEl.value;
-  if (!el || !el.duration || !isFinite(el.duration)) return;
-  let start = (roundStartFraction.value || 0) * el.duration;
-  if (el.duration - start < 10) start = Math.max(0, el.duration - 10);
-  try { el.currentTime = start; } catch { /* seek non supporté par la source */ }
-};
-
-// Une fois les métadonnées (durée) connues : on saute au bon endroit puis on lit.
-// Si le navigateur refuse l'autoplay (pas de geste utilisateur), on le signale
-// pour proposer un bouton d'activation, au lieu d'un lecteur muet inexpliqué.
-const onAudioLoaded = () => {
-  seekToStart();
-  if (audioEl.value) {
-    audioEl.value.volume = volume.value; // réapplique le volume général
-    duration.value = audioEl.value.duration || 0;
-  }
-  const p = audioEl.value?.play();
-  if (p) {
-    p.then(() => { audioBlocked.value = false; })
-     .catch(() => { audioBlocked.value = true; });
-  }
-};
-
-// Relance la lecture depuis un vrai geste utilisateur (débloque l'autoplay).
-const resumeAudio = () => {
-  audioEl.value?.play()
-    .then(() => { audioBlocked.value = false; })
-    .catch(() => {});
-};
-
-// ── Contrôles du lecteur maison ──
-const togglePlay = () => {
-  const el = audioEl.value;
-  if (!el) return;
-  if (el.paused) {
-    el.play().then(() => { audioBlocked.value = false; }).catch(() => { audioBlocked.value = true; });
-  } else {
-    el.pause();
-  }
-};
-const onPlay = () => { isPlaying.value = true; };
-const onPause = () => { isPlaying.value = false; };
-const onTimeUpdate = () => { if (audioEl.value) currentTime.value = audioEl.value.currentTime || 0; };
-const onDurationChange = () => { if (audioEl.value) duration.value = audioEl.value.duration || 0; };
-const onSeek = (e) => {
-  const el = audioEl.value;
-  if (!el) return;
-  const t = Number(e.target.value);
-  try { el.currentTime = t; currentTime.value = t; } catch { /* seek non supporté */ }
-};
-
-// Applique et persiste le volume général ; répercuté sur l'audio et la vidéo.
-watch(volume, (v) => {
-  v = clampVolume(v);
-  if (audioEl.value) audioEl.value.volume = v;
-  if (videoEl.value) videoEl.value.volume = v;
-  if (v > 0) lastNonZeroVolume.value = v;
-  localStorage.setItem(AUDIO_VOLUME_KEY, String(v));
-});
-
-// Bouton haut-parleur : coupe / rétablit le son au dernier niveau non nul.
-const toggleMute = () => {
-  volume.value = volume.value > 0 ? 0 : lastNonZeroVolume.value;
-};
-
-// Libère explicitement la ressource d'un élément média avant qu'il ne soit
-// démonté (v-if). Sans cela, le navigateur garde vivants l'ancien WebMediaPlayer
-// ET sa connexion réseau jusqu'à un GC non déterministe. Comme tous les extraits
-// proviennent du même hôte (mirror externe), on sature en quelques manches la
-// limite de 6 connexions HTTP/1.1 par hôte (et le plafond de lecteurs média) :
-// les pistes suivantes « se chargent » mais ne démarrent plus. pause + src vidé
-// + load() annule la requête en cours et rend immédiatement la ressource.
-const releaseMedia = (el) => {
-  if (!el) return;
-  try {
-    el.pause();
-    el.removeAttribute("src");
-    el.load();
-  } catch { /* élément déjà détaché */ }
-};
-
-// Play audio after Vue renders the new src into the DOM
-watch(currentAudioUrl, async (url) => {
-  // Fin de manche : on relâche l'ancien lecteur avant que v-if ne le retire.
-  // Le watcher s'exécute en flush « pre » → audioEl pointe encore sur l'élément
-  // courant à cet instant.
-  if (!url) {
-    releaseMedia(audioEl.value);
-    playbackSrc.value = "";
-    return;
-  }
-  audioFailed.value = false;
-  audioBlocked.value = false;
-  triedVideoFallback.value = false;
-  currentTime.value = 0;
-  duration.value = 0;
-  playbackSrc.value = audioOnlyUrl(url); // tente l'audio-only en premier
-  await nextTick();
-  if (!audioEl.value) return;
-  audioEl.value.load(); // déclenche @loadedmetadata → seek + play
-});
-
-// Le clip est servi depuis un mirror externe : il peut être mort/indisponible.
-// On tente d'abord l'audio-only (.ogg) ; s'il manque pour cette piste, on se
-// rabat une fois sur la vidéo WebM d'origine avant de signaler un vrai échec.
-const onAudioError = () => {
-  if (!currentAudioUrl.value) return;
-  if (!triedVideoFallback.value && isAudioOnly(playbackSrc.value)) {
-    triedVideoFallback.value = true;
-    playbackSrc.value = currentAudioUrl.value; // repli sur la vidéo WebM
-    nextTick(() => audioEl.value?.load());
-    return;
-  }
-  audioFailed.value = true;
-};
-
-const retryAudio = async () => {
-  audioFailed.value = false;
-  triedVideoFallback.value = false;
-  playbackSrc.value = audioOnlyUrl(currentAudioUrl.value);
-  await nextTick();
-  if (!audioEl.value) return;
-  audioEl.value.load(); // @loadedmetadata relancera le seek + play
-};
-
-// Play video after Vue renders the reveal panel
-watch(() => currentAnswerInfo.value.videoUrl, async (url) => {
-  if (!url) return;
-  await nextTick();
-  if (videoEl.value) videoEl.value.volume = volume.value; // même volume général
-  videoEl.value?.play().catch(() => {});
-});
-
-let socket = null;
-let reconnectAttempts = 0;
-let intentionalClose = false;
-
-const difficultyLabel = (d) => {
-  if (d >= 80) return "Facile";
-  if (d >= 50) return "Moyen";
-  if (d >= 20) return "Difficile";
-  return "Expert";
-};
-
-const startGame = () => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "START_GAME", payload: null }));
-  }
-};
-
-const backToLobby = () => {
-  finalScores.value = [];
-  roundHistory.value = [];
-  skipVotes.value = { votes: 0, needed: 1 };
-  hasVotedSkip.value = false;
-  revealSkipVotes.value = { votes: 0, needed: 1 };
-  hasVotedRevealSkip.value = false;
-  state.value = "LOBBY";
-};
-
-const sendSkipVote = () => {
-  if (socket && socket.readyState === WebSocket.OPEN && !hasVotedSkip.value) {
-    socket.send(JSON.stringify({ type: "VOTE_SKIP", payload: null }));
-    hasVotedSkip.value = true;
-  }
-};
-
-const forceSkip = () => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "FORCE_SKIP", payload: null }));
-  }
-};
-
-const revealSkipVotes = ref({ votes: 0, needed: 1 });
-const hasVotedRevealSkip = ref(false);
-
-const sendRevealSkipVote = () => {
-  if (socket && socket.readyState === WebSocket.OPEN && !hasVotedRevealSkip.value) {
-    socket.send(JSON.stringify({ type: "VOTE_SKIP_REVEAL", payload: null }));
-    hasVotedRevealSkip.value = true;
-  }
-};
-
-const kickPlayer = (username) => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "KICK_PLAYER", payload: username }));
-  }
-};
-
-// Mode buzzer : buzze pour répondre. Le buzz coupe ton audio (tu t'engages sur
-// ce que tu as entendu) et fait apparaître le champ de réponse.
-const onBuzz = () => {
-  if (!socket || socket.readyState !== WebSocket.OPEN || hasBuzzed.value) return;
-  socket.send(JSON.stringify({ type: "BUZZ", payload: null }));
-  hasBuzzed.value = true;
-  if (audioEl.value) audioEl.value.muted = true;
-};
-
-const submitAnswer = () => {
-  if (!userGuess.value) return;
-  socket.send(JSON.stringify({ type: "SUBMIT_ANSWER", payload: userGuess.value }));
-  userGuess.value = "";
-};
-
-const connectAnilist = () => {
-  window.location.href = `${API_URL}/api/auth/anilist?token=${authStore.token}`
-}
-
-const connectMAL = () => {
-  window.location.href = `${API_URL}/api/auth/mal?token=${authStore.token}`
-}
-
-const connectDiscord = () => {
-  window.location.href = `${API_URL}/api/auth/discord?token=${authStore.token}`
-}
-
-// Gestion des retours OAuth (?anilist=success&username=xxx ou ?mal=success&username=xxx)
-const checkOAuthCallback = () => {
-  const params = new URLSearchParams(window.location.search)
-
-  const anilistStatus = params.get('anilist')
-  if (anilistStatus === 'success') {
-    const username = params.get('username')
-    if (username && authStore.user) {
-      authStore.setUser({ ...authStore.user, anilist_username: username }, authStore.token)
-    }
-  }
-
-  const malStatus = params.get('mal')
-  if (malStatus === 'success') {
-    const username = params.get('username')
-    if (username && authStore.user) {
-      authStore.setUser({ ...authStore.user, mal_username: username }, authStore.token)
-    }
-  }
-
-  const discordStatus = params.get('discord')
-  if (discordStatus === 'success') {
-    const username = params.get('username')
-    if (username && authStore.user) {
-      authStore.setUser({ ...authStore.user, discord_username: username }, authStore.token)
-    }
-  }
-
-  if (anilistStatus || malStatus || discordStatus) {
-    window.history.replaceState({}, '', window.location.pathname)
-  }
-}
-
+// ── Dictionnaire d'autocomplétion ────────────────────────────────────────────
 const loadAnimeDictionary = async () => {
   try {
     const response = await fetch(`${API_URL}/animes`);
-    if (response.ok) {
-      animeDictionary.value = await response.json();
-    }
+    if (response.ok) animeDictionary.value = await response.json();
   } catch (err) {
     console.error("Erreur lors du chargement du dictionnaire :", err);
   }
 };
 
-// Délègue à apiFetch : injecte le token et déconnecte proprement sur 401
-// (token expiré/invalide) au lieu de laisser une session fantôme.
-const authFetch = apiFetch;
+// ── WebSocket ────────────────────────────────────────────────────────────────
+const reactionOverlay = ref(null);
 
-// Statut admin : confirmé côté serveur (robuste même pour une session
-// ouverte avant l'ajout du flag au login).
+const {
+  socket, setupWebSocket, disconnect,
+  startGame, backToLobby, sendSkipVote, forceSkip, sendRevealSkipVote,
+  kickPlayer, onBuzz, sendAnswer, sendReaction, sendChat,
+} = useGameSocket({
+  room, isConnected, players, state, currentAudioUrl, roundDuration, roundStartFraction,
+  isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
+  revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
+  isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
+  mobileTab, reactionOverlay, audioEl, videoEl, releaseMedia,
+  authStore, toast, loadAnimeDictionary,
+});
+
+// submitAnswer conserve le v-model userGuess dans App.vue et délègue l'envoi.
+const submitAnswer = () => {
+  if (!userGuess.value) return;
+  sendAnswer(userGuess.value);
+  userGuess.value = "";
+};
+
+// ── Invitations ──────────────────────────────────────────────────────────────
+const { friendsForInvite, showInvitePicker, toggleInvitePicker, inviteFriend } =
+  useInvites({ room, authFetch: apiFetch, toast });
+
+// Rejoindre depuis une invitation reçue via la cloche de notifications.
+const onJoinFromInvite = (invite) => {
+  setupWebSocket({ room_id: invite.room_id, password: invite.password, isCreator: false });
+};
+
+// ── OAuth ────────────────────────────────────────────────────────────────────
+const { connectAnilist, connectMAL, connectDiscord, checkOAuthCallback } =
+  useOAuth({ authStore });
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const showLanding = ref(true);
+const showPublicLeaderboard = ref(false);
+const currentView = ref("home");
+const navigateTo = (view) => { currentView.value = view; };
+
+// ── Statut admin ─────────────────────────────────────────────────────────────
+const isAdmin = ref(authStore.user?.is_admin === true);
+
 const loadAdminStatus = async () => {
   if (!authStore.user) { isAdmin.value = false; return; }
   try {
-    const res = await authFetch(`${API_URL}/api/me/admin`);
+    const res = await apiFetch(`${API_URL}/api/me/admin`);
     if (res.ok) {
       const d = await res.json();
       isAdmin.value = d.is_admin === true;
@@ -815,11 +521,19 @@ const loadAdminStatus = async () => {
 
 watch(() => authStore.user, (u) => {
   if (u) loadAdminStatus();
-  else { isAdmin.value = false; if (currentView.value === 'admin') currentView.value = 'home'; }
+  else { isAdmin.value = false; if (currentView.value === "admin") currentView.value = "home"; }
 });
 
+// ── Utilitaires template ─────────────────────────────────────────────────────
+const difficultyLabel = (d) => {
+  if (d >= 80) return "Facile";
+  if (d >= 50) return "Moyen";
+  if (d >= 20) return "Difficile";
+  return "Expert";
+};
+
+// ── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(() => {
-  // Session expirée pendant l'absence : on l'a déjà nettoyée, on prévient l'utilisateur.
   if (consumeSessionExpired()) {
     toast.info("Ta session a expiré, reconnecte-toi.", { title: "Session expirée" });
   }
@@ -828,233 +542,10 @@ onMounted(() => {
   loadAdminStatus();
 });
 
-// Filet de sécurité : relâche les ressources média si le composant disparaît
-// alors qu'une piste est en cours (navigation, fermeture d'onglet…).
 onUnmounted(() => {
   releaseMedia(audioEl.value);
   releaseMedia(videoEl.value);
 });
-
-// ─── Invitations entre amis ─────────────────────────────────────────────────
-const friendsForInvite = ref([]);
-const showInvitePicker = ref(false);
-
-// Envoyer : depuis le lobby, inviter un ami dans le salon courant.
-const toggleInvitePicker = () => {
-  showInvitePicker.value = !showInvitePicker.value;
-  if (showInvitePicker.value) loadFriendsForInvite();
-};
-
-const loadFriendsForInvite = async () => {
-  try {
-    const res = await authFetch(`${API_URL}/api/friends`);
-    if (res.ok) friendsForInvite.value = await res.json();
-  } catch { /* silencieux */ }
-};
-
-const inviteFriend = async (friend) => {
-  try {
-    const res = await authFetch(`${API_URL}/api/invites`, {
-      method: "POST",
-      body: JSON.stringify({ to_user_id: friend.user_id, room_id: room.value }),
-    });
-    if (res.ok) {
-      toast.success(`Invitation envoyée à ${friend.username}`);
-      showInvitePicker.value = false;
-    } else {
-      const d = await res.json().catch(() => ({}));
-      toast.error(d.error || "Échec de l'invitation");
-    }
-  } catch {
-    toast.error("Erreur réseau");
-  }
-};
-
-// Recevoir : la cloche de notifications (header) sonde et affiche les
-// invitations ; « Rejoindre » remonte ici. On n'est jamais en partie quand
-// l'invitation est visible (la cloche les masque en jeu), donc connexion directe.
-const onJoinFromInvite = (invite) => {
-  setupWebSocket({ room_id: invite.room_id, password: invite.password, isCreator: false });
-};
-
-const setupWebSocket = ({ room_id, password, isCreator: creator }) => {
-  room.value = room_id;
-  isCreator.value = !!creator;
-  intentionalClose = false;
-  reconnectAttempts = 0;
-  // Rafraîchit le dictionnaire d'autocomplétion à chaque entrée en partie :
-  // il n'était chargé qu'au démarrage de l'app, donc les animes importés
-  // (et leurs titres anglais) n'apparaissaient pas sans recharger la page.
-  loadAnimeDictionary();
-  connectWebSocket(room_id, password);
-};
-
-const connectWebSocket = (room_id, password) => {
-  const wsUrl = `${WS_URL}/ws?room=${room_id}&password=${password || ""}&token=${authStore.token}`;
-  socket = new WebSocket(wsUrl);
-
-  socket.onopen = () => {
-    isConnected.value = true;
-    reconnectAttempts = 0;
-    reconnectMsg.value = "";
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      switch (data.type) {
-        case "PLAYER_LIST":
-          players.value = data.payload.players ?? [];
-          spectatorCount.value = data.payload.spectator_count ?? 0;
-          break;
-        case "SPECTATOR_STATUS":
-          isSpectator.value = data.payload;
-          break;
-        case "GAME_STATE":
-          state.value = data.payload;
-          break;
-        case "NewQuestion":
-          // Relâche la vidéo du reveal précédent avant que v-if ne la démonte,
-          // pour ne pas accumuler des connexions vers le même hôte média.
-          releaseMedia(videoEl.value);
-          isRevealing.value = false;
-          currentAudioUrl.value = data.payload.audio_url;
-          roundDuration.value = data.payload.duration;
-          roundStartFraction.value = data.payload.start_fraction ?? 0;
-          hasVotedSkip.value = false;
-          skipVotes.value = { votes: 0, needed: 1 };
-          hasVotedRevealSkip.value = false;
-          revealSkipVotes.value = { votes: 0, needed: 1 };
-          hasBuzzed.value = false;
-          buzzedUsers.value = [];
-          if (audioEl.value) audioEl.value.muted = false;
-          // playback is driven by the watch(currentAudioUrl) watcher above
-          break;
-        case "ROUND_ENDED":
-          isRevealing.value = true;
-          currentAnswerInfo.value = {
-            animeName: data.payload.answer,
-            title: data.payload.title || "",
-            artist: data.payload.artist || "",
-            videoUrl: data.payload.video_url || "",
-            trackType: data.payload.track_type || "",
-            difficulty: data.payload.difficulty || 0,
-            foundBy: data.payload.found_by || [],
-          };
-          currentAudioUrl.value = "";
-          break;
-        case "SETTINGS_UPDATED":
-          roomSettings.value = {
-            maxRounds: data.payload.max_rounds,
-            roundDuration: data.payload.round_duration,
-            filterType: data.payload.filter_type,
-            isPrivate: data.payload.is_private,
-            buzzerMode: data.payload.buzzer_mode === true,
-            guessMode: data.payload.guess_mode || "anime",
-          };
-          break;
-        case "PLAYER_BUZZED":
-          if (data.payload.username && !buzzedUsers.value.includes(data.payload.username)) {
-            buzzedUsers.value.push(data.payload.username);
-          }
-          break;
-        case "PLAYER_WRONG":
-          buzzedUsers.value = buzzedUsers.value.filter((u) => u !== data.payload.username);
-          if (data.payload.username === authStore.user?.username) {
-            toast.error("Mauvaise réponse — éliminé pour ce round !", { title: "🔔 Buzzer" });
-          }
-          break;
-        case "NOTICE":
-          toast.info(data.payload, { title: "Info partie" });
-          break;
-        case "SKIP_VOTE_UPDATE":
-          skipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
-          break;
-        case "REVEAL_SKIP_VOTE_UPDATE":
-          revealSkipVotes.value = { votes: data.payload.votes, needed: data.payload.needed };
-          break;
-        case "HOST_CHANGED":
-          isCreator.value = data.payload === authStore.user?.username;
-          break;
-        case "KICKED":
-          disconnect();
-          toast.error(data.payload ?? "Vous avez été expulsé de la partie.", { title: "Expulsé" });
-          break;
-        case "GAME_OVER":
-          finalScores.value = [...players.value].sort((a, b) => b.score - a.score);
-          roundHistory.value = data.payload.history ?? [];
-          state.value = "GAME_OVER";
-          break;
-        case "CHAT_MESSAGE":
-          chatMessages.value.push({
-            username: data.payload.username,
-            message: data.payload.message,
-          });
-          if (chatMessages.value.length > 200) chatMessages.value.shift();
-          break;
-        case "REACTION_BROADCAST":
-          reactionOverlay.value?.addParticle(data.payload.emoji);
-          break;
-        case "XP_GAINED": {
-          const oldLevel = authStore.user?.level ?? 1;
-          const levelUp  = data.payload.new_level > oldLevel;
-          toast.xp({
-            xpGained: data.payload.xp_gained,
-            newXP:    data.payload.new_xp,
-            newLevel: data.payload.new_level,
-            levelUp,
-          });
-          if (authStore.user) {
-            authStore.setUser(
-              { ...authStore.user, xp: data.payload.new_xp, level: data.payload.new_level },
-              authStore.token
-            );
-          }
-          break;
-        }
-      }
-    } catch (err) {
-      console.error("Erreur message:", err);
-    }
-  };
-
-  socket.onclose = () => {
-    if (intentionalClose) {
-      isConnected.value = false;
-      players.value = [];
-      state.value = "LOBBY";
-      isRevealing.value = false;
-      reconnectMsg.value = "";
-      return;
-    }
-    // Déconnexion involontaire : backoff exponentiel (1s, 2s, 4s… max 30s)
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-    reconnectAttempts++;
-    reconnectMsg.value = `Connexion perdue. Reconnexion dans ${Math.round(delay / 1000)}s… (tentative ${reconnectAttempts})`;
-    setTimeout(() => connectWebSocket(room.value, ""), delay);
-  };
-};
-
-const sendReaction = (emoji) => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "REACTION", payload: emoji }));
-  }
-};
-
-const sendChat = (text) => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "CHAT", payload: text }));
-  }
-};
-
-const disconnect = () => {
-  intentionalClose = true;
-  chatMessages.value = [];
-  isSpectator.value = false;
-  spectatorCount.value = 0;
-  mobileTab.value = "game";
-  if (socket) socket.close();
-};
 
 defineExpose({ state, isConnected });
 </script>
