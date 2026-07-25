@@ -73,6 +73,11 @@ type Room struct {
 	BuzzerMode      bool
 	Buzzed          map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
 	GuessMode       string           // "anime" (défaut), "title" ou "artist"
+	// roundGen est incrémenté à chaque nextRound. La goroutine timer capture sa
+	// valeur au démarrage et ignore le tick si le round a changé entre-temps —
+	// évite qu'un skip anticipé (vote ou hôte) laisse une goroutine zombie qui
+	// terminerait le round suivant prématurément.
+	roundGen int
 
 	Mu         sync.Mutex
 	done       chan struct{} // closed when Run() exits; signals background goroutines to stop
@@ -548,6 +553,8 @@ func (r *Room) nextRound() {
 		return
 	}
 	r.CurrentRound++
+	r.roundGen++
+	gen := r.roundGen
 	r.HasAnswered = make(map[string]bool)
 	r.RoundAnswers = []RoundAnswer{}
 	r.SkipVotes = make(map[string]bool)
@@ -629,13 +636,21 @@ func (r *Room) nextRound() {
 	}
 
 	// Round timer: abort cleanly when the room is destroyed mid-round.
-	go func() {
+	// gen est capturé pour détecter un skip anticipé : si roundGen a changé
+	// quand le timer se déclenche, un nouveau round est déjà en cours et on
+	// laisse son propre timer gérer la fin.
+	go func(gen int) {
 		select {
 		case <-time.After(time.Duration(duration) * time.Second):
-			r.EndRound("Temps écoulé !")
+			r.Mu.Lock()
+			stale := r.roundGen != gen
+			r.Mu.Unlock()
+			if !stale {
+				r.EndRound("Temps écoulé !")
+			}
 		case <-r.done:
 		}
-	}()
+	}(gen)
 }
 
 func (r *Room) finishGame() {
