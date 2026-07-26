@@ -95,7 +95,7 @@
           <ul class="daily-features">
             <li v-for="feat in dailyFeatures" :key="feat"><span class="rf-dot"></span>{{ feat }}</li>
           </ul>
-          <button class="btn-play daily-cta" @click="emit('play')">Jouer maintenant</button>
+          <button class="btn-play daily-cta" @click="emit('play')">Essayer le quiz →</button>
         </div>
         <div class="daily-visual reveal--right">
           <img :src="img.koraDaily" alt="Kora et le quiz du jour" class="kora-daily" />
