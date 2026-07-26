@@ -748,6 +748,9 @@ func (r *Room) nextRound() {
 		} else if len(wrong) > 0 {
 			choices = append(wrong, track.AnimeName)
 			rand.Shuffle(len(choices), func(i, j int) { choices[i], choices[j] = choices[j], choices[i] })
+			log.Printf("QCM: %d choix générés pour %q (salon %s)", len(choices), track.AnimeName, r.ID)
+		} else {
+			log.Printf("QCM: aucun mauvais choix trouvé pour %q (salon %s) — repli texte", track.AnimeName, r.ID)
 		}
 	}
 
