@@ -61,6 +61,7 @@ export function useGameState() {
   const isSpectator = ref(false)
   const spectatorCount = ref(0)
   const mobileTab = ref('game')
+  const roundChoices = ref([])
 
   return {
     isConnected, room, players, state, currentAudioUrl, userGuess,
@@ -68,6 +69,6 @@ export function useGameState() {
     finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
     revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
     buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
-    isSpectator, spectatorCount, mobileTab,
+    isSpectator, spectatorCount, mobileTab, roundChoices,
   }
 }

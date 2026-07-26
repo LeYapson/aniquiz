@@ -270,6 +270,31 @@ func IsAnimeImported(malID int) (bool, error) {
 	return count > 0, err
 }
 
+// GetRandomAnimeNames retourne `count` noms d'animes distincts tirés au hasard,
+// en excluant `exclude` (la bonne réponse du round) pour construire un QCM.
+func GetRandomAnimeNames(exclude string, count int) ([]string, error) {
+	rows, err := Pool.Query(context.Background(),
+		`SELECT DISTINCT anime_name FROM tracks
+		 WHERE anime_name != $1
+		 ORDER BY random()
+		 LIMIT $2`,
+		exclude, count,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 func GetTrackByID(id int) (*models.Track, error) {
 	var t models.Track
 	err := Pool.QueryRow(context.Background(),

@@ -6,7 +6,7 @@ export function useGameSocket({
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 }) {
   // socket exposé en ref pour que le template auto-unwrappe vers l'instance WebSocket.
@@ -104,6 +104,7 @@ export function useGameSocket({
             revealSkipVotes.value = { votes: 0, needed: 1 }
             hasBuzzed.value = false
             buzzedUsers.value = []
+            roundChoices.value = data.payload.choices || []
             if (audioEl.value) audioEl.value.muted = false
             break
           case 'ROUND_ENDED':

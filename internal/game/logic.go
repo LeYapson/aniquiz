@@ -9,9 +9,10 @@ import (
 
 // Modes de réponse : ce que les joueurs doivent deviner.
 const (
-	GuessModeAnime  = "anime"  // nom de l'anime (défaut)
-	GuessModeTitle  = "title"  // titre de la musique
-	GuessModeArtist = "artist" // artiste / interprète
+	GuessModeAnime    = "anime"    // nom de l'anime (défaut)
+	GuessModeTitle    = "title"    // titre de la musique
+	GuessModeArtist   = "artist"   // artiste / interprète
+	GuessModeMultiple = "multiple" // QCM : 4 propositions envoyées par le serveur
 )
 
 type AnswerResult struct {

@@ -566,6 +566,7 @@ func (r *Room) nextRound() {
 	r.StartFraction = rand.Float64() * 0.5
 	startFraction := r.StartFraction
 	duration := r.RoundDuration
+	guessMode := r.GuessMode
 	filters := models.TrackFilters{
 		TrackType:  r.FilterType,
 		MinYear:    r.MinYear,
@@ -618,15 +619,28 @@ func (r *Room) nextRound() {
 
 	log.Printf("Nouveau round dans %s : %s", r.ID, track.AnimeName)
 
-	msg := map[string]interface{}{
-		"type": "NewQuestion",
-		"payload": map[string]interface{}{
-			"audio_url":      track.AudioURL,
-			"room_id":        r.ID,
-			"duration":       duration,
-			"start_fraction": startFraction,
-		},
+	// En mode QCM, on génère 3 mauvaises réponses côté serveur pour garantir
+	// que la bonne réponse est toujours parmi les propositions, identiques pour
+	// tous les joueurs de la salle (équité).
+	var choices []string
+	if guessMode == GuessModeMultiple {
+		wrong, err := database.GetRandomAnimeNames(track.AnimeName, 3)
+		if err == nil && len(wrong) == 3 {
+			choices = append(wrong, track.AnimeName)
+			rand.Shuffle(len(choices), func(i, j int) { choices[i], choices[j] = choices[j], choices[i] })
+		}
 	}
+
+	payload := map[string]interface{}{
+		"audio_url":      track.AudioURL,
+		"room_id":        r.ID,
+		"duration":       duration,
+		"start_fraction": startFraction,
+	}
+	if len(choices) > 0 {
+		payload["choices"] = choices
+	}
+	msg := map[string]interface{}{"type": "NewQuestion", "payload": payload}
 	data, _ := json.Marshal(msg)
 
 	select {

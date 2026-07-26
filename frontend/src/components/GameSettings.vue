@@ -1,120 +1,163 @@
 <template>
   <div class="settings-panel">
-    <h3>⚙️ Paramètres de la partie</h3>
 
-    <div class="settings-grid">
-      <label>
-        Rounds
-        <input type="number" v-model.number="local.maxRounds" min="1" max="20" />
-      </label>
+    <div class="settings-header">
+      <h3>⚙️ Paramètres</h3>
+      <transition name="fade-sync">
+        <span v-if="synced" class="synced-badge">✓ Synchronisé</span>
+      </transition>
+    </div>
 
-      <label>
-        Durée par round (s)
-        <input type="number" v-model.number="local.roundDuration" min="10" max="60" />
-      </label>
+    <!-- ── Partie ──────────────────────────────────────────── -->
+    <div class="settings-section">
+      <p class="section-label">Partie</p>
+      <div class="section-row">
+        <div class="field">
+          <span class="field-label">Rounds</span>
+          <div class="num-ctrl">
+            <button type="button" class="num-btn" @click="adj('maxRounds', -1, 1, 20)" :disabled="local.maxRounds <= 1">−</button>
+            <span class="num-val">{{ local.maxRounds }}</span>
+            <button type="button" class="num-btn" @click="adj('maxRounds', +1, 1, 20)" :disabled="local.maxRounds >= 20">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Durée par round</span>
+          <div class="num-ctrl">
+            <button type="button" class="num-btn" @click="adj('roundDuration', -5, 10, 60)" :disabled="local.roundDuration <= 10">−</button>
+            <span class="num-val">{{ local.roundDuration }}s</span>
+            <button type="button" class="num-btn" @click="adj('roundDuration', +5, 10, 60)" :disabled="local.roundDuration >= 60">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-      <label>
-        À deviner
-        <select v-model="local.guessMode">
-          <option value="anime">Nom de l'anime</option>
-          <option value="title">Titre de la musique</option>
-          <option value="artist">Artiste</option>
-        </select>
-      </label>
-
-      <label>
-        Type de générique
-        <select v-model="local.filterType">
-          <option value="">Tout (OP + ED)</option>
-          <option value="OP">Openings uniquement</option>
-          <option value="ED">Endings uniquement</option>
-        </select>
-      </label>
-
-      <label>
-        Décennie
-        <select v-model="local.decade">
-          <option value="0">Toutes</option>
-          <option value="1990">Années 90</option>
-          <option value="2000">Années 2000</option>
-          <option value="2010">Années 2010</option>
-          <option value="2020">Années 2020</option>
-        </select>
-      </label>
-
-      <div class="full-width toggle-row">
-        <span class="toggle-label">
-          🎌 Filtrer par ma liste perso
-          <span v-if="anyLinked" class="badge-linked">{{ linkedLabel }}</span>
-          <span v-else class="badge-unlinked">non connecté</span>
-          <span v-if="loadingIds" class="badge-loading">chargement…</span>
+    <!-- ── Réponses ────────────────────────────────────────── -->
+    <div class="settings-section">
+      <p class="section-label">Réponses</p>
+      <div class="guess-pills">
+        <button
+          v-for="m in guessModes"
+          :key="m.value"
+          type="button"
+          class="guess-pill"
+          :class="{ active: local.guessMode === m.value }"
+          @click="local.guessMode = m.value"
+        >{{ m.label }}</button>
+      </div>
+      <div class="toggle-row" :class="{ disabled: local.guessMode === 'multiple' }">
+        <span class="toggle-label">🔔 Mode buzzer
+          <span class="toggle-hint">buzze avant de répondre</span>
         </span>
         <button
+          type="button"
+          class="switch"
+          :class="{ on: local.buzzerMode }"
+          :disabled="local.guessMode === 'multiple'"
+          @click="local.buzzerMode = !local.buzzerMode"
+          role="switch"
+          :aria-checked="local.buzzerMode"
+        ><span class="switch-thumb" /></button>
+      </div>
+    </div>
+
+    <!-- ── Filtres ─────────────────────────────────────────── -->
+    <div class="settings-section">
+      <p class="section-label">Filtres</p>
+      <div class="section-row">
+        <div class="field">
+          <span class="field-label">Génériques</span>
+          <select v-model="local.filterType" class="field-select">
+            <option value="">OP + ED</option>
+            <option value="OP">Openings</option>
+            <option value="ED">Endings</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="field-label">Décennie</span>
+          <select v-model="local.decade" class="field-select">
+            <option value="0">Toutes</option>
+            <option value="1990">Années 90</option>
+            <option value="2000">Années 2000</option>
+            <option value="2010">Années 2010</option>
+            <option value="2020">Années 2020</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">
+          🎌 Liste perso
+          <span v-if="anyLinked" class="badge-linked">{{ linkedLabel }}</span>
+          <span v-else class="badge-muted">non connecté</span>
+          <span v-if="loadingIds" class="badge-muted">chargement…</span>
+        </span>
+        <button
+          type="button"
           class="switch"
           :class="{ on: local.useAnilistFilter, loading: loadingIds }"
           :disabled="!anyLinked || loadingIds"
           @click="toggleAnilistFilter"
-          type="button"
-          :aria-checked="local.useAnilistFilter"
           role="switch"
-        >
-          <span class="switch-thumb" />
-        </button>
+          :aria-checked="local.useAnilistFilter"
+        ><span class="switch-thumb" /></button>
       </div>
-      <p v-if="local.useAnilistFilter && playableTracks > 0" class="info-ids">
-        ✓ {{ playableAnime }} animés de ta liste disponibles ({{ playableTracks }} titres)
+      <p v-if="local.useAnilistFilter && playableTracks > 0" class="info-ok">
+        ✓ {{ playableAnime }} animes · {{ playableTracks }} titres disponibles
       </p>
       <p v-if="local.useAnilistFilter && local.filterMalIds.length > 0 && playableTracks === 0" class="info-warn">
-        ⚠️ Aucun animé de ta liste n'est encore dans notre librairie. Le filtre sera ignoré au lancement.
+        ⚠️ Aucun anime de ta liste n'est encore disponible — filtre ignoré.
       </p>
-      <p v-if="!anyLinked" class="info-unlinked">
-        Connecte ton compte AniList ou MAL dans ton profil pour activer ce filtre.
+      <p v-if="!anyLinked" class="info-muted">
+        Connecte AniList ou MAL dans ton profil pour filtrer par ta liste.
       </p>
-
-      <label class="full-width buzzer-label">
-        <input type="checkbox" v-model="local.buzzerMode" />
-        🔔 Mode buzzer
-        <span class="buzzer-hint">buzze pour répondre — l'audio se coupe, mauvaise réponse = éliminé du round</span>
-      </label>
-
-      <label class="full-width">
-        <input type="checkbox" v-model="local.isPrivate" /> Salon privé
-        <input
-          v-if="local.isPrivate"
-          v-model="local.password"
-          type="text"
-          placeholder="Mot de passe"
-          class="password-input"
-        />
-      </label>
     </div>
 
-    <button @click="apply" class="btn-apply" :disabled="loadingIds">
-      {{ loadingIds ? 'Chargement…' : 'Appliquer' }}
-    </button>
+    <!-- ── Salon ───────────────────────────────────────────── -->
+    <div class="settings-section">
+      <p class="section-label">Salon</p>
+      <div class="toggle-row">
+        <span class="toggle-label">🔒 Salon privé</span>
+        <button
+          type="button"
+          class="switch"
+          :class="{ on: local.isPrivate }"
+          @click="local.isPrivate = !local.isPrivate"
+          role="switch"
+          :aria-checked="local.isPrivate"
+        ><span class="switch-thumb" /></button>
+      </div>
+      <input
+        v-if="local.isPrivate"
+        v-model="local.password"
+        type="text"
+        placeholder="Mot de passe du salon"
+        class="password-input"
+      />
+    </div>
 
-    <!-- Partage de configuration -->
+    <!-- ── Config partagée ────────────────────────────────── -->
     <div class="config-share">
       <button type="button" class="btn-ghost" @click="copyConfig">📋 Copier la config</button>
-      <div class="import-inline">
+      <div class="import-row">
         <input
           v-model="importCode"
           type="text"
-          placeholder="Coller un code de config…"
+          placeholder="Coller un code…"
           class="config-input"
           @keyup.enter="importConfig"
         />
-        <button type="button" class="btn-ghost" @click="importConfig" :disabled="!importCode.trim()">📥 Importer</button>
+        <button type="button" class="btn-ghost" @click="importConfig" :disabled="!importCode.trim()">📥</button>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed, watch } from "vue";
-import { authStore, apiFetch } from "../authStore";
-import { API_URL } from "../config";
-import { useToast } from "../composables/useToast";
+import { reactive, ref, computed, watch } from 'vue';
+import { authStore, apiFetch } from '../authStore';
+import { API_URL } from '../config';
+import { useToast } from '../composables/useToast';
 
 const toast = useToast();
 
@@ -123,7 +166,13 @@ const props = defineProps({
   initialSettings: Object,
 });
 
-// Vérifie si l'utilisateur a au moins un compte de tracking lié (AniList ou MAL)
+const guessModes = [
+  { value: 'anime',    label: 'Anime' },
+  { value: 'title',   label: 'Titre' },
+  { value: 'artist',  label: 'Artiste' },
+  { value: 'multiple', label: '🔀 QCM' },
+];
+
 const anilistLinked = computed(() => !!authStore.user?.anilist_username);
 const malLinked     = computed(() => !!authStore.user?.mal_username);
 const anyLinked     = computed(() => anilistLinked.value || malLinked.value);
@@ -134,91 +183,104 @@ const linkedLabel   = computed(() => {
   return parts.join(' + ');
 });
 
-const loadingIds = ref(false);
+const loadingIds    = ref(false);
 const playableAnime = ref(0);
 const playableTracks = ref(0);
+const synced        = ref(false);
+const importCode    = ref('');
+let syncTimer       = null;
+let applyTimer      = null;
 
 const local = reactive({
-  maxRounds: props.initialSettings?.maxRounds ?? 5,
-  roundDuration: props.initialSettings?.roundDuration ?? 20,
-  filterType: props.initialSettings?.filterType ?? "",
-  guessMode: props.initialSettings?.guessMode ?? "anime",
-  decade: props.initialSettings?.decade ?? 0,
-  isPrivate: props.initialSettings?.isPrivate ?? false,
-  password: props.initialSettings?.password ?? "",
-  buzzerMode: props.initialSettings?.buzzerMode ?? false,
+  maxRounds:        props.initialSettings?.maxRounds      ?? 5,
+  roundDuration:    props.initialSettings?.roundDuration  ?? 20,
+  filterType:       props.initialSettings?.filterType     ?? '',
+  guessMode:        props.initialSettings?.guessMode      ?? 'anime',
+  decade:           props.initialSettings?.decade         ?? 0,
+  isPrivate:        props.initialSettings?.isPrivate      ?? false,
+  password:         props.initialSettings?.password       ?? '',
+  buzzerMode:       props.initialSettings?.buzzerMode     ?? false,
   useAnilistFilter: false,
-  filterMalIds: [],
+  filterMalIds:     [],
 });
 
 watch(() => props.initialSettings, (s) => {
-  if (!s) return;
-  Object.assign(local, s);
+  if (s) Object.assign(local, s);
 }, { deep: true });
 
+// ── Auto-apply ────────────────────────────────────────────────────────────────
+// Immédiat pour les toggles et selects, débouncé pour les steppers numériques.
+
+watch(() => [local.filterType, local.guessMode, local.decade, local.buzzerMode, local.isPrivate, local.password], apply);
+watch(() => [local.maxRounds, local.roundDuration], () => {
+  clearTimeout(applyTimer);
+  applyTimer = setTimeout(apply, 400);
+});
+
+// Mode buzzer incompatible avec QCM : on le coupe automatiquement.
+watch(() => local.guessMode, (v) => {
+  if (v === 'multiple') local.buzzerMode = false;
+});
+
+function adj(field, delta, min, max) {
+  local[field] = Math.min(max, Math.max(min, local[field] + delta));
+}
+
+function apply() {
+  if (!props.socket || props.socket.readyState !== WebSocket.OPEN) return;
+  const minYear = local.decade > 0 ? Number(local.decade) : 0;
+  const maxYear = local.decade > 0 ? Number(local.decade) + 9 : 0;
+  props.socket.send(JSON.stringify({
+    type: 'UPDATE_SETTINGS',
+    payload: {
+      max_rounds:      local.maxRounds,
+      round_duration:  local.roundDuration,
+      filter_type:     local.filterType,
+      min_year:        minYear,
+      max_year:        maxYear,
+      is_private:      local.isPrivate,
+      password:        local.password,
+      buzzer_mode:     local.buzzerMode,
+      guess_mode:      local.guessMode,
+      filter_mal_ids:  local.useAnilistFilter ? local.filterMalIds : [],
+    },
+  }));
+  synced.value = true;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { synced.value = false; }, 2000);
+}
+
+// ── AniList / MAL filter ──────────────────────────────────────────────────────
 const toggleAnilistFilter = async () => {
   if (!anyLinked.value) return;
   local.useAnilistFilter = !local.useAnilistFilter;
-
-  if (local.useAnilistFilter) {
-    if (local.filterMalIds.length === 0) {
-      loadingIds.value = true;
-      try {
-        const res = await apiFetch(`${API_URL}/api/me/anime-ids`);
-        if (res.ok) {
-          const data = await res.json();
-          // Réponse : { ids, playable_anime, playable_tracks } (compat ancien tableau brut)
-          const ids = Array.isArray(data) ? data : (data.ids ?? []);
-          local.filterMalIds = ids;
-          playableAnime.value = data.playable_anime ?? ids.length;
-          playableTracks.value = data.playable_tracks ?? 0;
-        }
-      } catch (e) {
-        console.error("Erreur récupération liste perso :", e);
-        local.useAnilistFilter = false;
-      } finally {
-        loadingIds.value = false;
+  if (local.useAnilistFilter && local.filterMalIds.length === 0) {
+    loadingIds.value = true;
+    try {
+      const res = await apiFetch(`${API_URL}/api/me/anime-ids`);
+      if (res.ok) {
+        const data = await res.json();
+        const ids = Array.isArray(data) ? data : (data.ids ?? []);
+        local.filterMalIds   = ids;
+        playableAnime.value  = data.playable_anime  ?? ids.length;
+        playableTracks.value = data.playable_tracks ?? 0;
       }
+    } catch {
+      local.useAnilistFilter = false;
+    } finally {
+      loadingIds.value = false;
     }
-  } else {
-    local.filterMalIds = [];
-    playableAnime.value = 0;
+  } else if (!local.useAnilistFilter) {
+    local.filterMalIds   = [];
+    playableAnime.value  = 0;
     playableTracks.value = 0;
   }
-
-  // Auto-appliquer immédiatement sans avoir à cliquer "Appliquer"
   apply();
 };
 
-const apply = () => {
-  if (!props.socket || props.socket.readyState !== WebSocket.OPEN) return;
-
-  const minYear = local.decade > 0 ? Number(local.decade) : 0;
-  const maxYear = local.decade > 0 ? Number(local.decade) + 9 : 0;
-
-  props.socket.send(JSON.stringify({
-    type: "UPDATE_SETTINGS",
-    payload: {
-      max_rounds: local.maxRounds,
-      round_duration: local.roundDuration,
-      filter_type: local.filterType,
-      min_year: minYear,
-      max_year: maxYear,
-      is_private: local.isPrivate,
-      password: local.password,
-      buzzer_mode: local.buzzerMode,
-      guess_mode: local.guessMode,
-      filter_mal_ids: local.useAnilistFilter ? local.filterMalIds : [],
-    },
-  }));
-};
-
-// ─── Partage de configuration ───────────────────────────────────────────────
-// On exporte uniquement les réglages de jeu réutilisables (pas le mot de passe
-// ni la liste perso, qui sont propres à une salle/un utilisateur).
-const importCode = ref("");
-const CONFIG_KEYS = ["maxRounds", "roundDuration", "filterType", "guessMode", "decade", "buzzerMode"];
-const ALLOWED_DECADES = ["0", "1990", "2000", "2010", "2020"];
+// ── Config partagée ───────────────────────────────────────────────────────────
+const CONFIG_KEYS    = ['maxRounds', 'roundDuration', 'filterType', 'guessMode', 'decade', 'buzzerMode'];
+const ALLOWED_DECADES = ['0', '1990', '2000', '2010', '2020'];
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
 const copyConfig = async () => {
@@ -227,9 +289,9 @@ const copyConfig = async () => {
   const code = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
   try {
     await navigator.clipboard.writeText(code);
-    toast.success("Config copiée ! Partage ce code.");
+    toast.success('Config copiée !');
   } catch {
-    toast.info(code, { title: "Copie manuelle de la config" });
+    toast.info(code, { title: 'Copie manuelle' });
   }
 };
 
@@ -240,20 +302,18 @@ const importConfig = () => {
   try {
     cfg = JSON.parse(decodeURIComponent(escape(atob(raw))));
   } catch {
-    toast.error("Code de config invalide");
+    toast.error('Code de config invalide');
     return;
   }
-  // N'appliquer que des valeurs connues et valides.
-  if (typeof cfg.maxRounds === "number") local.maxRounds = clamp(Math.round(cfg.maxRounds), 1, 20);
-  if (typeof cfg.roundDuration === "number") local.roundDuration = clamp(Math.round(cfg.roundDuration), 10, 60);
-  if (["", "OP", "ED"].includes(cfg.filterType)) local.filterType = cfg.filterType;
-  if (["anime", "title", "artist"].includes(cfg.guessMode)) local.guessMode = cfg.guessMode;
+  if (typeof cfg.maxRounds    === 'number') local.maxRounds    = clamp(Math.round(cfg.maxRounds), 1, 20);
+  if (typeof cfg.roundDuration === 'number') local.roundDuration = clamp(Math.round(cfg.roundDuration), 10, 60);
+  if (['', 'OP', 'ED'].includes(cfg.filterType)) local.filterType = cfg.filterType;
+  if (['anime', 'title', 'artist', 'multiple'].includes(cfg.guessMode)) local.guessMode = cfg.guessMode;
   if (ALLOWED_DECADES.includes(String(cfg.decade))) local.decade = String(cfg.decade);
-  if (typeof cfg.buzzerMode === "boolean") local.buzzerMode = cfg.buzzerMode;
-
-  importCode.value = "";
+  if (typeof cfg.buzzerMode === 'boolean') local.buzzerMode = cfg.buzzerMode;
+  importCode.value = '';
   apply();
-  toast.success("Config importée et appliquée !");
+  toast.success('Config importée !');
 };
 </script>
 
@@ -261,64 +321,192 @@ const importConfig = () => {
 .settings-panel {
   background: #16213e;
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 18px 20px;
   margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
-.settings-panel h3 {
-  margin: 0 0 16px;
-  font-size: 0.95rem;
-  color: #f1f5f9;
+
+/* ── Header ── */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.settings-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
   font-weight: 700;
+  color: #f1f5f9;
 }
-.settings-grid {
+.synced-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4ade80;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.25);
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.fade-sync-enter-active, .fade-sync-leave-active { transition: opacity 0.3s; }
+.fade-sync-enter-from, .fade-sync-leave-to { opacity: 0; }
+
+/* ── Section ── */
+.settings-section {
+  padding: 14px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #334155;
+  margin: 0 0 2px;
+}
+
+/* ── Champ numérique ── */
+.section-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 14px;
 }
-.settings-grid label {
+.field {
   display: flex;
   flex-direction: column;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #94a3b8;
   gap: 6px;
 }
-.settings-grid input[type="number"],
-.settings-grid select {
-  padding: 7px 10px;
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.num-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0;
   background: #0f0f23;
   border: 1px solid rgba(255,255,255,0.1);
-  color: #f1f5f9;
-  border-radius: 7px;
-  font-size: 0.88rem;
-  outline: none;
-  transition: border-color 0.15s;
+  border-radius: 8px;
+  overflow: hidden;
 }
-.settings-grid input[type="number"]:focus,
-.settings-grid select:focus { border-color: #f97316; }
-.settings-grid select option { background: #1e2a45; }
+.num-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  width: 34px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.num-btn:hover:not(:disabled) { background: rgba(249,115,22,0.1); color: #f97316; }
+.num-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.num-val {
+  flex: 1;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
 
-.full-width { grid-column: 1 / -1; }
+/* ── Pill buttons (guess mode) ── */
+.guess-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.guess-pill {
+  padding: 5px 13px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.guess-pill:hover { color: #f1f5f9; border-color: rgba(255,255,255,0.25); }
+.guess-pill.active {
+  background: rgba(249,115,22,0.15);
+  color: #f97316;
+  border-color: rgba(249,115,22,0.4);
+}
+
+/* ── Toggle row ── */
 .toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.toggle-row.disabled { opacity: 0.4; pointer-events: none; }
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd5e1;
   flex-wrap: wrap;
 }
-.toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #e2e8f0; font-size: 0.85rem; }
-.badge-linked   { font-size: 0.7rem; background: rgba(52,211,153,0.15); color: #34d399; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
-.badge-unlinked { font-size: 0.7rem; background: rgba(100,116,139,0.15); color: #64748b; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
-.badge-loading  { font-size: 0.7rem; background: rgba(249,115,22,0.1); color: #fb923c; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+.toggle-hint {
+  font-size: 0.7rem;
+  color: #475569;
+  font-weight: 400;
+}
 
-/* Toggle switch */
+/* ── Select ── */
+.field-select {
+  padding: 7px 10px;
+  background: #0f0f23;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  outline: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+.field-select:focus { border-color: #f97316; }
+.field-select option { background: #1e2a45; }
+
+/* ── Badges ── */
+.badge-linked { font-size: 0.68rem; background: rgba(52,211,153,0.15); color: #34d399; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+.badge-muted  { font-size: 0.68rem; background: rgba(100,116,139,0.1);  color: #64748b;  padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+
+/* ── Infos ── */
+.info-ok   { margin: -4px 0 0; font-size: 0.75rem; color: #34d399; }
+.info-warn { margin: -4px 0 0; font-size: 0.75rem; color: #fbbf24; }
+.info-muted{ margin: -4px 0 0; font-size: 0.75rem; color: #475569; font-style: italic; }
+
+/* ── Password ── */
+.password-input {
+  padding: 7px 10px;
+  background: #0f0f23;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.password-input:focus { border-color: #f97316; }
+
+/* ── Switch ── */
 .switch {
   flex-shrink: 0;
   position: relative;
-  width: 44px;
-  height: 24px;
+  width: 44px; height: 24px;
   border-radius: 99px;
   border: none;
   background: #334155;
@@ -328,91 +516,50 @@ const importConfig = () => {
   outline: none;
 }
 .switch:focus-visible { box-shadow: 0 0 0 2px #f97316; }
-.switch.on { background: #f97316; }
+.switch.on      { background: #f97316; }
 .switch.loading { opacity: 0.6; cursor: wait; }
 .switch:disabled { opacity: 0.35; cursor: not-allowed; }
-
 .switch-thumb {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s;
+  transition: transform 0.2s cubic-bezier(.4,0,.2,1);
   box-shadow: 0 1px 3px rgba(0,0,0,0.4);
   pointer-events: none;
 }
 .switch.on .switch-thumb { transform: translateX(20px); }
 
-.info-ids     { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #34d399; }
-.info-unlinked { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #64748b; font-style: italic; }
-.info-warn     { grid-column: 1 / -1; margin: -6px 0 0; font-size: 0.78rem; color: #fbbf24; }
-
-.password-input {
-  flex: 1;
-  padding: 6px 10px;
-  background: #0f0f23;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #f1f5f9;
-  border-radius: 7px;
-  font-size: 0.85rem;
-  outline: none;
-}
-.password-input:focus { border-color: #f97316; }
-
-input[type="checkbox"] { accent-color: #f97316; width: 16px; height: 16px; }
-
-.buzzer-label { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; color: #e2e8f0; }
-.buzzer-hint { width: 100%; font-size: 0.72rem; color: #94a3b8; font-weight: 500; font-style: italic; }
-
+/* ── Config share ── */
 .config-share {
-  margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  border-top: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.import-inline { display: flex; gap: 8px; }
+.import-row { display: flex; gap: 6px; }
 .config-input {
   flex: 1; padding: 7px 10px;
   background: #0f0f23; border: 1px solid rgba(255,255,255,0.1);
-  color: #f1f5f9; border-radius: 7px; font-size: 0.82rem; outline: none;
+  color: #f1f5f9; border-radius: 8px; font-size: 0.8rem; outline: none;
 }
 .config-input:focus { border-color: #f97316; }
 .config-input::placeholder { color: #475569; }
 .btn-ghost {
   background: rgba(255,255,255,0.05);
-  color: #cbd5e1;
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 7px 12px; border-radius: 7px; cursor: pointer;
-  font-weight: 600; font-size: 0.82rem; white-space: nowrap;
-  transition: background 0.15s;
+  color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
-.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
-.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+.btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.btn-apply {
-  background: #f97316;
-  color: white;
-  border: none;
-  padding: 9px 0;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.9rem;
-  width: 100%;
-  transition: opacity 0.15s;
-}
-.btn-apply:hover:not(:disabled) { opacity: 0.85; }
-.btn-apply:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
-
-/* ── Mobile ── */
 @media (max-width: 480px) {
-  .settings-grid { grid-template-columns: 1fr; }
-  .import-inline { flex-direction: column; }
-  .import-inline .btn-ghost { width: 100%; }
+  .section-row { grid-template-columns: 1fr; }
+  .import-row  { flex-direction: column; }
 }
 </style>
