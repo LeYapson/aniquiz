@@ -322,6 +322,8 @@
                         :key="choice"
                         type="button"
                         class="choice-btn"
+                        :class="{ disabled: hasAnsweredWrong }"
+                        :disabled="hasAnsweredWrong"
                         @click="submitAnswer(choice)"
                       >{{ choice }}</button>
                     </div>
@@ -330,7 +332,8 @@
                       v-else
                       v-model="userGuess"
                       :dictionary="guessMode === 'anime' ? animeDictionary : []"
-                      :placeholder="`Devine ${guessLabel}…`"
+                      :placeholder="hasAnsweredWrong ? 'Mauvaise réponse…' : `Devine ${guessLabel}…`"
+                      :disabled="hasAnsweredWrong"
                       input-id="anime-guess"
                       @submit="submitAnswer"
                     />
@@ -454,7 +457,7 @@ const {
   finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
   buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
-  isSpectator, spectatorCount, mobileTab, roundChoices, playerLives,
+  isSpectator, spectatorCount, mobileTab, roundChoices, playerLives, hasAnsweredWrong,
 } = useGameState();
 
 // ── Lecteur audio ────────────────────────────────────────────────────────────
@@ -488,7 +491,7 @@ const {
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, roundChoices, playerLives, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, playerLives, hasAnsweredWrong, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 });
 

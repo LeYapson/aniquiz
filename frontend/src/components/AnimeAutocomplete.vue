@@ -9,8 +9,9 @@
         @input="onInput"
         @keydown="onKeydown"
         @blur="onBlur"
-        @focus="showDropdown = suggestions.length > 0"
+        @focus="showDropdown = !disabled && suggestions.length > 0"
         :placeholder="placeholder"
+        :disabled="disabled"
         autocomplete="off"
         spellcheck="false"
         aria-autocomplete="list"
@@ -20,6 +21,7 @@
       <button
         v-if="showSubmit"
         @click="$emit('submit')"
+        :disabled="disabled"
         class="btn-submit"
         aria-label="Envoyer ma réponse"
       >
@@ -55,9 +57,8 @@ const props = defineProps({
   dictionary: { type: Array, default: () => [] },
   inputId: { type: String, default: 'anime-guess' },
   placeholder: { type: String, default: "Nom de l'anime..." },
-  // When false, the built-in "Envoyer" button is hidden so the parent can
-  // provide its own action buttons (e.g. the speed-run Valider / Skip layout).
   showSubmit: { type: Boolean, default: true },
+  disabled: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'submit']);
