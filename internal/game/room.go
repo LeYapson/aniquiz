@@ -337,6 +337,32 @@ func (r *Room) EndRound(reason string) {
 		TrackType: track.TrackType,
 		FoundBy:   answers,
 	})
+
+	// En mode vies, les joueurs qui n'ont pas répondu perdent une vie.
+	var livesUpdateMsg []byte
+	if r.LivesMode > 0 {
+		for c := range r.Clients {
+			if c.IsSpectator || r.HasAnswered[c.ID] {
+				continue
+			}
+			lives := r.PlayerLives[c.Username] - 1
+			if lives < 0 {
+				lives = 0
+			}
+			r.PlayerLives[c.Username] = lives
+			if lives == 0 {
+				c.IsSpectator = true
+			}
+		}
+		livesSnapshot := make(map[string]int)
+		for k, v := range r.PlayerLives {
+			livesSnapshot[k] = v
+		}
+		livesUpdateMsg, _ = json.Marshal(map[string]interface{}{
+			"type":    "LIVES_UPDATE",
+			"payload": livesSnapshot,
+		})
+	}
 	r.Mu.Unlock()
 
 	msg := map[string]interface{}{
@@ -358,6 +384,14 @@ func (r *Room) EndRound(reason string) {
 	case r.Broadcast <- data:
 	case <-r.done:
 		return
+	}
+
+	if livesUpdateMsg != nil {
+		select {
+		case r.Broadcast <- livesUpdateMsg:
+		case <-r.done:
+			return
+		}
 	}
 
 	// Prepare a fresh skip channel for this reveal window.
@@ -594,6 +628,10 @@ func (r *Room) handleWrongAnswer(client *Client) {
 		return
 	}
 
+	// Notifie le joueur que sa tentative était mauvaise → désactive l'input côté client.
+	wrongMsg, _ := json.Marshal(map[string]interface{}{"type": "WRONG_ANSWER", "payload": nil})
+	r.safeSend(client, wrongMsg)
+
 	if eliminated {
 		elimMsg, _ := json.Marshal(map[string]interface{}{
 			"type":    "PLAYER_ELIMINATED",
@@ -705,7 +743,9 @@ func (r *Room) nextRound() {
 	var choices []string
 	if guessMode == GuessModeMultiple {
 		wrong, err := database.GetRandomAnimeNames(track.AnimeName, 3)
-		if err == nil && len(wrong) == 3 {
+		if err != nil {
+			log.Printf("QCM: erreur GetRandomAnimeNames (salon %s): %v", r.ID, err)
+		} else if len(wrong) > 0 {
 			choices = append(wrong, track.AnimeName)
 			rand.Shuffle(len(choices), func(i, j int) { choices[i], choices[j] = choices[j], choices[i] })
 		}

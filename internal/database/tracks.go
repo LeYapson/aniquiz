@@ -292,6 +292,9 @@ func GetRandomAnimeNames(exclude string, count int) ([]string, error) {
 		}
 		names = append(names, name)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return names, nil
 }
 

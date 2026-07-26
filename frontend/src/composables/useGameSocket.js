@@ -6,7 +6,7 @@ export function useGameSocket({
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, roundChoices, playerLives, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, playerLives, hasAnsweredWrong, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 }) {
   // socket exposé en ref pour que le template auto-unwrappe vers l'instance WebSocket.
@@ -105,6 +105,7 @@ export function useGameSocket({
             hasBuzzed.value = false
             buzzedUsers.value = []
             roundChoices.value = data.payload.choices || []
+            hasAnsweredWrong.value = false
             if (audioEl.value) audioEl.value.muted = false
             break
           case 'ROUND_ENDED':
@@ -133,6 +134,10 @@ export function useGameSocket({
             break
           case 'LIVES_UPDATE':
             playerLives.value = data.payload || {}
+            break
+          case 'WRONG_ANSWER':
+            hasAnsweredWrong.value = true
+            toast.error('Mauvaise réponse !', { title: '❌' })
             break
           case 'PLAYER_ELIMINATED':
             if (data.payload === authStore.user?.username) {
