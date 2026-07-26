@@ -56,6 +56,9 @@
               >
                 {{ p.username }}
                 <span v-if="p.username === authStore.user.username" aria-label="Vous">⭐</span>
+                <span v-if="roomSettings.livesMode > 0 && playerLives[p.username] !== undefined" class="player-lives" :aria-label="`${playerLives[p.username]} vies`">
+                  <span v-for="i in roomSettings.livesMode" :key="i" class="heart" :class="{ lost: i > playerLives[p.username] }">♥</span>
+                </span>
                 <small aria-label="`${p.score} points`">({{ p.score }} pts)</small>
                 <button
                   v-if="isCreator && p.username !== authStore.user.username"
@@ -451,7 +454,7 @@ const {
   finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
   buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
-  isSpectator, spectatorCount, mobileTab, roundChoices,
+  isSpectator, spectatorCount, mobileTab, roundChoices, playerLives,
 } = useGameState();
 
 // ── Lecteur audio ────────────────────────────────────────────────────────────
@@ -485,7 +488,7 @@ const {
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, roundChoices, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, playerLives, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 });
 
@@ -775,6 +778,11 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .btn-force-skip:hover { background: rgba(249,115,22,0.28); }
 
 /* ── Kick button (sidebar) ──────────────────────────────── */
+/* ── Mode vies ── */
+.player-lives { display: flex; gap: 2px; }
+.heart { font-size: 0.65rem; color: #f87171; transition: color 0.2s; }
+.heart.lost { color: #1e293b; }
+
 .btn-kick {
   background: transparent;
   border: none;

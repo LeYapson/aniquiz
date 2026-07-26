@@ -6,7 +6,7 @@ export function useGameSocket({
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, roundChoices, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, playerLives, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 }) {
   // socket exposé en ref pour que le template auto-unwrappe vers l'instance WebSocket.
@@ -128,6 +128,15 @@ export function useGameSocket({
               isPrivate: data.payload.is_private,
               buzzerMode: data.payload.buzzer_mode === true,
               guessMode: data.payload.guess_mode || 'anime',
+              livesMode: data.payload.lives_mode ?? 0,
+            }
+            break
+          case 'LIVES_UPDATE':
+            playerLives.value = data.payload || {}
+            break
+          case 'PLAYER_ELIMINATED':
+            if (data.payload === authStore.user?.username) {
+              toast.error('Tu n\'as plus de vies — tu es spectateur pour ce round.', { title: '💔 Éliminé' })
             }
             break
           case 'PLAYER_BUZZED':

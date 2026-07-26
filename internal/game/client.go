@@ -243,6 +243,7 @@ func (c *Client) ReadPump() {
 				FilterMalIDs  []int  `json:"filter_mal_ids"`
 				BuzzerMode    bool   `json:"buzzer_mode"`
 				GuessMode     string `json:"guess_mode"`
+				LivesMode     int    `json:"lives_mode"`
 			}
 
 			var settings SettingsPayload
@@ -280,6 +281,11 @@ func (c *Client) ReadPump() {
 				default:
 					c.Room.GuessMode = GuessModeAnime
 				}
+				if settings.LivesMode == 3 || settings.LivesMode == 5 {
+					c.Room.LivesMode = settings.LivesMode
+				} else {
+					c.Room.LivesMode = 0
+				}
 				c.Room.Mu.Unlock()
 
 				settingsMsg, _ := json.Marshal(map[string]interface{}{
@@ -294,6 +300,7 @@ func (c *Client) ReadPump() {
 						"filter_mal_ids": c.Room.FilterMalID,
 						"buzzer_mode":    c.Room.BuzzerMode,
 						"guess_mode":     c.Room.GuessMode,
+						"lives_mode":     c.Room.LivesMode,
 					},
 				})
 				c.Room.Broadcast <- settingsMsg
