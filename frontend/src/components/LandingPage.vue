@@ -19,6 +19,13 @@
           <button @click="emit('leaderboard')" class="btn-lb"><span aria-hidden="true">🏆</span> Classement</button>
         </div>
         <div class="hero-stats">
+          <div class="hero-stat hero-stat--live" v-if="playersOnline !== null">
+            <strong>
+              <span class="live-dot" aria-hidden="true"></span>{{ playersOnline }}
+            </strong>
+            <span>en ligne</span>
+          </div>
+          <div class="hero-stat-sep" v-if="playersOnline !== null"></div>
           <div class="hero-stat"><strong>500+</strong><span>animes</span></div>
           <div class="hero-stat-sep"></div>
           <div class="hero-stat"><strong>3 modes</strong><span>de jeu</span></div>
@@ -169,13 +176,30 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { API_URL } from '../config';
 
 const emit = defineEmits(['play', 'leaderboard']);
 
 const currentYear = new Date().getFullYear();
+const playersOnline = ref(null);
+
+let statsInterval = null;
+
+async function fetchStats() {
+  try {
+    const res = await fetch(`${API_URL}/api/stats`);
+    if (res.ok) {
+      const data = await res.json();
+      playersOnline.value = data.players_online ?? 0;
+    }
+  } catch { /* silencieux — stat non critique */ }
+}
 
 onMounted(() => {
+  fetchStats();
+  statsInterval = setInterval(fetchStats, 30_000);
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach(entry => {
@@ -189,6 +213,8 @@ onMounted(() => {
   );
   document.querySelectorAll('.reveal, .reveal--left, .reveal--right').forEach(el => observer.observe(el));
 });
+
+onUnmounted(() => clearInterval(statsInterval));
 
 const img = {
   logo: '/logo.png',
@@ -389,9 +415,27 @@ const badges = [
   align-items: center;
   gap: 2px;
 }
-.hero-stat strong { color: #f97316; font-size: 1rem; font-weight: 700; }
+.hero-stat strong { color: #f97316; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .hero-stat span   { color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .hero-stat-sep    { width: 1px; height: 28px; background: rgba(255,255,255,0.1); }
+
+.hero-stat--live strong { color: #4ade80; }
+
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
+  animation: livePulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0   rgba(74, 222, 128, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(74, 222, 128, 0); }
+}
 
 .hero-scroll-hint {
   position: absolute;
