@@ -548,7 +548,7 @@ test.describe('Quiz du jour', () => {
     await page.goto('/')
     await loginAs(page)
 
-    await expect(page.getByText('Quiz du jour')).toBeVisible()
+    await expect(page.locator('.daily-widget-title')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Accéder →' })).toBeVisible()
   })
 })

@@ -304,6 +304,7 @@ const badges = [
   background: #0f0f23;
   color: #f1f5f9;
   font-family: inherit;
+  overflow-x: hidden;
 }
 
 .section {
