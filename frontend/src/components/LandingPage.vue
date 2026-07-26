@@ -65,13 +65,19 @@
           v-for="(mode, idx) in modes"
           :key="mode.title"
           class="mode-card reveal"
-          :class="{ 'mode-card--soon': mode.soon }"
+          :class="[`mode-card--${mode.key}`, { 'mode-card--soon': mode.soon }]"
           :style="{ transitionDelay: (idx * 0.12) + 's' }"
         >
-          <div class="mode-icon" aria-hidden="true">{{ mode.icon }}</div>
-          <h3>{{ mode.title }}</h3>
-          <p>{{ mode.body }}</p>
-          <span class="mode-badge" :class="mode.soon ? 'mode-soon' : 'mode-available'">{{ mode.soon ? 'Bientôt' : 'Disponible' }}</span>
+          <div class="mode-card-header">
+            <span class="mode-card-icon" aria-hidden="true">{{ mode.icon }}</span>
+          </div>
+          <div class="mode-card-body">
+            <h3>{{ mode.title }}</h3>
+            <p>{{ mode.body }}</p>
+            <span class="mode-badge" :class="mode.soon ? 'mode-soon' : 'mode-available'">
+              {{ mode.soon ? 'Bientôt' : 'Disponible' }}
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -230,10 +236,10 @@ const steps = [
 ];
 
 const modes = [
-  { icon: '⚔️', title: 'Multijoueur', soon: false, body: "Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime." },
-  { icon: '🎯', title: 'Solo', soon: false, body: "Joue à ton rythme, sans pression. Configure tes rounds et tes filtres — parfait pour s'entraîner ou explorer de nouveaux animes." },
-  { icon: '⚡', title: 'Speed Run', soon: false, body: "5 minutes, un maximum d'animes. Enchaîne les pistes, entretiens ta série de bonnes réponses et bats ton meilleur score." },
-  { icon: '🏆', title: 'Classé', soon: true, body: 'Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.' },
+  { key: 'multi',    icon: '⚔️', title: 'Multijoueur', soon: false, body: "Rejoins ou crée un salon, affronte d'autres joueurs en temps réel et sois le premier à trouver le bon anime." },
+  { key: 'solo',     icon: '🎯', title: 'Solo',         soon: false, body: "Joue à ton rythme, sans pression. Configure tes rounds et tes filtres — parfait pour s'entraîner ou explorer de nouveaux animes." },
+  { key: 'speedrun', icon: '⚡', title: 'Speed Run',    soon: false, body: "5 minutes, un maximum d'animes. Enchaîne les pistes, entretiens ta série de bonnes réponses et bats ton meilleur score." },
+  { key: 'ranked',   icon: '🏆', title: 'Classé',       soon: true,  body: 'Grimpe les divisions, accumule des points de ranking et prouve ta valeur face aux meilleurs joueurs de la saison.' },
 ];
 
 const progressionFeats = [
@@ -557,31 +563,84 @@ const badges = [
 .prog-card h3 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
 .prog-card p  { font-size: 0.88rem; color: #64748b; line-height: 1.6; margin: 0; }
 
+/* ── Mode cards : structure ─────────────────────────────────── */
 .mode-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 16px;
-  padding: 28px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.2s, background 0.2s;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.mode-card:hover {
-  background: rgba(249,115,22,0.06);
-  border-color: rgba(249,115,22,0.25);
-}
-.mode-card--soon {
-  opacity: 0.65;
-}
-.mode-card--soon:hover {
-  background: rgba(100,116,139,0.06);
-  border-color: rgba(100,116,139,0.2);
+.mode-card:hover { transform: translateY(-4px); }
+.mode-card--soon { opacity: 0.65; }
+.mode-card--soon:hover { transform: none; }
+
+/* ── Header coloré par mode ─────────────────────────────────── */
+.mode-card-header {
+  position: relative;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.mode-icon { font-size: 2rem; }
-.mode-card h3 { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
-.mode-card p  { font-size: 0.88rem; color: #64748b; line-height: 1.6; margin: 0; flex: 1; }
+/* Shimmer au hover */
+.mode-card-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.45s ease;
+}
+.mode-card:hover .mode-card-header::after { transform: translateX(100%); }
+
+.mode-card-icon {
+  font-size: 3.5rem;
+  z-index: 1;
+  transition: transform 0.2s ease;
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.5));
+}
+.mode-card:hover .mode-card-icon { transform: scale(1.12); }
+
+/* ── Couleur par mode ────────────────────────────────────────── */
+.mode-card--multi .mode-card-header {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #1e3a5f 100%);
+}
+.mode-card--multi:hover { border-color: rgba(129,140,248,0.4); box-shadow: 0 8px 32px rgba(129,140,248,0.12); }
+.mode-card--multi .mode-card-icon { filter: drop-shadow(0 0 14px rgba(129,140,248,0.7)); }
+
+.mode-card--solo .mode-card-header {
+  background: linear-gradient(135deg, #0a2518 0%, #064e3b 60%, #0e3a2f 100%);
+}
+.mode-card--solo:hover { border-color: rgba(52,211,153,0.4); box-shadow: 0 8px 32px rgba(52,211,153,0.1); }
+.mode-card--solo .mode-card-icon { filter: drop-shadow(0 0 14px rgba(52,211,153,0.6)); }
+
+.mode-card--speedrun .mode-card-header {
+  background: linear-gradient(135deg, #1c0800 0%, #431407 60%, #2d0f00 100%);
+}
+.mode-card--speedrun:hover { border-color: rgba(249,115,22,0.5); box-shadow: 0 8px 32px rgba(249,115,22,0.15); }
+.mode-card--speedrun .mode-card-icon { filter: drop-shadow(0 0 16px rgba(249,115,22,0.8)); }
+
+.mode-card--ranked .mode-card-header {
+  background: linear-gradient(135deg, #1c1400 0%, #3d2e00 60%, #2a1e00 100%);
+}
+.mode-card--ranked:hover { border-color: rgba(251,191,36,0.4); box-shadow: 0 8px 32px rgba(251,191,36,0.1); }
+.mode-card--ranked .mode-card-icon { filter: drop-shadow(0 0 14px rgba(251,191,36,0.6)); }
+
+/* ── Corps de la carte ──────────────────────────────────────── */
+.mode-card-body {
+  background: rgba(255,255,255,0.03);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.mode-card-body h3 { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin: 0; }
+.mode-card-body p  { font-size: 0.85rem; color: #64748b; line-height: 1.6; margin: 0; flex: 1; }
 
 .mode-badge {
   align-self: flex-start;
