@@ -273,9 +273,11 @@ func IsAnimeImported(malID int) (bool, error) {
 // GetRandomAnimeNames retourne `count` noms d'animes distincts tirés au hasard,
 // en excluant `exclude` (la bonne réponse du round) pour construire un QCM.
 func GetRandomAnimeNames(exclude string, count int) ([]string, error) {
+	// Sous-requête pour éviter l'erreur PostgreSQL "for SELECT DISTINCT,
+	// ORDER BY expressions must appear in select list" avec random().
 	rows, err := Pool.Query(context.Background(),
-		`SELECT DISTINCT anime_name FROM tracks
-		 WHERE anime_name != $1
+		`SELECT anime_name
+		 FROM (SELECT DISTINCT anime_name FROM tracks WHERE anime_name != $1) sub
 		 ORDER BY random()
 		 LIMIT $2`,
 		exclude, count,
