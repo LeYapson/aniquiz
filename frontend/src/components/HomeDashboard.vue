@@ -47,6 +47,9 @@
             <h3 class="devlog-title">{{ log.title }}</h3>
             <p class="devlog-body" v-html="log.bodyHtml"></p>
           </article>
+          <button class="devlog-more" @click="emit('navigate', 'news')">
+            Voir toutes les nouvelles <span aria-hidden="true">→</span>
+          </button>
         </aside>
       </div>
     </div>
@@ -62,7 +65,7 @@ import AppFooter from './AppFooter.vue';
 import { authStore } from '../authStore';
 import { useNews } from '../composables/useNews';
 
-const emit = defineEmits(['room-created', 'room-joined']);
+const emit = defineEmits(['room-created', 'room-joined', 'navigate']);
 
 const multiPanelOpen = ref(false);
 
@@ -82,7 +85,8 @@ const TAG_COLORS = {
 };
 const tagColor = (tag) => TAG_COLORS[tag] ?? 'orange';
 
-const { news: devlogs } = useNews();
+const { news } = useNews();
+const devlogs = computed(() => news.slice(0, 3));
 </script>
 
 <style scoped>
@@ -234,6 +238,21 @@ const { news: devlogs } = useNews();
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.devlog-more {
+  margin-top: 4px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.devlog-more:hover { color: #f97316; border-color: rgba(249,115,22,0.35); }
 
 /* ── Responsive ── */
 @media (max-width: 880px) {

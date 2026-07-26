@@ -41,7 +41,7 @@
         <div v-else class="app-main">
 
         <div v-if="!isConnected" class="lobby-wrapper">
-          <HomeDashboard @room-created="setupWebSocket" @room-joined="setupWebSocket" />
+          <HomeDashboard @room-created="setupWebSocket" @room-joined="setupWebSocket" @navigate="navigateTo" />
         </div>
 
         <div v-else class="game-layout" :data-mobile-tab="mobileTab">
