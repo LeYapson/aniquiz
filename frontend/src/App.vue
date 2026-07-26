@@ -313,6 +313,16 @@
                       @click="onBuzz"
                     >🔔 BUZZER</button>
 
+                    <div v-else-if="guessMode === 'multiple' && roundChoices.length > 0" class="choices-grid">
+                      <button
+                        v-for="choice in roundChoices"
+                        :key="choice"
+                        type="button"
+                        class="choice-btn"
+                        @click="submitAnswer(choice)"
+                      >{{ choice }}</button>
+                    </div>
+
                     <AnimeAutocomplete
                       v-else
                       v-model="userGuess"
@@ -441,7 +451,7 @@ const {
   finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
   buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
-  isSpectator, spectatorCount, mobileTab,
+  isSpectator, spectatorCount, mobileTab, roundChoices,
 } = useGameState();
 
 // ── Lecteur audio ────────────────────────────────────────────────────────────
@@ -475,14 +485,15 @@ const {
   isRevealing, currentAnswerInfo, finalScores, roundHistory, skipVotes, hasVotedSkip,
   revealSkipVotes, hasVotedRevealSkip, hasBuzzed, buzzedUsers, chatMessages,
   isSpectator, spectatorCount, reconnectMsg, isCreator, roomSettings,
-  mobileTab, reactionOverlay, audioEl, videoEl, releaseMedia,
+  mobileTab, roundChoices, reactionOverlay, audioEl, videoEl, releaseMedia,
   authStore, toast, loadAnimeDictionary,
 });
 
 // submitAnswer conserve le v-model userGuess dans App.vue et délègue l'envoi.
-const submitAnswer = () => {
-  if (!userGuess.value) return;
-  sendAnswer(userGuess.value);
+const submitAnswer = (valueOrEvent) => {
+  const value = typeof valueOrEvent === 'string' ? valueOrEvent : userGuess.value;
+  if (!value) return;
+  sendAnswer(value);
   userGuess.value = "";
 };
 
@@ -932,6 +943,34 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   cursor: pointer;
 }
 .audio-retry:hover { opacity: 0.88; }
+
+/* ── Mode QCM ── */
+.choices-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.choice-btn {
+  padding: 14px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  line-height: 1.35;
+}
+.choice-btn:hover {
+  background: rgba(249,115,22,0.12);
+  border-color: rgba(249,115,22,0.4);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.choice-btn:active { transform: scale(0.97); }
 
 .btn-buzzer {
   margin-top: 8px;

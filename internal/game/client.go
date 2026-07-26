@@ -274,9 +274,10 @@ func (c *Client) ReadPump() {
 				c.Room.MaxYear = settings.MaxYear
 				c.Room.FilterMalID = settings.FilterMalIDs
 				c.Room.BuzzerMode = settings.BuzzerMode
-				if settings.GuessMode == GuessModeTitle || settings.GuessMode == GuessModeArtist {
+				switch settings.GuessMode {
+				case GuessModeTitle, GuessModeArtist, GuessModeMultiple:
 					c.Room.GuessMode = settings.GuessMode
-				} else {
+				default:
 					c.Room.GuessMode = GuessModeAnime
 				}
 				c.Room.Mu.Unlock()
