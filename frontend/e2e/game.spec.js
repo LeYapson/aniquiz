@@ -81,6 +81,18 @@ async function mockAllApis(page, username = 'Alice', roomId = 'general') {
   await page.route('**/animes', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
   )
+
+  await page.route('**/api/stats', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ players_online: 3, active_rooms: 1 }) })
+  )
+
+  await page.route('**/api/me/admin', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ is_admin: false }) })
+  )
+
+  await page.route('**/api/daily/leaderboard', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  )
 }
 
 async function loginAs(page, username = 'Alice') {
@@ -127,6 +139,15 @@ async function joinRoomAsSpectator(page, username = 'Alice') {
     })
   })
   await page.route('**/animes', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  )
+  await page.route('**/api/stats', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ players_online: 0, active_rooms: 0 }) })
+  )
+  await page.route('**/api/me/admin', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ is_admin: false }) })
+  )
+  await page.route('**/api/daily/leaderboard', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
   )
   await page.routeWebSocket(/\/ws/, (ws) => {
@@ -457,6 +478,78 @@ test.describe('Classement', () => {
     await page.getByRole('button', { name: /Retour/ }).click()
 
     await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
+  })
+})
+
+// ─── Quiz du jour ────────────────────────────────────────────────────────────
+
+const DAILY_DATA = {
+  date: '2026-07-26',
+  audio_url: 'https://example.com/daily.webm',
+  start_fraction: 0.1,
+  choices: ['Naruto', 'One Piece', 'Bleach', 'Dragon Ball'],
+  already_played: false,
+}
+
+test.describe('Quiz du jour', () => {
+  test('affiche la page quiz du jour depuis le header', async ({ page }) => {
+    await mockAllApis(page)
+    await page.route('**/api/daily', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DAILY_DATA) })
+    )
+
+    await page.goto('/')
+    await loginAs(page)
+    await page.getByRole('button', { name: 'Quiz du jour' }).click()
+
+    await expect(page.getByRole('heading', { name: /Quiz du jour/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Naruto' })).toBeVisible()
+  })
+
+  test('affiche les 4 choix QCM', async ({ page }) => {
+    await mockAllApis(page)
+    await page.route('**/api/daily', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DAILY_DATA) })
+    )
+
+    await page.goto('/')
+    await loginAs(page)
+    await page.getByRole('button', { name: 'Quiz du jour' }).click()
+
+    for (const choice of DAILY_DATA.choices) {
+      await expect(page.getByRole('button', { name: choice })).toBeVisible()
+    }
+  })
+
+  test('affiche le résultat après soumission', async ({ page }) => {
+    await mockMedia(page)
+    await mockAllApis(page)
+    await page.route('**/api/daily', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DAILY_DATA) })
+    )
+    await page.route('**/api/daily/submit', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ correct: true, answer: 'One Piece', title: 'We Are!', artist: 'Hiroshi Kitadani', video_url: '' }),
+      })
+    )
+
+    await page.goto('/')
+    await loginAs(page)
+    await page.getByRole('button', { name: 'Quiz du jour' }).click()
+    await page.getByRole('button', { name: 'One Piece' }).click()
+
+    await expect(page.getByText('One Piece')).toBeVisible()
+  })
+
+  test('affiche le widget quiz du jour sur le dashboard', async ({ page }) => {
+    await mockAllApis(page)
+    await page.goto('/')
+    await loginAs(page)
+
+    await expect(page.locator('.daily-widget-title')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Accéder →' })).toBeVisible()
   })
 })
 

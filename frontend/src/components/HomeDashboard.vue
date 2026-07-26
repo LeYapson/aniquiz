@@ -36,6 +36,17 @@
         </section>
 
         <aside v-show="!multiPanelOpen" class="devlog-col" aria-label="Actualités du projet">
+          <!-- Widget Quiz du jour -->
+          <div class="daily-widget">
+            <div class="daily-widget-left">
+              <span class="daily-widget-icon">📅</span>
+              <div>
+                <p class="daily-widget-title">Quiz du jour</p>
+                <p class="daily-widget-sub">Prochain dans <strong>{{ countdown }}</strong></p>
+              </div>
+            </div>
+            <button class="daily-widget-btn" @click="emit('navigate', 'daily')">Accéder →</button>
+          </div>
           <div class="devlog-header">
             <h2><span aria-hidden="true">📰</span> Dernières nouvelles</h2>
           </div>
@@ -59,7 +70,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import RoomSelection from './RoomSelection.vue';
 import AppFooter from './AppFooter.vue';
 import { authStore } from '../authStore';
@@ -87,6 +98,20 @@ const tagColor = (tag) => TAG_COLORS[tag] ?? 'orange';
 
 const { news } = useNews();
 const devlogs = computed(() => news.slice(0, 3));
+
+const countdown = ref('--:--:--');
+let countdownInterval = null;
+const updateCountdown = () => {
+  const now = new Date();
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const diff = next - now;
+  const h = Math.floor(diff / 3_600_000).toString().padStart(2, '0');
+  const m = Math.floor((diff % 3_600_000) / 60_000).toString().padStart(2, '0');
+  const s = Math.floor((diff % 60_000) / 1_000).toString().padStart(2, '0');
+  countdown.value = `${h}:${m}:${s}`;
+};
+onMounted(() => { updateCountdown(); countdownInterval = setInterval(updateCountdown, 1000); });
+onUnmounted(() => clearInterval(countdownInterval));
 </script>
 
 <style scoped>
@@ -175,6 +200,33 @@ const devlogs = computed(() => news.slice(0, 3));
 .rooms-col {
   min-width: 0;
 }
+
+/* ── Widget Quiz du jour ── */
+.daily-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(249,115,22,0.04));
+  border: 1px solid rgba(249,115,22,0.25);
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+.daily-widget-left { display: flex; align-items: center; gap: 12px; }
+.daily-widget-icon { font-size: 1.6rem; }
+.daily-widget-title { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 2px; }
+.daily-widget-sub { font-size: 0.75rem; color: #64748b; margin: 0; }
+.daily-widget-sub strong { color: #f97316; font-variant-numeric: tabular-nums; }
+.daily-widget-btn {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff; border: none;
+  padding: 8px 18px; border-radius: 8px;
+  font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.daily-widget-btn:hover { opacity: 0.88; }
 
 /* ── Devlog ── */
 .devlog-col {

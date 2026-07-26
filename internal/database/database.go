@@ -116,6 +116,17 @@ func Migrate() error {
 		// Liaison du compte Discord (id + pseudo), pour le bot Discord.
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT NOT NULL DEFAULT ''`,
+		// Quiz du jour : résultats quotidiens (une tentative par joueur par jour).
+		`CREATE TABLE IF NOT EXISTS daily_results (
+			id         SERIAL PRIMARY KEY,
+			user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			date       DATE NOT NULL,
+			found      BOOLEAN NOT NULL DEFAULT false,
+			time_ms    INT NOT NULL DEFAULT 0,
+			played_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT daily_results_unique UNIQUE (user_id, date)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_daily_results_date ON daily_results(date)`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {

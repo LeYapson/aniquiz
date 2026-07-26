@@ -36,6 +36,8 @@
 
         <NewsPage v-else-if="!isConnected && currentView === 'news'" />
 
+        <DailyQuizPage v-else-if="!isConnected && currentView === 'daily'" />
+
         <AdminPage v-else-if="!isConnected && currentView === 'admin' && isAdmin" />
 
         <div v-else class="app-main">
@@ -429,6 +431,7 @@ import GameTimer from "./components/GameTimer.vue";
 import AuthForm from "./components/AuthForm.vue";
 import ProfilePage from "./components/ProfilePage.vue";
 import NewsPage from "./components/NewsPage.vue";
+import DailyQuizPage from "./views/DailyQuizPage.vue";
 import GameSettings from "./components/GameSettings.vue";
 import LeaderboardPage from "./components/LeaderboardPage.vue";
 import ChatPanel from "./components/ChatPanel.vue";
