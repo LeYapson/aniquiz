@@ -3,6 +3,10 @@
 
     <!-- ═══════════════════════════════════════════ HERO ══ -->
     <section class="hero">
+      <div class="hero-particles" aria-hidden="true">
+        <span>♪</span><span>♫</span><span>♩</span><span>♪</span>
+        <span>♬</span><span>♫</span><span>♩</span>
+      </div>
       <div class="hero-content">
         <img :src="img.logo" alt="AniQuiz" class="hero-logo" />
         <h1 class="hero-h1">Blindtest d'anime en ligne gratuit</h1>
@@ -34,7 +38,7 @@
       <p class="section-sub">Trois étapes, zéro prise de tête</p>
       <div class="howto-steps">
         <template v-for="(step, i) in steps" :key="step.num">
-          <div class="step">
+          <div class="step reveal" :style="{ transitionDelay: (i * 0.15) + 's' }">
             <div class="step-num">{{ step.num }}</div>
             <h3>{{ step.title }}</h3>
             <p>{{ step.body }}</p>
@@ -51,10 +55,11 @@
 
       <div class="modes-grid">
         <div
-          v-for="mode in modes"
+          v-for="(mode, idx) in modes"
           :key="mode.title"
-          class="mode-card"
+          class="mode-card reveal"
           :class="{ 'mode-card--soon': mode.soon }"
+          :style="{ transitionDelay: (idx * 0.12) + 's' }"
         >
           <div class="mode-icon" aria-hidden="true">{{ mode.icon }}</div>
           <h3>{{ mode.title }}</h3>
@@ -69,7 +74,7 @@
       <h2 class="section-title">Progresse et personnalise</h2>
       <p class="section-sub">Chaque partie contribue à ta progression permanente</p>
       <div class="progression-grid">
-        <div class="prog-card" v-for="feat in progressionFeats" :key="feat.icon">
+        <div class="prog-card reveal" v-for="(feat, idx) in progressionFeats" :key="feat.icon" :style="{ transitionDelay: (idx * 0.15) + 's' }">
           <div class="prog-icon" aria-hidden="true">{{ feat.icon }}</div>
           <h3>{{ feat.title }}</h3>
           <p>{{ feat.body }}</p>
@@ -80,7 +85,7 @@
     <!-- ═══════════════════════════════════════ RANKED / DIVISIONS ══ -->
     <section class="section ranked-section">
       <div class="ranked-inner">
-        <div class="ranked-text">
+        <div class="ranked-text reveal--left">
           <h2 class="section-title left">Système de divisions</h2>
           <p class="ranked-desc">
             Chaque partie classée te rapporte des points de ranking. Monte les divisions,
@@ -92,10 +97,10 @@
           <span class="coming-soon-pill">Bientôt disponible</span>
         </div>
 
-        <div class="ranked-visual">
+        <div class="ranked-visual reveal--right">
           <img :src="img.koraProf" alt="Kora explique le système ranked" class="kora-prof" />
           <div class="badges-grid">
-            <div v-for="badge in badges" :key="badge.name" class="badge-item">
+            <div v-for="(badge, idx) in badges" :key="badge.name" class="badge-item reveal" :style="{ transitionDelay: (0.3 + idx * 0.1) + 's' }">
               <img :src="badge.src" :alt="badge.name" class="badge-img" />
             </div>
           </div>
@@ -106,7 +111,7 @@
     <!-- ══════════════════════════════════════════ SUPPORT ══ -->
     <section class="section support-section">
       <img :src="img.mascot" alt="Kora" class="support-kora" />
-      <div class="support-content">
+      <div class="support-content reveal">
         <h2 class="section-title">Soutiens le projet</h2>
         <p class="support-desc">
           AniQuiz est entièrement gratuit et sans publicité. Si tu aimes le projet et veux
@@ -125,7 +130,7 @@
     <section class="section community-section">
       <div class="community-inner">
         <img :src="img.koraFr" alt="Kora avec le drapeau français" class="kora-fr" />
-        <div class="community-text">
+        <div class="community-text reveal--left">
           <h2 class="section-title left">Fait en France, pour la communauté</h2>
           <p class="community-desc">
             AniQuiz est un projet indépendant né d'une passion pour l'anime et le jeu en ligne.
@@ -164,9 +169,26 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
+
 const emit = defineEmits(['play', 'leaderboard']);
 
 const currentYear = new Date().getFullYear();
+
+onMounted(() => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+  );
+  document.querySelectorAll('.reveal, .reveal--left, .reveal--right').forEach(el => observer.observe(el));
+});
 
 const img = {
   logo: '/logo.png',
@@ -798,5 +820,86 @@ const badges = [
   .section { padding: 64px 16px; }
   .badges-grid { grid-template-columns: repeat(2, 1fr); }
   .badge-item:last-child { grid-column: 1 / -1; }
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes floatKora {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes orbPulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.18); opacity: 0.7; }
+}
+@keyframes noteFloat {
+  0%   { transform: translateY(0)   rotate(0deg);  opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.2; }
+  100% { transform: translateY(-130px) rotate(18deg); opacity: 0; }
+}
+
+/* ─── Hero : animations au chargement ──────────────────────── */
+.hero-logo    { animation: fadeInDown  0.6s ease both; }
+.hero-h1      { animation: fadeInUp    0.6s 0.2s  ease both; }
+.hero-tagline { animation: fadeInUp    0.6s 0.35s ease both; }
+.hero-actions { animation: fadeInUp    0.6s 0.5s  ease both; }
+.hero-stats   { animation: fadeInUp    0.6s 0.65s ease both; }
+.hero-kora    { animation: slideInRight 0.7s 0.3s ease both, floatKora 5s 1.2s ease-in-out infinite; }
+
+.hero::before { animation: orbPulse  8s      ease-in-out infinite; }
+.hero::after  { animation: orbPulse 10s 2.5s ease-in-out infinite; }
+
+/* ─── Notes de musique flottantes ───────────────────────────── */
+.hero-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.hero-particles span {
+  position: absolute;
+  bottom: 8%;
+  color: rgba(249, 115, 22, 0.35);
+  opacity: 0;
+  animation: noteFloat linear infinite;
+  user-select: none;
+}
+.hero-particles span:nth-child(1) { left:  8%; font-size: 1.2rem; animation-duration:  7s; animation-delay:  0s;   }
+.hero-particles span:nth-child(2) { left: 18%; font-size: 1.0rem; animation-duration:  9s; animation-delay:  1.5s; }
+.hero-particles span:nth-child(3) { left: 32%; font-size: 1.5rem; animation-duration:  6s; animation-delay:  3.2s; }
+.hero-particles span:nth-child(4) { left: 50%; font-size: 1.1rem; animation-duration:  8s; animation-delay:  0.8s; }
+.hero-particles span:nth-child(5) { left: 63%; font-size: 0.9rem; animation-duration: 11s; animation-delay:  2.0s; }
+.hero-particles span:nth-child(6) { left: 76%; font-size: 1.3rem; animation-duration:  7s; animation-delay:  4.1s; }
+.hero-particles span:nth-child(7) { left: 88%; font-size: 1.0rem; animation-duration:  9s; animation-delay:  1.0s; }
+
+/* ─── Scroll reveal ─────────────────────────────────────────── */
+.reveal,
+.reveal--left,
+.reveal--right {
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal       { transform: translateY(28px); }
+.reveal--left { transform: translateX(-32px); }
+.reveal--right{ transform: translateX(32px); }
+
+.reveal.is-visible,
+.reveal--left.is-visible,
+.reveal--right.is-visible {
+  opacity: 1;
+  transform: none;
 }
 </style>
