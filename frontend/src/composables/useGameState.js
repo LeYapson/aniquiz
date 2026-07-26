@@ -46,7 +46,7 @@ export function useGameState() {
   const isCreator = ref(false)
   const roomSettings = ref({
     maxRounds: 5, roundDuration: 20, filterType: '', decade: 0,
-    isPrivate: false, password: '', buzzerMode: false, guessMode: 'anime',
+    isPrivate: false, password: '', buzzerMode: false, guessMode: 'anime', livesMode: 0,
   })
   const buzzerMode = computed(() => roomSettings.value.buzzerMode === true)
   const guessMode = computed(() => roomSettings.value.guessMode || 'anime')
@@ -62,6 +62,7 @@ export function useGameState() {
   const spectatorCount = ref(0)
   const mobileTab = ref('game')
   const roundChoices = ref([])
+  const playerLives = ref({})
 
   return {
     isConnected, room, players, state, currentAudioUrl, userGuess,
@@ -69,6 +70,6 @@ export function useGameState() {
     finalScores, roundHistory, speedStats, skipVotes, hasVotedSkip,
     revealSkipVotes, hasVotedRevealSkip, reconnectMsg, isCreator, roomSettings,
     buzzerMode, guessMode, guessLabel, hasBuzzed, buzzedUsers, chatMessages,
-    isSpectator, spectatorCount, mobileTab, roundChoices,
+    isSpectator, spectatorCount, mobileTab, roundChoices, playerLives,
   }
 }

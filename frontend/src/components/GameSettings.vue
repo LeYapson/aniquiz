@@ -44,6 +44,17 @@
           @click="local.guessMode = m.value"
         >{{ m.label }}</button>
       </div>
+      <div class="field" style="margin-top:4px">
+        <span class="field-label">Vies par joueur</span>
+        <div class="guess-pills">
+          <button
+            v-for="l in livesModes" :key="l.value" type="button"
+            class="guess-pill" :class="{ active: local.livesMode === l.value }"
+            @click="local.livesMode = l.value"
+          >{{ l.label }}</button>
+        </div>
+      </div>
+
       <div class="toggle-row" :class="{ disabled: local.guessMode === 'multiple' }">
         <span class="toggle-label">🔔 Mode buzzer
           <span class="toggle-hint">buzze avant de répondre</span>
@@ -173,6 +184,12 @@ const guessModes = [
   { value: 'multiple', label: '🔀 QCM' },
 ];
 
+const livesModes = [
+  { value: 0, label: 'Désactivé' },
+  { value: 3, label: '❤️ 3 vies' },
+  { value: 5, label: '❤️ 5 vies' },
+];
+
 const anilistLinked = computed(() => !!authStore.user?.anilist_username);
 const malLinked     = computed(() => !!authStore.user?.mal_username);
 const anyLinked     = computed(() => anilistLinked.value || malLinked.value);
@@ -200,6 +217,7 @@ const local = reactive({
   isPrivate:        props.initialSettings?.isPrivate      ?? false,
   password:         props.initialSettings?.password       ?? '',
   buzzerMode:       props.initialSettings?.buzzerMode     ?? false,
+  livesMode:        props.initialSettings?.livesMode      ?? 0,
   useAnilistFilter: false,
   filterMalIds:     [],
 });
@@ -211,7 +229,7 @@ watch(() => props.initialSettings, (s) => {
 // ── Auto-apply ────────────────────────────────────────────────────────────────
 // Immédiat pour les toggles et selects, débouncé pour les steppers numériques.
 
-watch(() => [local.filterType, local.guessMode, local.decade, local.buzzerMode, local.isPrivate, local.password], apply);
+watch(() => [local.filterType, local.guessMode, local.decade, local.buzzerMode, local.isPrivate, local.password, local.livesMode], apply);
 watch(() => [local.maxRounds, local.roundDuration], () => {
   clearTimeout(applyTimer);
   applyTimer = setTimeout(apply, 400);
@@ -243,6 +261,7 @@ function apply() {
       buzzer_mode:     local.buzzerMode,
       guess_mode:      local.guessMode,
       filter_mal_ids:  local.useAnilistFilter ? local.filterMalIds : [],
+      lives_mode:      local.livesMode,
     },
   }));
   synced.value = true;

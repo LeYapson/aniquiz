@@ -72,7 +72,9 @@ type Room struct {
 	FilterMalID     []int
 	BuzzerMode      bool
 	Buzzed          map[string]int64 // clientID -> temps de buzz (ms depuis RoundStart)
-	GuessMode       string           // "anime" (défaut), "title" ou "artist"
+	GuessMode       string           // "anime" (défaut), "title", "artist" ou "multiple"
+	LivesMode       int              // 0 = désactivé, N = nombre de vies par joueur
+	PlayerLives     map[string]int   // username -> vies restantes
 	// roundGen est incrémenté à chaque nextRound. La goroutine timer capture sa
 	// valeur au démarrage et ignore le tick si le round a changé entre-temps —
 	// évite qu'un skip anticipé (vote ou hôte) laisse une goroutine zombie qui
@@ -139,6 +141,7 @@ func CreateRoom(id string, creatorID string, isSolo bool) *Room {
 		PlayedTrackIDs:  []int{},
 		RoundHistory:    []RoundSummaryItem{},
 		Buzzed:          make(map[string]int64),
+		PlayerLives:     make(map[string]int),
 		done:            make(chan struct{}),
 	}
 }
@@ -431,6 +434,7 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 	}
 	buzzerMode := r.BuzzerMode
 	guessMode := r.GuessMode
+	livesMode := r.LivesMode
 	buzzMs, hasBuzzed := r.Buzzed[client.ID]
 	// En mode buzzer, il faut avoir buzzé avant de pouvoir répondre.
 	if buzzerMode && !hasBuzzed {
@@ -449,6 +453,9 @@ func (r *Room) CheckAnswer(client *Client, answer string) {
 	}
 
 	if result.Points == 0 {
+		if livesMode > 0 {
+			go r.handleWrongAnswer(client)
+		}
 		return
 	}
 
@@ -545,6 +552,65 @@ func (r *Room) checkAnswerBuzzer(client *Client, points int, buzzMs int64) {
 	go r.BroadcastPlayerList()
 }
 
+// handleWrongAnswer décrémente les vies du joueur en mode vies, le marque
+// éliminé si elles atteignent 0, et termine le round si tout le monde est out.
+func (r *Room) handleWrongAnswer(client *Client) {
+	r.Mu.Lock()
+	if r.LivesMode == 0 || !r.IsPlaying {
+		r.Mu.Unlock()
+		return
+	}
+	r.HasAnswered[client.ID] = true
+	lives := r.PlayerLives[client.Username] - 1
+	if lives < 0 {
+		lives = 0
+	}
+	r.PlayerLives[client.Username] = lives
+	eliminated := lives == 0
+	if eliminated {
+		client.IsSpectator = true
+	}
+	livesSnapshot := make(map[string]int)
+	for k, v := range r.PlayerLives {
+		livesSnapshot[k] = v
+	}
+	allEliminated := true
+	for username, l := range r.PlayerLives {
+		if l > 0 {
+			allEliminated = false
+			_ = username
+			break
+		}
+	}
+	r.Mu.Unlock()
+
+	livesMsg, _ := json.Marshal(map[string]interface{}{
+		"type":    "LIVES_UPDATE",
+		"payload": livesSnapshot,
+	})
+	select {
+	case r.Broadcast <- livesMsg:
+	case <-r.done:
+		return
+	}
+
+	if eliminated {
+		elimMsg, _ := json.Marshal(map[string]interface{}{
+			"type":    "PLAYER_ELIMINATED",
+			"payload": client.Username,
+		})
+		select {
+		case r.Broadcast <- elimMsg:
+		case <-r.done:
+		}
+		go r.BroadcastPlayerList()
+	}
+
+	if allEliminated {
+		go r.EndRound("Tous les joueurs ont été éliminés !")
+	}
+}
+
 func (r *Room) nextRound() {
 	r.Mu.Lock()
 	if r.CurrentRound >= r.MaxRounds {
@@ -561,6 +627,20 @@ func (r *Room) nextRound() {
 	r.RevealSkipVotes = make(map[string]bool)
 	r.Buzzed = make(map[string]int64)
 	r.RoundStart = time.Now()
+	// Initialise les vies au premier round seulement.
+	if r.CurrentRound == 1 && r.LivesMode > 0 {
+		r.PlayerLives = make(map[string]int)
+		for c := range r.Clients {
+			if !c.IsSpectator {
+				r.PlayerLives[c.Username] = r.LivesMode
+			}
+		}
+	}
+	livesMode := r.LivesMode
+	livesSnapshot := make(map[string]int)
+	for k, v := range r.PlayerLives {
+		livesSnapshot[k] = v
+	}
 	// Démarre la lecture à un point aléatoire (0–50 %) plutôt qu'au début :
 	// plus fun, et identique pour tous les joueurs de la salle (équité).
 	r.StartFraction = rand.Float64() * 0.5
@@ -647,6 +727,19 @@ func (r *Room) nextRound() {
 	case r.Broadcast <- data:
 	case <-r.done:
 		return
+	}
+
+	// En mode vies, on envoie l'état des vies à chaque début de round.
+	if livesMode > 0 && len(livesSnapshot) > 0 {
+		livesMsg, _ := json.Marshal(map[string]interface{}{
+			"type":    "LIVES_UPDATE",
+			"payload": livesSnapshot,
+		})
+		select {
+		case r.Broadcast <- livesMsg:
+		case <-r.done:
+			return
+		}
 	}
 
 	// Round timer: abort cleanly when the room is destroyed mid-round.
