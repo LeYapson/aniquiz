@@ -13,6 +13,9 @@ async function horizontalOverflow(page) {
 
 test.describe('Mobile', () => {
   test('la landing page ne déborde pas horizontalement', async ({ page }) => {
+    await page.route('**/api/stats', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ players_online: 0, active_rooms: 0 }) })
+    )
     await page.goto('/')
     await expect(page.getByRole('button', { name: 'Jouer maintenant' })).toBeVisible()
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1)

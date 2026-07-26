@@ -45,7 +45,7 @@
                 <p class="daily-widget-sub">Prochain dans <strong>{{ countdown }}</strong></p>
               </div>
             </div>
-            <button class="daily-widget-btn" @click="emit('navigate', 'daily')">Jouer</button>
+            <button class="daily-widget-btn" @click="emit('navigate', 'daily')">Accéder →</button>
           </div>
           <div class="devlog-header">
             <h2><span aria-hidden="true">📰</span> Dernières nouvelles</h2>
