@@ -134,4 +134,3 @@ func DailyLeaderboardHandler(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60")
 	c.JSON(http.StatusOK, entries)
 }
-

@@ -11,7 +11,7 @@ import (
 var dailyEpoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func dailyDayNum(date time.Time) int {
-	return int(date.UTC().Truncate(24 * time.Hour).Sub(dailyEpoch).Hours() / 24)
+	return int(date.UTC().Truncate(24*time.Hour).Sub(dailyEpoch).Hours() / 24)
 }
 
 // GetDailyTrack retourne la piste du jour de façon déterministe :
@@ -41,8 +41,8 @@ func DailyStartFraction(date time.Time) float64 {
 }
 
 type DailyResult struct {
-	Found    bool  `json:"found"`
-	TimeMs   int   `json:"time_ms"`
+	Found    bool      `json:"found"`
+	TimeMs   int       `json:"time_ms"`
 	PlayedAt time.Time `json:"played_at"`
 }
 
