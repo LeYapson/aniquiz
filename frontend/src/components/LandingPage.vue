@@ -82,6 +82,32 @@
       </div>
     </section>
 
+    <!-- ══════════════════════════════════════ QUIZ DU JOUR ══ -->
+    <section class="section daily-section">
+      <div class="daily-inner">
+        <div class="daily-text reveal--left">
+          <span class="daily-badge">📅 Nouveau</span>
+          <h2 class="section-title left">Quiz du jour</h2>
+          <p class="daily-desc">
+            Chaque jour à minuit, une nouvelle piste est tirée pour tout le monde.
+            Même extrait, même règles — seul ton temps de réponse fait la différence.
+          </p>
+          <ul class="daily-features">
+            <li v-for="feat in dailyFeatures" :key="feat"><span class="rf-dot"></span>{{ feat }}</li>
+          </ul>
+          <button class="btn-play daily-cta" @click="emit('play')">Jouer maintenant</button>
+        </div>
+        <div class="daily-visual reveal--right">
+          <img :src="img.koraDaily" alt="Kora et le quiz du jour" class="kora-daily" />
+          <div class="daily-stats-pills">
+            <div class="daily-pill">📅 1 quiz / jour</div>
+            <div class="daily-pill">⏱ Classé par temps</div>
+            <div class="daily-pill">🔄 Reset minuit UTC</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ═══════════════════════════════════ PROGRESSION & SOCIAL ══ -->
     <section class="section progression-section">
       <h2 class="section-title">Progresse et personnalise</h2>
@@ -227,6 +253,7 @@ const img = {
   mascot: '/mascot_kora.png',
   koraProf: '/kora_prof.png',
   koraFr: '/kora-fr.png',
+  koraDaily: '/kora-daily.png',
 };
 
 const steps = [
@@ -246,6 +273,13 @@ const progressionFeats = [
   { icon: '⭐', title: 'XP & Niveaux', body: "Gagne de l'XP à chaque partie et monte en niveau. Ta progression est visible sur ton profil et dans le classement global." },
   { icon: '🖼️', title: 'Cadres d\'avatar', body: 'Débloque des cadres exclusifs du Bronze au Rainbow en montant de niveau. Affiche ton rang avec style.' },
   { icon: '👥', title: 'Amis & Invitations', body: 'Ajoute tes amis et invite-les directement dans tes salons depuis le header. Jouer ensemble n\'a jamais été aussi simple.' },
+];
+
+const dailyFeatures = [
+  'Même piste pour tous les joueurs ce jour-là',
+  'Une seule tentative — pas de deuxième chance',
+  'Classement remis à zéro chaque jour à minuit',
+  'Choix multiples pour jouer sans se tromper d\'orthographe',
 ];
 
 const rankedFeatures = [
@@ -652,6 +686,77 @@ const badges = [
 .mode-available { background: rgba(34,197,94,0.15); color: #4ade80; }
 .mode-soon      { background: rgba(100,116,139,0.15); color: #94a3b8; }
 
+/* ─── Quiz du jour ──────────────────────────────────────────── */
+.daily-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, transparent, rgba(249,115,22,0.02), transparent);
+}
+.daily-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+.daily-badge {
+  display: inline-block;
+  background: rgba(249,115,22,0.15);
+  color: #f97316;
+  border: 1px solid rgba(249,115,22,0.3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 99px;
+  margin-bottom: 14px;
+}
+.daily-desc {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.daily-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.daily-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+.daily-cta { max-width: 200px; }
+.daily-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.kora-daily {
+  width: 220px;
+  filter: drop-shadow(0 4px 24px rgba(249,115,22,0.25));
+  animation: floatKora 5s 1s ease-in-out infinite;
+}
+.daily-stats-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.daily-pill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
 /* ─── Ranked ────────────────────────────────────────────────── */
 .ranked-section {
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -908,6 +1013,10 @@ const badges = [
   .modes-grid { grid-template-columns: 1fr; }
   .progression-grid { grid-template-columns: 1fr; }
   .ranked-inner { grid-template-columns: 1fr; gap: 40px; }
+  .daily-inner { grid-template-columns: 1fr; gap: 32px; }
+  .daily-visual { order: -1; }
+  .kora-daily { width: 160px; }
+  .daily-cta { max-width: 100%; }
   .section-title.left { text-align: center; }
   .support-section { flex-direction: column; text-align: center; gap: 32px; }
   .support-kora { width: 120px; }

@@ -93,6 +93,7 @@ const user = computed(() => authStore.user);
 const tabs = computed(() => {
   const base = [
     { id: 'home',        icon: '🎮', label: 'Jouer' },
+    { id: 'daily',       icon: '📅', label: 'Quiz du jour' },
     { id: 'leaderboard', icon: '🏆', label: 'Classement' },
     { id: 'profile',     icon: '👤', label: 'Profil' },
     { id: 'news',        icon: '📰', label: 'News' },

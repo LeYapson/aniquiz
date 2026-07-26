@@ -295,6 +295,10 @@ func NewRouter(store Store) *gin.Engine {
 		protected.DELETE("/api/me/avatar", DeleteAvatarHandler)
 
 		// Invitations à rejoindre un salon
+		protected.GET("/api/daily", DailyHandler)
+		protected.POST("/api/daily/submit", DailySubmitHandler)
+		protected.GET("/api/daily/leaderboard", DailyLeaderboardHandler)
+
 		protected.GET("/api/invites", ListRoomInvitesHandler)
 		protected.POST("/api/invites", SendRoomInviteHandler)
 		protected.DELETE("/api/invites/:id", DismissRoomInviteHandler)
