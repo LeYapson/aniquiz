@@ -72,6 +72,28 @@ func NewRouter(store Store) *gin.Engine {
 
 	router.GET("/rooms", ListRoomsHandler)
 
+	router.GET("/api/stats", func(c *gin.Context) {
+		game.RoomsMu.Lock()
+		players, rooms := 0, 0
+		for _, r := range game.ActiveRooms {
+			r.Mu.Lock()
+			count := 0
+			for cl := range r.Clients {
+				if !cl.IsSpectator {
+					count++
+				}
+			}
+			r.Mu.Unlock()
+			if count > 0 {
+				players += count
+				rooms++
+			}
+		}
+		game.RoomsMu.Unlock()
+		c.Header("Cache-Control", "public, max-age=20")
+		c.JSON(http.StatusOK, gin.H{"players_online": players, "active_rooms": rooms})
+	})
+
 	router.GET("/api/leaderboard", func(c *gin.Context) {
 		entries, err := database.GetLeaderboard(50)
 		if err != nil {
