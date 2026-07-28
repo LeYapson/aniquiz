@@ -21,10 +21,12 @@ func dailyDayNum(date time.Time) int {
 func GetDailyTrack(date time.Time) (*models.Track, error) {
 	dayNum := dailyDayNum(date)
 	var t models.Track
+	// ORDER BY md5 shuffles les pistes de façon déterministe mais non-séquentielle,
+	// évitant que les pistes du même anime (IDs consécutifs) tombent plusieurs jours de suite.
 	err := Pool.QueryRow(context.Background(), `
 		SELECT id, title, artist, anime_name, audio_url, difficulty, track_type
 		FROM tracks
-		ORDER BY id
+		ORDER BY md5(id::text || 'aniquiz-daily')
 		LIMIT 1
 		OFFSET ($1 % (SELECT COUNT(*) FROM tracks))`,
 		dayNum,
