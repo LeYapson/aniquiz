@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"os"
+	"time"
 	"unicode"
 
 	"github.com/LeYapson/aniquiz/internal/database"
@@ -22,6 +23,11 @@ type Store interface {
 	GetUserByUsernameOrEmail(identifier string) (*models.User, error)
 	SaveSpeedrunResult(userID, score int) error
 	GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error)
+	GetUserByUsernameAndEmail(username, email string) (*models.User, error)
+	CreatePasswordResetToken(userID int, token string, expiresAt time.Time) error
+	GetPasswordResetToken(token string) (*models.PasswordResetToken, error)
+	DeletePasswordResetToken(token string) error
+	UpdateUserPassword(userID int, passwordHash string) error
 }
 
 // AnswerRequest is the expected body for POST /quiz/answer.
@@ -125,6 +131,8 @@ func NewRouter(store Store) *gin.Engine {
 	{
 		authLimited.POST("/api/auth/register", RegisterHandler(store))
 		authLimited.POST("/api/auth/login", LoginHandler(store))
+		authLimited.POST("/api/auth/forgot-password", ForgotPasswordHandler(store))
+		authLimited.POST("/api/auth/reset-password", ResetPasswordHandler(store))
 	}
 
 	// --- ROUTES BOT DISCORD (auth par clé partagée X-Bot-Key, pas de JWT) ---

@@ -1,9 +1,53 @@
 <template>
   <div class="auth-container">
     <div class="auth-box">
-      <h2>{{ isLogin ? 'Connexion à AniQuiz' : 'Créer un compte' }}</h2>
+      <h2>{{ title }}</h2>
 
-      <form @submit.prevent="handleSubmit" novalidate>
+      <!-- Mode mot de passe oublié -->
+      <form v-if="isForgotPassword" @submit.prevent="handleForgot" novalidate>
+        <BaseInput
+          v-model="forgotForm.username"
+          label="Pseudo"
+          placeholder="Votre pseudo"
+          autocomplete="username"
+          :error="forgotErrors.username"
+          id="forgot-username"
+          required
+        />
+        <BaseInput
+          v-model="forgotForm.email"
+          type="email"
+          label="Adresse Email"
+          placeholder="exemple@mail.com"
+          autocomplete="email"
+          :error="forgotErrors.email"
+          id="forgot-email"
+          required
+        />
+
+        <div
+          v-if="message.text"
+          :class="['auth-alert', `auth-alert--${message.type}`]"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ message.text }}
+        </div>
+
+        <BaseButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          full
+          :loading="loading"
+          style="margin-top: 6px;"
+        >
+          Envoyer le lien
+        </BaseButton>
+      </form>
+
+      <!-- Mode connexion / inscription -->
+      <form v-else @submit.prevent="handleSubmit" novalidate>
         <BaseInput
           v-if="!isLogin"
           v-model="form.email"
@@ -37,7 +81,12 @@
           required
         />
 
-        <!-- Inline alert for server-level feedback -->
+        <div v-if="isLogin" class="forgot-link">
+          <BaseButton variant="link" type="button" @click="switchToForgot">
+            Mot de passe oublié ?
+          </BaseButton>
+        </div>
+
         <div
           v-if="message.text"
           :class="['auth-alert', `auth-alert--${message.type}`]"
@@ -61,7 +110,7 @@
 
       <div class="auth-toggle">
         <BaseButton variant="link" @click="toggleMode">
-          {{ isLogin ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter' }}
+          {{ toggleLabel }}
         </BaseButton>
       </div>
     </div>
@@ -69,27 +118,51 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { BaseButton, BaseInput } from './ui/index.js'
 import { authStore } from '../authStore'
 import { API_URL } from '../config'
 
-const isLogin  = ref(true)
-const loading  = ref(false)
-const message  = reactive({ text: '', type: '' })
-const fieldErrors = reactive({ email: '', identifier: '', password: '' })
+const isLogin        = ref(true)
+const isForgotPassword = ref(false)
+const loading        = ref(false)
+const message        = reactive({ text: '', type: '' })
+const fieldErrors    = reactive({ email: '', identifier: '', password: '' })
+const forgotErrors   = reactive({ username: '', email: '' })
 
-const form = reactive({ email: '', identifier: '', password: '' })
+const form       = reactive({ email: '', identifier: '', password: '' })
+const forgotForm = reactive({ username: '', email: '' })
+
+const title = computed(() => {
+  if (isForgotPassword.value) return 'Mot de passe oublié'
+  return isLogin.value ? 'Connexion à AniQuiz' : 'Créer un compte'
+})
+
+const toggleLabel = computed(() => {
+  if (isForgotPassword.value) return 'Retour à la connexion'
+  return isLogin.value ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'
+})
 
 const clearErrors = () => {
-  message.text        = ''
+  message.text           = ''
   fieldErrors.email      = ''
   fieldErrors.identifier = ''
   fieldErrors.password   = ''
+  forgotErrors.username  = ''
+  forgotErrors.email     = ''
 }
 
 const toggleMode = () => {
-  isLogin.value = !isLogin.value
+  if (isForgotPassword.value) {
+    isForgotPassword.value = false
+  } else {
+    isLogin.value = !isLogin.value
+  }
+  clearErrors()
+}
+
+const switchToForgot = () => {
+  isForgotPassword.value = true
   clearErrors()
 }
 
@@ -108,6 +181,43 @@ const validate = () => {
     ok = false
   }
   return ok
+}
+
+const validateForgot = () => {
+  let ok = true
+  if (!forgotForm.username) {
+    forgotErrors.username = 'Pseudo requis'
+    ok = false
+  }
+  if (!forgotForm.email) {
+    forgotErrors.email = 'Email requis'
+    ok = false
+  }
+  return ok
+}
+
+const handleForgot = async () => {
+  clearErrors()
+  if (!validateForgot()) return
+
+  loading.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username: forgotForm.username, email: forgotForm.email }),
+    })
+    const data = await response.json()
+    message.text = data.message || 'Email envoyé.'
+    message.type = 'success'
+    forgotForm.username = ''
+    forgotForm.email    = ''
+  } catch {
+    message.text = 'Une erreur est survenue, réessaie plus tard.'
+    message.type = 'error'
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleSubmit = async () => {
@@ -182,6 +292,11 @@ form {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.forgot-link {
+  text-align: right;
+  margin-top: -6px;
 }
 
 /* Inline server alert */
