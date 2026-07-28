@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/LeYapson/aniquiz/internal/game"
 	"github.com/LeYapson/aniquiz/internal/handlers"
@@ -41,6 +42,15 @@ func (m *mockStore) SaveSpeedrunResult(_, _ int) error { return m.err }
 func (m *mockStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
 	return nil, m.err
 }
+func (m *mockStore) GetUserByUsernameAndEmail(_, _ string) (*models.User, error) {
+	return nil, nil
+}
+func (m *mockStore) CreatePasswordResetToken(_ int, _ string, _ time.Time) error { return m.err }
+func (m *mockStore) GetPasswordResetToken(_ string) (*models.PasswordResetToken, error) {
+	return nil, nil
+}
+func (m *mockStore) DeletePasswordResetToken(_ string) error  { return nil }
+func (m *mockStore) UpdateUserPassword(_ int, _ string) error { return m.err }
 
 // helpers
 

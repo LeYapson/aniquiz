@@ -116,6 +116,15 @@ type LibraryStats struct {
 	Users          int `json:"users"`
 }
 
+// PasswordResetToken représente un token de réinitialisation de mot de passe.
+type PasswordResetToken struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // AdminTrackRow : ligne du navigateur de pistes (admin, lecture seule).
 type AdminTrackRow struct {
 	ID        int      `json:"id"`

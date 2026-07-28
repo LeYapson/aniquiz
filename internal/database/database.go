@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/LeYapson/aniquiz/internal/models"
 	"github.com/jackc/pgx/v5"
@@ -127,6 +128,16 @@ func Migrate() error {
 			CONSTRAINT daily_results_unique UNIQUE (user_id, date)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_daily_results_date ON daily_results(date)`,
+		// Tokens de réinitialisation de mot de passe (un seul actif par utilisateur).
+		`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+			id         SERIAL PRIMARY KEY,
+			user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token      TEXT UNIQUE NOT NULL,
+			expires_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_prt_token   ON password_reset_tokens(token)`,
 	}
 	for _, q := range migrations {
 		if _, err := Pool.Exec(context.Background(), q); err != nil {
@@ -363,6 +374,72 @@ func GetSpeedrunLeaderboard(limit int) ([]models.SpeedrunLeaderboardEntry, error
 		entries = append(entries, e)
 	}
 	return entries, nil
+}
+
+// GetUserByUsernameAndEmail récupère un utilisateur uniquement si le pseudo ET l'email correspondent.
+// Utilisé pour la récupération de mot de passe : les deux doivent correspondre.
+func GetUserByUsernameAndEmail(username, email string) (*models.User, error) {
+	var user models.User
+	err := Pool.QueryRow(context.Background(), `
+		SELECT id, username, email
+		FROM users
+		WHERE username = $1 AND LOWER(email) = LOWER($2)
+	`, username, email).Scan(&user.ID, &user.Username, &user.Email)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// CreatePasswordResetToken supprime tout token existant pour cet utilisateur puis en crée un nouveau.
+func CreatePasswordResetToken(userID int, token string, expiresAt time.Time) error {
+	_, err := Pool.Exec(context.Background(), `
+		DELETE FROM password_reset_tokens WHERE user_id = $1
+	`, userID)
+	if err != nil {
+		return err
+	}
+	_, err = Pool.Exec(context.Background(), `
+		INSERT INTO password_reset_tokens (user_id, token, expires_at)
+		VALUES ($1, $2, $3)
+	`, userID, token, expiresAt)
+	return err
+}
+
+// GetPasswordResetToken retourne le token s'il existe (expiré ou non — la vérification d'expiry est en Go).
+func GetPasswordResetToken(token string) (*models.PasswordResetToken, error) {
+	var t models.PasswordResetToken
+	err := Pool.QueryRow(context.Background(), `
+		SELECT id, user_id, token, expires_at, created_at
+		FROM password_reset_tokens
+		WHERE token = $1
+	`, token).Scan(&t.ID, &t.UserID, &t.Token, &t.ExpiresAt, &t.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// DeletePasswordResetToken supprime un token (après usage ou expiry).
+func DeletePasswordResetToken(token string) error {
+	_, err := Pool.Exec(context.Background(), `
+		DELETE FROM password_reset_tokens WHERE token = $1
+	`, token)
+	return err
+}
+
+// UpdateUserPassword met à jour le hash du mot de passe d'un utilisateur.
+func UpdateUserPassword(userID int, passwordHash string) error {
+	_, err := Pool.Exec(context.Background(), `
+		UPDATE users SET password_hash = $1 WHERE id = $2
+	`, passwordHash, userID)
+	return err
 }
 
 // GetUserByUsernameOrEmail récupère un utilisateur pour vérifier ses identifiants au login

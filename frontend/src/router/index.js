@@ -5,6 +5,7 @@ import LegalPage from '../views/LegalPage.vue'
 import TermsPage from '../views/TermsPage.vue'
 import PrivacyPage from '../views/PrivacyPage.vue'
 import SpeedrunGame from '../views/SpeedrunGame.vue'
+import ResetPasswordPage from '../views/ResetPasswordPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -54,6 +55,15 @@ const router = createRouter({
         title: "Politique de confidentialité | AniQuiz",
         description: "Politique de confidentialité et traitement des données personnelles sur AniQuiz.",
         canonical: 'https://aniquiz.fr/privacy',
+        noindex: true,
+      },
+    },
+    {
+      path: '/reset-password',
+      component: ResetPasswordPage,
+      meta: {
+        title: "Réinitialisation du mot de passe | AniQuiz",
+        description: "Réinitialisez votre mot de passe AniQuiz.",
         noindex: true,
       },
     },

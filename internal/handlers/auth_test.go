@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/LeYapson/aniquiz/internal/handlers"
 	"github.com/LeYapson/aniquiz/internal/models"
@@ -15,9 +16,15 @@ import (
 
 // authMockStore offre un contrôle fin sur les réponses d'auth.
 type authMockStore struct {
-	existingUser *models.User
-	createErr    error
-	getUserErr   error
+	existingUser          *models.User
+	createErr             error
+	getUserErr            error
+	byUsernameAndEmail    *models.User
+	byUsernameAndEmailErr error
+	resetToken            *models.PasswordResetToken
+	getResetTokenErr      error
+	createResetErr        error
+	updatePasswordErr     error
 }
 
 func (m *authMockStore) GetRandomTrack() (*models.Track, error)    { return nil, nil }
@@ -35,6 +42,17 @@ func (m *authMockStore) SaveSpeedrunResult(_, _ int) error { return nil }
 func (m *authMockStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
 	return nil, nil
 }
+func (m *authMockStore) GetUserByUsernameAndEmail(_, _ string) (*models.User, error) {
+	return m.byUsernameAndEmail, m.byUsernameAndEmailErr
+}
+func (m *authMockStore) CreatePasswordResetToken(_ int, _ string, _ time.Time) error {
+	return m.createResetErr
+}
+func (m *authMockStore) GetPasswordResetToken(_ string) (*models.PasswordResetToken, error) {
+	return m.resetToken, m.getResetTokenErr
+}
+func (m *authMockStore) DeletePasswordResetToken(_ string) error  { return nil }
+func (m *authMockStore) UpdateUserPassword(_ int, _ string) error { return m.updatePasswordErr }
 
 // --- RegisterHandler ---
 
@@ -190,6 +208,122 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status: got %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+// --- ForgotPasswordHandler ---
+
+func TestForgotPasswordHandler_InvalidBody(t *testing.T) {
+	router := handlers.NewRouter(&authMockStore{})
+	w := doJSON(router, http.MethodPost, "/api/auth/forgot-password", map[string]string{
+		"username": "user",
+		// email manquant
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestForgotPasswordHandler_UserNotFound_Returns200(t *testing.T) {
+	// Aucun compte trouvé → toujours 200 pour éviter l'énumération.
+	store := &authMockStore{byUsernameAndEmail: nil}
+	router := handlers.NewRouter(store)
+	w := doJSON(router, http.MethodPost, "/api/auth/forgot-password", map[string]string{
+		"username": "inconnu",
+		"email":    "inconnu@example.com",
+	})
+	if w.Code != http.StatusOK {
+		t.Errorf("status: got %d, want %d (ne doit pas révéler l'absence du compte)", w.Code, http.StatusOK)
+	}
+}
+
+func TestForgotPasswordHandler_UserFound_Returns200(t *testing.T) {
+	// Compte trouvé → 200 aussi ; l'envoi SMTP échouera en test (pas de serveur),
+	// mais le handler log l'erreur et répond quand même 200.
+	user := &models.User{ID: 1, Username: "testuser", Email: "test@example.com"}
+	store := &authMockStore{byUsernameAndEmail: user}
+	router := handlers.NewRouter(store)
+	w := doJSON(router, http.MethodPost, "/api/auth/forgot-password", map[string]string{
+		"username": "testuser",
+		"email":    "test@example.com",
+	})
+	if w.Code != http.StatusOK {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusOK)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["message"] == nil {
+		t.Error("la réponse doit contenir un champ 'message'")
+	}
+}
+
+// --- ResetPasswordHandler ---
+
+func TestResetPasswordHandler_InvalidBody(t *testing.T) {
+	router := handlers.NewRouter(&authMockStore{})
+	w := doJSON(router, http.MethodPost, "/api/auth/reset-password", map[string]string{
+		"token": "abc",
+		// password manquant
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestResetPasswordHandler_InvalidToken(t *testing.T) {
+	store := &authMockStore{resetToken: nil}
+	router := handlers.NewRouter(store)
+	w := doJSON(router, http.MethodPost, "/api/auth/reset-password", map[string]string{
+		"token":    "token-inexistant",
+		"password": "newpassword123",
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestResetPasswordHandler_ExpiredToken(t *testing.T) {
+	expired := &models.PasswordResetToken{
+		UserID:    1,
+		Token:     "expired-token",
+		ExpiresAt: time.Now().Add(-2 * time.Hour),
+	}
+	store := &authMockStore{resetToken: expired}
+	router := handlers.NewRouter(store)
+	w := doJSON(router, http.MethodPost, "/api/auth/reset-password", map[string]string{
+		"token":    "expired-token",
+		"password": "newpassword123",
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestResetPasswordHandler_Success(t *testing.T) {
+	valid := &models.PasswordResetToken{
+		UserID:    1,
+		Token:     "valid-token",
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	store := &authMockStore{resetToken: valid}
+	router := handlers.NewRouter(store)
+	w := doJSON(router, http.MethodPost, "/api/auth/reset-password", map[string]string{
+		"token":    "valid-token",
+		"password": "newpassword123",
+	})
+	if w.Code != http.StatusOK {
+		t.Errorf("status: got %d, want %d — body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestResetPasswordHandler_PasswordTooShort(t *testing.T) {
+	router := handlers.NewRouter(&authMockStore{})
+	w := doJSON(router, http.MethodPost, "/api/auth/reset-password", map[string]string{
+		"token":    "valid-token",
+		"password": "court",
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
 
