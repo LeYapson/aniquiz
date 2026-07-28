@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/LeYapson/aniquiz/internal/handlers"
 	"github.com/LeYapson/aniquiz/internal/models"
@@ -36,6 +37,15 @@ func (m *speedrunMockStore) SaveSpeedrunResult(_, _ int) error {
 func (m *speedrunMockStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
 	return m.leaderboard, m.leaderboardErr
 }
+func (m *speedrunMockStore) GetUserByUsernameAndEmail(_, _ string) (*models.User, error) {
+	return nil, nil
+}
+func (m *speedrunMockStore) CreatePasswordResetToken(_ int, _ string, _ time.Time) error { return nil }
+func (m *speedrunMockStore) GetPasswordResetToken(_ string) (*models.PasswordResetToken, error) {
+	return nil, nil
+}
+func (m *speedrunMockStore) DeletePasswordResetToken(_ string) error  { return nil }
+func (m *speedrunMockStore) UpdateUserPassword(_ int, _ string) error { return nil }
 
 // startSession est un helper qui appelle POST /api/speedrun/start et retourne le session_id.
 func startSession(t *testing.T, store handlers.Store) string {
@@ -248,6 +258,15 @@ func (f *flexSpeedrunStore) SaveSpeedrunResult(_, _ int) error {
 func (f *flexSpeedrunStore) GetSpeedrunLeaderboard(_ int) ([]models.SpeedrunLeaderboardEntry, error) {
 	return f.leaderboard, nil
 }
+func (f *flexSpeedrunStore) GetUserByUsernameAndEmail(_, _ string) (*models.User, error) {
+	return nil, nil
+}
+func (f *flexSpeedrunStore) CreatePasswordResetToken(_ int, _ string, _ time.Time) error { return nil }
+func (f *flexSpeedrunStore) GetPasswordResetToken(_ string) (*models.PasswordResetToken, error) {
+	return nil, nil
+}
+func (f *flexSpeedrunStore) DeletePasswordResetToken(_ string) error  { return nil }
+func (f *flexSpeedrunStore) UpdateUserPassword(_ int, _ string) error { return nil }
 
 // --- POST /api/speedrun/skip ---
 
