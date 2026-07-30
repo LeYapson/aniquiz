@@ -60,6 +60,9 @@ func main() {
 		log.Fatalf("Erreur migration : %v", err)
 	}
 
+	// 1c - Tâches planifiées (healthcheck audio chaque nuit à 3h UTC)
+	sourcing.StartDailyScheduler()
+
 	// 2 - Router avec les routes testables (ping, rooms, quiz/next, quiz/answer)
 	store := &handlers.PgStore{}
 	router := handlers.NewRouter(store)

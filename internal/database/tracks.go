@@ -234,6 +234,54 @@ func BrowseTracks(q string, limit, offset int) ([]models.AdminTrackRow, error) {
 	return out, nil
 }
 
+// DeadTrackRef identifie une piste morte avec son rang positionnel dans la séquence
+// OP/ED de son anime (ex: OP1, OP2, ED1...). Permet de retrouver la bonne URL
+// sur themes.moe sans stocker l'index en base.
+type DeadTrackRef struct {
+	ID        int
+	MalID     int
+	TrackType string
+	Position  int // rang 1-based parmi toutes les pistes du même (mal_id, track_type)
+}
+
+// GetDeadTrackRefs retourne toutes les pistes marquées not_found avec leur position
+// dans la séquence complète (morts + vivants) de leur anime+type.
+func GetDeadTrackRefs() ([]DeadTrackRef, error) {
+	rows, err := Pool.Query(context.Background(), `
+		WITH ranked AS (
+			SELECT id, mal_id, track_type,
+			       ROW_NUMBER() OVER (PARTITION BY mal_id, track_type ORDER BY id) AS position
+			FROM tracks
+			WHERE mal_id > 0
+		)
+		SELECT r.id, r.mal_id, r.track_type, r.position
+		FROM ranked r
+		JOIN tracks t ON t.id = r.id
+		WHERE t.audio_url = 'not_found'
+		ORDER BY r.mal_id, r.track_type, r.position`)
+	if err != nil {
+		return nil, fmt.Errorf("récupération des pistes mortes échouée : %w", err)
+	}
+	defer rows.Close()
+
+	var refs []DeadTrackRef
+	for rows.Next() {
+		var r DeadTrackRef
+		if err := rows.Scan(&r.ID, &r.MalID, &r.TrackType, &r.Position); err != nil {
+			return nil, err
+		}
+		refs = append(refs, r)
+	}
+	return refs, rows.Err()
+}
+
+// UpdateTrackAudioURL met à jour l'URL audio d'une piste (re-sourcing).
+func UpdateTrackAudioURL(id int, url string) error {
+	_, err := Pool.Exec(context.Background(),
+		`UPDATE tracks SET audio_url = $1 WHERE id = $2`, url, id)
+	return err
+}
+
 // GetDistinctMalIDs retourne les MAL IDs distincts présents dans la librairie,
 // pour rafraîchir leurs métadonnées (ex. backfill des titres alternatifs).
 func GetDistinctMalIDs() ([]int, error) {
