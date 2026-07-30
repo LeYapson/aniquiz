@@ -21,7 +21,7 @@ func dailyDayNum(date time.Time) int {
 func GetDailyTrack(date time.Time) (*models.Track, error) {
 	dayNum := dailyDayNum(date)
 	var t models.Track
-	// Filtre les pistes mortes et shuffles via md5 pour éviter les clusters d'animes.
+	// Filtre les pistes mortes, shuffles via md5 pour éviter les clusters d'animes.
 	err := Pool.QueryRow(context.Background(), `
 		SELECT id, title, artist, anime_name, audio_url, difficulty, track_type
 		FROM tracks
