@@ -21,12 +21,14 @@ func dailyDayNum(date time.Time) int {
 func GetDailyTrack(date time.Time) (*models.Track, error) {
 	dayNum := dailyDayNum(date)
 	var t models.Track
+	// Filtre les pistes mortes et shuffles via md5 pour éviter les clusters d'animes.
 	err := Pool.QueryRow(context.Background(), `
 		SELECT id, title, artist, anime_name, audio_url, difficulty, track_type
 		FROM tracks
-		ORDER BY id
+		WHERE audio_url != 'not_found' AND audio_url != ''
+		ORDER BY md5(id::text || 'aniquiz-daily')
 		LIMIT 1
-		OFFSET ($1 % (SELECT COUNT(*) FROM tracks))`,
+		OFFSET ($1 % (SELECT COUNT(*) FROM tracks WHERE audio_url != 'not_found' AND audio_url != ''))`,
 		dayNum,
 	).Scan(&t.ID, &t.Title, &t.Artist, &t.AnimeName, &t.AudioURL, &t.Difficulty, &t.TrackType)
 	if err != nil {
